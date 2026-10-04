@@ -20,6 +20,6 @@ make run
 Das Programm liegt in `build/minigolf.prg`. `make run` startet einen
 PAL-C16 mit 16 KB RAM. Auf dem C16: `LOAD"MINIGOLF",8,1`, danach `RUN`.
 
-Weitere Dokumentation: [Spezifikation](docs/SPEC.md),
-[Umsetzungsplan](docs/TODO.md), [Entwicklung und Tests](docs/development.md)
+Weitere Dokumentation: [Spezifikation](SPEC.md),
+[Umsetzungsplan](TODO.md), [Entwicklung und Tests](docs/development.md)
 und [Hardware-Nachweise](docs/hardware.md).

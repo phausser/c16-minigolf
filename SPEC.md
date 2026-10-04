@@ -146,7 +146,7 @@ Tests: deterministische Wiedergaben im tatsächlichen 6502-Kern, unabhängige ho
 
 ## Technische Quellen und offene Nachweise
 
-Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf), insbesondere Standard-Hi-Res, Bitmap-Organisation, Register und Timing. Der Hi-Res-Modus hat 320 × 200 Pixel und einen 8-KB-ausgerichteten Bitmap-Bereich. Registerwerte, Attributadressierung, RAM-Ladeverhalten und PAL/NTSC-Erkennung sind vor Implementierung am Datenblatt und im Emulator zu verifizieren. Gemessene Register- und Laufzeitnachweise stehen in hardware.md; offene Freigaben sind in TODO.md ausgewiesen.
+Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf), insbesondere Standard-Hi-Res, Bitmap-Organisation, Register und Timing. Der Hi-Res-Modus hat 320 × 200 Pixel und einen 8-KB-ausgerichteten Bitmap-Bereich. Registerwerte, Attributadressierung, RAM-Ladeverhalten und PAL/NTSC-Erkennung sind vor Implementierung am Datenblatt und im Emulator zu verifizieren. Gemessene Register- und Laufzeitnachweise stehen in docs/hardware.md; offene Freigaben sind in TODO.md ausgewiesen.
 
 Keine Rückfrage ist zum Start nötig. Die oben genannten Annahmen legen einen konkreten ersten Release fest; Steuerung und physikalische Konstanten werden nach dem spielbaren Prototyp fein abgestimmt.
 
@@ -173,7 +173,7 @@ Der Prototyp erfüllt noch nicht sämtliche Abnahmekriterien: offene
 Kontaktgrenzfälle, 50-Hz-Worst-Case und Platz für alle 18 Bahnen stehen in
 TODO.md. Der umfangreiche Physikkern benötigt derzeit 5571 Runtime-Bytes;
 7 bleiben im Hauptbereich frei. Exakte Speicher- und Laufzeitmessungen
-stehen in hardware.md. Das 50-Hz-Ziel bleibt bestehen.
+stehen in docs/hardware.md. Das 50-Hz-Ziel bleibt bestehen.
 
 ### Rundung, Optimierungen und kompakter Export
 
