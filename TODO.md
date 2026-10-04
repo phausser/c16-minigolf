@@ -23,6 +23,7 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] Statische Geometrie sowie Ball-/Zielmarke zeichnen; Hintergrundrestaurierung prüfen.
 - [ ] Ballposition aus der tatsächlichen Bewegung übernehmen.
 - [ ] Festkommaformate, Zwischenbreiten, Rundung und Kontakt-Epsilon festlegen.
+- [ ] Pixelgenaue Ballbewegung mit Subpixel-Physik implementieren und prüfen: jede Pixelposition erreichbar, kein Einrasten auf Zeichen- oder Zweipixelraster, auch rechts von x=255.
 - [ ] 128 Richtungen und 32 Stärken erzeugen und normieren.
 - [ ] Rollreibung, exakten Stillstand und Wegprüfung am Loch implementieren.
 - [ ] Kreis-Segment- und Kreis-Endpunkt-Kontakte mit frühestem Kontakt implementieren.

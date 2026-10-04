@@ -46,6 +46,8 @@ Tastaturbelegung als Ausgangspunkt: A/D drehen, W/S Stärke ändern, SPACE schla
 
 Fester Simulationsschritt von 1/50 Sekunde. PAL aktualisiert einmal je Bild. Positionen als vorzeichenlose 16-Bit-Werte mit acht Nachkommabits; Geschwindigkeiten als vorzeichenbehaftete 16-Bit-Werte mit acht Nachkommabits. Zwischenrechnungen verwenden ausreichende Breite, insbesondere für Quadrate und Skalarprodukte. Differenzen werden vor der Rechnung verbreitert; x > 255 darf nicht überlaufen.
 
+Verbindlich: pixelgenaue Bewegung. Der Ball kann auf jeder einzelnen Pixelposition dargestellt werden; seine Bewegung wird nicht auf Zeichen-, Zell- oder Zweipixelraster eingerastet. Die Physik behält Subpixel-Präzision, nur die Darstellung rundet nach einer festen Regel auf ganze Pixel. Das Zweipixelraster der kompakten Bahndaten beschränkt ausschließlich die Bahnkoordinaten. Kollisionsprüfungen verfolgen den vollständigen Weg in Teilintervallen von höchstens einem Pixel; schnelle Schläge dürfen zwischen zwei dargestellten Bildern mehrere Pixel zurücklegen.
+
 128 normierte Richtungsvektoren über Viertelwellen-Tabelle und Symmetrie. 32 monotone Startgeschwindigkeiten; vorläufig maximal 4 Pixel pro Simulationsschritt. Geschwindigkeit, Rollreibung und Lochfangschwelle werden gemeinsam kalibriert und als feste Konstanten dokumentiert.
 
 ### Bewegung und Reibung
