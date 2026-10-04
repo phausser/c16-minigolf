@@ -1,7 +1,8 @@
-; Even/odd scanline fill. Bitmap 1 = solid black, 0 = playable gray.
+; Even/odd scanline fill. Bitmap 1 = white ink, 0 = black solid.
+; Playable gray is a 50% checkerboard; ball and aim use solid white ink.
 ; Each nonhorizontal edge toggles the pixels to its right, with a half-open
 ; y interval so shared vertices are counted exactly once. Obstacles use the
-; same parity rule. Requires a freshly initialized solid-black playfield.
+; same parity rule. Requires a freshly initialized zero-filled playfield.
 draw_course:
     lda #<course_fill_edges
     sta COURSE_PTR
@@ -34,10 +35,16 @@ fill_scanline:
     lda LINE_Y
     sta PIXEL_Y
     jsr point_pixel
+    lda LINE_Y
+    and #1
+    tax
+    lda course_pattern,x
+    sta WALL_X_OFFSET
     lda PIXEL_MASK
     asl
     sec
     sbc #1                  ; first byte: bits from the crossing to the right
+    and WALL_X_OFFSET
     sta PIXEL_MASK
     lda PIXEL_X + 1
     lsr
@@ -61,7 +68,7 @@ fill_byte:
     bcc fill_byte_ready
     inc BITMAP_PTR + 1
 fill_byte_ready:
-    lda #$ff
+    lda WALL_X_OFFSET
     sta PIXEL_MASK
     dec GLYPH_BITS
     bne fill_byte
@@ -123,11 +130,11 @@ cup_x_sign:
 initialise_course_colors:
     ldx #0
 video_course_colors:
-    lda #(COURSE_SURFACE_COLOR & $70) + ((COURSE_SOLID_COLOR & $70) >> 4)
+    lda #(COURSE_SOLID_COLOR & $70) + ((COURSE_INK_COLOR & $70) >> 4)
     sta LUMINANCE_BASE + 40,x
     sta LUMINANCE_BASE + 296,x
     sta LUMINANCE_BASE + 552,x
-    lda #((COURSE_SOLID_COLOR & $0f) << 4) + (COURSE_SURFACE_COLOR & $0f)
+    lda #((COURSE_INK_COLOR & $0f) << 4) + (COURSE_SOLID_COLOR & $0f)
     sta COLOR_BASE + 40,x
     sta COLOR_BASE + 296,x
     sta COLOR_BASE + 552,x
@@ -135,10 +142,14 @@ video_course_colors:
     bne video_course_colors
     ldx #31
 video_course_color_tail:
-    lda #(COURSE_SURFACE_COLOR & $70) + ((COURSE_SOLID_COLOR & $70) >> 4)
+    lda #(COURSE_SOLID_COLOR & $70) + ((COURSE_INK_COLOR & $70) >> 4)
     sta LUMINANCE_BASE + 808,x
-    lda #((COURSE_SOLID_COLOR & $0f) << 4) + (COURSE_SURFACE_COLOR & $0f)
+    lda #((COURSE_INK_COLOR & $0f) << 4) + (COURSE_SOLID_COLOR & $0f)
     sta COLOR_BASE + 808,x
     dex
     bpl video_course_color_tail
     rts
+
+; Alternating pixel parity on adjacent scanlines: no 8x8 cell seams.
+course_pattern:
+!byte $aa,$55

@@ -83,8 +83,8 @@ def main():
     expected_attrs[1024+920:1024+960] = bytes(40)
     expected_attrs[:40] = bytes(40)
     expected_attrs[1024:1024+40] = bytes(40)
-    luma = (s['COURSE_SURFACE_COLOR'] & 0x70) + ((s['COURSE_SOLID_COLOR'] & 0x70) >> 4)
-    color = ((s['COURSE_SOLID_COLOR'] & 15) << 4) + (s['COURSE_SURFACE_COLOR'] & 15)
+    luma = (s['COURSE_SOLID_COLOR'] & 0x70) + ((s['COURSE_INK_COLOR'] & 0x70) >> 4)
+    color = ((s['COURSE_INK_COLOR'] & 15) << 4) + (s['COURSE_SOLID_COLOR'] & 15)
     expected_attrs[40:840] = bytes([luma])*800
     expected_attrs[1024+40:1024+840] = bytes([color])*800
     assert attrs == expected_attrs, 'hires colors/luminance/hidden code row'

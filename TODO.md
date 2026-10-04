@@ -44,15 +44,15 @@ Abnahme: spielbarer Kern erfüllt Speicher- und Zeitbudget mit begründeter Rese
 
 ### Grafikänderung vor der Speicheroptimierung
 
-Gleichmäßige graue Spielflächen und schwarzer Außenbereich/Hindernisse sind
-umgesetzt. Die Zellschatten wurden auf Nutzerwunsch wieder entfernt.
-Ball/Zielmarke/Lochring sind schwarz auf Grau, HUD bleibt weiß auf Schwarz.
-Farben zentral in src/palette.inc als (LUMINANZ << 4) + FARBE; die vom Nutzer
-gewählte Flächenluminanz 5 bleibt erhalten. 43 Tests bestehen, VICE bestätigt
-das Bild. Runtime 5516 Bytes, 62 frei; statischer Renderer 239/320 Bytes.
-Die Kurs-Hochrechnung benötigt 676 weitere Bytes plus Decoder, aktuelle Bahn,
-Füllkanten und Metadaten. Laufzeitabnahme weiter offen: 40253 statt höchstens
-32000 PAL-Ticks. Physik unverändert.
+Auf Nutzerwunsch weiße Markierungen im unveränderten Hi-Res-Modus:
+Spielflächen mit feinem 50%-Schwarz-Weiß-Schachbrettmuster (optisch grau),
+Außenbereich/Hindernisse schwarz, Ball/Zielmarke/Lochring weiß. Keine Schatten.
+Palette in src/palette.inc als (LUMINANZ << 4) + FARBE: COURSE_INK_COLOR und
+COURSE_SOLID_COLOR. Das Muster steht in course_pattern ($aa/$55).
+43 Tests bestehen; VICE bestätigt Bild und Restaurierung. Runtime 5516 Bytes,
+62 frei; statischer Renderer 253/320 Bytes. Kurs-Hochrechnung: 676 Bytes fehlen
+plus Decoder, aktuelle Bahn, Füllkanten und Metadaten. Laufzeitabnahme weiter
+offen: 40253 statt höchstens 32000 PAL-Ticks. Physik unverändert.
 
 ### Nächste Umsetzung innerhalb von Schritt 2
 

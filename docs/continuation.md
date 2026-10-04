@@ -150,3 +150,16 @@ und initialisiert Luminanz/Farbton der 800 Spielfeldzellen, ohne Code/HUD.
 239/320 Bytes. PRG weiter 12282 Bytes. Physikmaximum 40253 > 32000 Ticks.
 Kurs-Hochrechnung: 676 Bytes fehlen plus Decoder/aktuelle Bahn/Metadaten.
 Nächster Schritt bleibt die Speicherarchitektur.
+
+## Weiße Markierungen, gemusterte Fläche
+
+Auf Nutzerfreigabe nun 50%-Schachbrettmuster statt echter grauer Zellfarbe.
+Hi-Res bleibt 320×200; alle Spielfeldzellen Weiß auf Schwarz. Palette:
+COURSE_INK_COLOR = (7 << 4) + 1, COURSE_SOLID_COLOR = (0 << 4) + 0.
+COURSE_SURFACE_COLOR entfällt. Ink färbt Ball/Zielmarke/Lochring UND Muster;
+Flächenhelligkeit folgt der Musterdichte, nicht einer eigenen TED-Farbe.
+course_pattern = $aa,$55, fill_byte XOR maskiert mit Zeilenparität.
+Keine Schatten, keine zusätzliche Bitmap. 43 Tests und VICE-Grafikprüfung
+bestehen. Runtime 5516 Bytes, 62 frei; Renderer inkl. Palette/Muster 253/320.
+PRG 12282 Bytes. Physikmaximum weiterhin 40253 > 32000 PAL-Ticks.
+Vorschau build/vice-pal.png. Nächster Schritt weiterhin Speicherarchitektur.

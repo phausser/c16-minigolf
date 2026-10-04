@@ -48,7 +48,7 @@ video_install_lookup_tail:
     sta BITMAP_PTR + 1
     ldx #25
     ldy #0
-    lda #$ff                 ; solid black; parity fill opens gray surfaces
+    lda #0                   ; black; parity fill adds the white surface pattern
 video_clear_page:
     sta (BITMAP_PTR),y
     iny

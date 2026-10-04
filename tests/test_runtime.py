@@ -145,15 +145,15 @@ class HardwareTests(unittest.TestCase):
         self.r.bus[S['lookup_image']:S['lookup_image']+320] = lookup
         self.r.call('initialise_video')
         luma, colors = [7]*1024,[16]*1024
-        colors[40:840] = [((S["COURSE_SOLID_COLOR"] & 15) << 4) + (S["COURSE_SURFACE_COLOR"] & 15)]*800
-        luma[40:840] = [(S["COURSE_SURFACE_COLOR"] & 0x70) + ((S["COURSE_SOLID_COLOR"] & 0x70) >> 4)]*800
+        colors[40:840] = [((S["COURSE_INK_COLOR"] & 15) << 4) + (S["COURSE_SOLID_COLOR"] & 15)]*800
+        luma[40:840] = [(S["COURSE_SOLID_COLOR"] & 0x70) + ((S["COURSE_INK_COLOR"] & 0x70) >> 4)]*800
         luma[840:880] = colors[840:880] = [0]*40
         luma[:40] = colors[:40] = [0]*40
         luma[920:960] = colors[920:960] = [0]*40
         self.assertEqual(self.r.bus[0x1800:0x1c00], luma)
         self.assertEqual(self.r.bus[0x1c00:0x2000], colors)
         self.assertEqual(self.r.bus[0x2000:0x2140],lookup)
-        self.assertEqual(self.r.bus[0x2140:0x3a40], [255]*6400)
+        self.assertEqual(self.r.bus[0x2140:0x3a40], [0]*6400)
         self.assertEqual(self.r.bus[0x3b80:0x3cc0], [0]*320)
         self.assertEqual(self.r.bus[0x3e00:0x3f40], [0]*320)
         self.assertEqual(self.r.bus[0x3cc0:0x3e00],wide)
@@ -191,17 +191,17 @@ class HardwareTests(unittest.TestCase):
             return inside
         for y in range(8,168):
             for x in range(320):
-                if not playable(x,y):
+                if playable(x,y) and (x+y) % 2 == 0:
                     expected[bitmap_offset(x,y)] |= 128 >> (x%8)
         # Uniform surface palette, including boundary cells; code rows stay hidden.
         for row in range(1,21):
             for col in range(40):
                 self.assertEqual(self.r.bus[0x1800+row*40+col],
-                                 (S['COURSE_SURFACE_COLOR'] & 0x70) +
-                                 ((S['COURSE_SOLID_COLOR'] & 0x70) >> 4))
+                                 (S['COURSE_SOLID_COLOR'] & 0x70) +
+                                 ((S['COURSE_INK_COLOR'] & 0x70) >> 4))
                 self.assertEqual(self.r.bus[0x1c00+row*40+col],
-                                 ((S['COURSE_SOLID_COLOR'] & 15) << 4) +
-                                 (S['COURSE_SURFACE_COLOR'] & 15))
+                                 ((S['COURSE_INK_COLOR'] & 15) << 4) +
+                                 (S['COURSE_SOLID_COLOR'] & 15))
         cx,cy = COURSE['cup']
         for i in range(32):
             x = cx+round(math.cos(i*math.tau/32)*5)

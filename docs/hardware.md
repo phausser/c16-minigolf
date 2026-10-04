@@ -20,7 +20,7 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 | $1800–$1FFF | TED-Luminanz und Farbe |
 | $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
 | $2140–$3A3F | Sichtbares Spielfeld |
-| $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner mit Paletteninitialisierung, 239 Bytes |
+| $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner mit Paletteninitialisierung, 253 Bytes |
 | $3B80–$3CBF | Bedienhilfe, HUD-Zeile 22 |
 | $3CC0–$3DFF | Unsichtbare HUD-Zeile: weite Mathematik und Komponentennormierung, 308 Bytes |
 | $3E00–$3F3F | Stärke/Status, HUD-Zeile 24 |
@@ -40,9 +40,10 @@ nachweislich hinein; weitere Speicheroptimierung ist Voraussetzung.
 Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf).
 $FF06=$3B, $FF07=$08, $FF12=$08, $FF14=$18 schalten 320×200-Hi-Res,
 PAL/40 Spalten, RAM-Bitmap $2000 und Attribute $1800/$1C00 ein.
-Im HUD ergeben Luminanz/Farbe $07/$10 Weiß auf Schwarz. Im Spielfeld
-ergeben aktuell $50/$01 Schwarz auf Grau (Flächenluminanz vom Nutzer
-auf 5 eingestellt). Die Farben stehen in src/palette.inc. Multicolor bleibt aus.
+Im HUD und im Spielfeld ergeben Luminanz/Farbe $07/$10 Weiß auf Schwarz.
+Die Spielfläche nutzt ein 50%-Schachbrettmuster ($aa auf geraden, $55 auf
+ungeraden Pixelzeilen) für optisches Grau. Ball, Zielmarke und Lochring sind
+vollständig weiße Pixel. Palette in src/palette.inc, Multicolor bleibt aus.
 IRQ-Quellen sind deaktiviert. VICE prüft die Register mit passenden Masken.
 
 Bitmap-Adresse: $2000 + floor(y/8)×320 + floor(x/8)×8 + (y mod 8).
@@ -51,7 +52,7 @@ den eingebauten ROM-Zeichensatz direkt, ohne ROM-Routinen aufzurufen.
 
 17 Kontursegmente belegen 85 Bytes einschließlich Normalenindex. Neun
 zusätzliche Füllkanten belegen 36 Bytes; sie sind aus denselben Konturen
-abgeleitet. Ein byteweiser Even/Odd-Scanline-Füller öffnet die graue Fläche
+abgeleitet. Ein byteweiser Even/Odd-Scanline-Füller zeichnet das Muster
 in einer schwarzen Bitmap, mit halboffenen y-Intervallen. Renderer und
 Kollision nutzen dieselbe Innenkante. Die Flächenfarbe ist
 gleichmäßig; Zellschatten wurden auf Nutzerwunsch wieder entfernt. Der Generator prüft Grenzen, Segmentlimit,
@@ -253,3 +254,15 @@ Nutzer gewählten Luminanz 5. 43 Tests und VICE-Grafikprüfung bestehen.
 Runtime 5516 Bytes, 62 frei; Renderer/Paletteninitialisierung 239/320 Bytes.
 Physikmaximum 40253 PAL-Ticks; die 32000-Tick-Abnahme bleibt offen. Die
 vorherigen Schattenmessungen oben beschreiben den historischen Stand.
+
+## Weiße Markierungen auf gemusterter Fläche (2026-10-04)
+
+Ersetzt den früheren Stand mit echter grauer Hintergrundfarbe: Hi-Res bleibt
+320×200, weiße Vordergrundpixel und schwarzer Hintergrund in jeder Zelle.
+Das 50%-Schachbrettmuster wird direkt beim Füllen durch Maskieren der
+Scanline-Spannen erzeugt; kein zusätzlicher Bildspeicher. 43 Tests bestehen,
+einschließlich unabhängiger punktweiser Geometrie und Musterparität. VICE
+bestätigt Bild, Palette und Restaurierung. Runtime unverändert 5516 Bytes,
+62 frei; Renderer/Palette/Muster 253/320 Bytes. PRG 12282 Bytes. Physikmaximum
+40253 PAL-Ticks, Laufzeitabnahme weiter offen. Historische Graufarbwerte und
+Schattenmessungen oben sind überholt.
