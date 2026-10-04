@@ -27,7 +27,7 @@ test: $(PRG)
 
 smoke: $(PRG)
 	$(PYTHON) tests/vice_smoke.py --prepare-only
-	$(VICE) -silent -default -console -model c16 -pal -ramsize 16 -sounddev dummy -warp -autostartprgmode 1 -autostart $(PRG) -initbreak 0x0240 -moncommands build/vice-pal.mon -monlog -monlogname build/vice-pal.log -limitcycles 20000000
+	$(VICE) -silent -default -console -model c16 -pal -ramsize 16 -sounddev dummy -warp -autostartprgmode 1 -autostart $(PRG) -initbreak 0x0200 -moncommands build/vice-pal.mon -monlog -monlogname build/vice-pal.log -limitcycles 20000000
 	$(PYTHON) tests/vice_smoke.py --verify-only
 
 check: test smoke

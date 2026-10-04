@@ -1,47 +1,30 @@
-initialise_video:
-    lda #$0b                  ; display off while clearing/drawing
-    sta TED_CONTROL1
-    lda #$08                  ; PAL, 40 columns, hires, zero x-scroll
-    sta TED_CONTROL2
-    lda #$08                  ; bitmap at $2000, dot fetches from RAM
-    sta TED_BITMAP
-    lda #0                    ; allow TED's clock doubling in blanking
-    sta TED_CLOCK
-    sta TED_BACKGROUND
-    sta TED_BORDER
-    lda #$18                  ; attributes $1800, color matrix $1c00
-    sta TED_VIDEO
-
-    ; All 1024 attributes use foreground white/luminance 7, background black.
-    ldx #0
-video_attributes:
-    lda #$07
-    sta LUMINANCE_BASE,x
-    sta LUMINANCE_BASE + $100,x
-    sta LUMINANCE_BASE + $200,x
-    sta LUMINANCE_BASE + $300,x
-    lda #$10
-    sta COLOR_BASE,x
-    sta COLOR_BASE + $100,x
-    sta COLOR_BASE + $200,x
-    sta COLOR_BASE + $300,x
-    inx
-    bne video_attributes
-
+clear_hud_bitmap:
     lda #0
     sta BITMAP_PTR
-    lda #>BITMAP_BASE
+    lda #$3c
     sta BITMAP_PTR + 1
-    ldx #32
     ldy #0
+    ldx #3
+clear_hud_page:
     lda #0
-video_clear_page:
     sta (BITMAP_PTR),y
     iny
-    bne video_clear_page
+    bne clear_hud_page
     inc BITMAP_PTR + 1
     dex
-    bne video_clear_page
+    bne clear_hud_page
+    ; $3b80-$3bff and $3f00-$3f3f finish the 960-byte HUD window.
+    ldx #0
+    lda #0
+clear_hud_edges:
+    sta $3b80,x
+    inx
+    bpl clear_hud_edges
+    ldx #63
+clear_hud_last:
+    sta $3f00,x
+    dex
+    bpl clear_hud_last
     rts
 
 ; TED's low raster byte wraps again at line 256. Crossing line 205 from
@@ -93,15 +76,26 @@ point_no_carry:
     rts
 
 plot_pixel:
+    lda PIXEL_Y
+    cmp #8
+    bcc plot_outside_playfield
+    cmp #168
+    bcs plot_outside_playfield
     jsr point_pixel
     lda (BITMAP_PTR),y
     ora PIXEL_MASK
     sta (BITMAP_PTR),y
+plot_outside_playfield:
     rts
 
 ; Save bytes even if multiple points share them. Reverse restoration
 ; unwinds those writes exactly, including ball/aim/background overlaps.
 plot_dynamic:
+    lda PIXEL_Y
+    cmp #8
+    bcc dynamic_outside_playfield
+    cmp #168
+    bcs dynamic_outside_playfield
     jsr point_pixel
     ldx DYNAMIC_COUNT
     lda BITMAP_PTR
@@ -113,6 +107,7 @@ plot_dynamic:
     ora PIXEL_MASK
     sta (BITMAP_PTR),y
     inc DYNAMIC_COUNT
+dynamic_outside_playfield:
     rts
 
 restore_dynamic:

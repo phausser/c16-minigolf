@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand: Schritt 1 ist als Emulator-Prototyp umgesetzt; Testbahn und Ziel-/Stärkeanzeige aus Schritt 2 wurden vorgezogen. 12 Tests des assemblierten Codes und der eigenständig gestartete VICE-Smoke-Test bestehen. Reale Hardware und physische Tasten sind noch ungeprüft. Messungen und Host-Launcher-Einschränkung stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 26 Tests des assemblierten Codes bestehen. VICE bestätigt ROM-Start, Hi-Res, Eingabe und Rendering; die erweiterte Zeitbudget-Prüfung scheitert noch an Eckentreffern. Schritt 2 bleibt offen, bis Laufzeit und das Speicherbudget für 18 Bahnen nachgewiesen sind. Reale Hardware und physische Tasten sind ungeprüft. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -18,19 +18,22 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 
 ## 2. Machbarer Vertikalschnitt
 
-- [x] Eine Testbahn mit breiter Fläche, 10-Pixel-Engstelle, L-Ecke und 45°-Bande erstellen.
-- [ ] Kompaktes Bahnformat und Decoder für maximal 32 Segmente implementieren.
+- [x] Eine Testbahn mit breiter Fläche, 12-Pixel-Engstelle, L-Ecke und 45°-Bande erstellen.
+- [x] Kompaktes Bahnformat und Decoder für maximal 32 Segmente implementieren.
 - [x] Statische Geometrie sowie Ball-/Zielmarke zeichnen; Hintergrundrestaurierung prüfen.
-- [ ] Ballposition aus der tatsächlichen Bewegung übernehmen.
+- [x] Ballposition aus der tatsächlichen Bewegung übernehmen.
 - [ ] Festkommaformate, Zwischenbreiten, Rundung und Kontakt-Epsilon festlegen.
-- [ ] Pixelgenaue Ballbewegung mit Subpixel-Physik implementieren und prüfen: jede Pixelposition erreichbar, kein Einrasten auf Zeichen- oder Zweipixelraster, auch rechts von x=255.
-- [ ] 128 Richtungen und 32 Stärken erzeugen und normieren.
-- [ ] Rollreibung, exakten Stillstand und Wegprüfung am Loch implementieren.
-- [ ] Kreis-Segment- und Kreis-Endpunkt-Kontakte mit frühestem Kontakt implementieren.
-- [ ] Teilintervalle, Restbewegung, Doppelkontakte und sichere Kontaktgrenze implementieren.
-- [ ] Zielen, Stärke, Schlag und Einlochen als vollständigen Ablauf verbinden.
+- [x] Pixelgenaue Ballbewegung mit Subpixel-Physik implementieren und prüfen: jede Pixelposition erreichbar, kein Einrasten auf Zeichen- oder Zweipixelraster, auch rechts von x=255.
+- [x] 128 Richtungen und 32 Stärken erzeugen und normieren.
+- [x] Rollreibung, exakten Stillstand und Wegprüfung am Loch implementieren.
+- [x] Kreis-Segment- und Kreis-Endpunkt-Kontakte mit frühestem Kontakt implementieren.
+- [ ] Kontinuierlichen Sweep, Restbewegung, Doppelkontakte und Kontaktgrenze absichern (Basis implementiert).
+- [x] Zielen, Stärke, Schlag und Einlochen als vollständigen Ablauf verbinden.
 - [ ] Code-, Daten- und Scratchbedarf messen; 18-Bahnen-Budget mit echten Exportdaten hochrechnen.
-- [ ] Schlechteste Framezeit mit Anzeige messen, einschließlich Engstellen und Mehrfachkontakten.
+- [x] Schlechteste Framezeit mit Anzeige messen, einschließlich Engstellen und Mehrfachkontakten.
+- [ ] Gemessene Eckentreffer von 66906 auf unter 35563 PAL-Ticks mit Reserve optimieren; `make smoke` muss bestehen.
+- [ ] Verbleibende 281 Runtime-Bytes vergrößern und echtes 18-Bahnen-Budget nachweisen.
+- [ ] Kontakt-Epsilon, Start innerhalb des Fangradius und Lochfang unmittelbar nach einem Abpraller gezielt absichern.
 
 Abnahme: spielbarer Kern erfüllt Speicher- und Zeitbudget mit begründeter Reserve. Bei Überschreitung zuerst Architektur/Daten optimieren; Bahnproduktion erst nach erneutem Nachweis fortsetzen.
 

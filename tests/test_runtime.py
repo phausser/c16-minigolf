@@ -2,6 +2,8 @@
 import copy
 import json
 import math
+import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -46,11 +48,26 @@ class KeyboardBus(list):
 class Runtime:
     def __init__(self):
         self.bus = KeyboardBus()
+        executable = Path(shutil.which('xplus4') or '/usr/bin/xplus4').resolve()
+        candidates = [Path(os.environ.get('C16_KERNAL', '/nonexistent')),
+                      executable.parent.parent/'share/vice/PLUS4/kernal-318004-05.bin',
+                      Path('/opt/homebrew/share/vice/PLUS4/kernal-318004-05.bin'),
+                      Path('/usr/share/vice/PLUS4/kernal-318004-05.bin')]
+        rom_path = next((path for path in candidates if path.is_file()), None)
+        if rom_path is None:
+            raise FileNotFoundError('C16 KERNAL fehlt: C16_KERNAL auf kernal-318004-05.bin setzen')
+        rom = rom_path.read_bytes()
+        if len(rom) != 16384:
+            raise ValueError(f'C16 KERNAL muss 16384 Bytes haben: {rom_path}')
+        self.bus[0xc000:0x10000] = rom
         self.cpu = MPU(memory=self.bus)
         load = int.from_bytes(PRG[:2], 'little')
         self.bus[load:load+len(PRG)-2] = PRG[2:]
         self.cpu.pc = S['loader']
         self.run_until(S['start'])
+        # Supply the startup-installed lookup row for isolated routine tests.
+        # The actual copy/blanking path is checked separately and in VICE.
+        self.bus[0x2000:0x2140] = self.bus[S['lookup_image']:S['lookup_image']+320]
 
     def run_until(self, address, limit=1000000):
         for _ in range(limit):
@@ -89,7 +106,7 @@ class HardwareTests(unittest.TestCase):
 
     def test_actual_loader_relocates_runtime(self):
         payload = S['payload_image']-0x1001+2
-        self.assertEqual(self.r.bus[S['RUNTIME_BASE']:S['runtime_end']], list(PRG[payload:]))
+        self.assertEqual(self.r.bus[S['RUNTIME_BASE']:S['runtime_end']], list(PRG[payload:payload+S['runtime_end']-S['RUNTIME_BASE']]))
         self.assertEqual(self.r.cpu.sp, 255)
         self.assertTrue(self.r.cpu.p & self.r.cpu.INTERRUPT)
         self.assertFalse(self.r.cpu.p & self.r.cpu.DECIMAL)
@@ -98,7 +115,7 @@ class HardwareTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)/'stress.prg'
             subprocess.run(['acme','--cpu','6502','--format','cbm',
-                            '-DRELOCATION_TEST_PADDING=3000', '--outfile',str(path),
+                            '-DRELOCATION_TEST_PADDING=128', '--outfile',str(path),
                             'src/main.asm'], cwd=ROOT, check=True, capture_output=True)
             prg = path.read_bytes()
         bus = [0]*65536
@@ -110,16 +127,30 @@ class HardwareTests(unittest.TestCase):
             cpu.step()
         else:
             self.fail('overlapping relocation never reached start')
-        expected = prg[S['payload_image']-0x1001+2:]
+        payload = S['payload_image']-0x1001+2
+        expected = prg[payload:payload+S['runtime_end']-S['RUNTIME_BASE']+128]
         self.assertGreater(S['RUNTIME_BASE']+len(expected), S['payload_image'])
         self.assertEqual(bus[S['RUNTIME_BASE']:S['RUNTIME_BASE']+len(expected)], list(expected))
 
     def test_video_registers_attributes_and_clear(self):
+        renderer = self.r.bus[0x3a40:0x3b80]
+        startup = self.r.bus[0x3f40:0x4000]
+        lookup = self.r.bus[S['lookup_image']:S['lookup_image']+320]
         self.r.bus[0x1800:0x4000] = [255]*(0x4000-0x1800)
+        self.r.bus[0x3a40:0x3b80] = renderer
+        self.r.bus[0x3f40:0x4000] = startup
+        self.r.bus[S['lookup_image']:S['lookup_image']+320] = lookup
         self.r.call('initialise_video')
-        self.assertEqual(self.r.bus[0x1800:0x1c00], [7]*1024)
-        self.assertEqual(self.r.bus[0x1c00:0x2000], [16]*1024)
-        self.assertEqual(self.r.bus[0x2000:0x4000], [0]*8192)
+        luma, colors = [7]*1024,[16]*1024
+        luma[840:880] = colors[840:880] = [0]*40
+        luma[:40] = colors[:40] = [0]*40
+        self.assertEqual(self.r.bus[0x1800:0x1c00], luma)
+        self.assertEqual(self.r.bus[0x1c00:0x2000], colors)
+        self.assertEqual(self.r.bus[0x2000:0x2140],lookup)
+        self.assertEqual(self.r.bus[0x2140:0x3a40], [0]*6400)
+        self.assertEqual(self.r.bus[0x3b80:0x3f40], [0]*960)
+        self.assertEqual(self.r.bus[0x3a40:0x3b80],renderer)
+        self.assertEqual(self.r.bus[0x3f40:0x4000],startup)
         self.assertEqual(self.r.bus[0xff06], 0x0b)
         self.assertEqual(self.r.bus[0xff07], 8)
         self.assertEqual(self.r.bus[0xff12], 8)
@@ -142,10 +173,14 @@ class HardwareTests(unittest.TestCase):
         contours = [COURSE['outline'], *COURSE['obstacles']]
         for contour in contours:
             for a,b in zip(contour, contour[1:]+contour[:1]):
+                area = sum(p[0]*q[1]-p[1]*q[0] for p,q in zip(contour,contour[1:]+contour[:1]))
+                sign = 1 if (area>0) == (contour is contours[0]) else -1
+                nx = -((b[1]>a[1])-(b[1]<a[1]))*sign
+                ny = ((b[0]>a[0])-(b[0]<a[0]))*sign
                 steps = max(abs(b[0]-a[0]),abs(b[1]-a[1]))//2
                 for step in range(steps+1):
-                    x = a[0]+(b[0]-a[0])*step//steps
-                    y = a[1]+(b[1]-a[1])*step//steps
+                    x = a[0]+(b[0]-a[0])*step//steps - nx
+                    y = a[1]+(b[1]-a[1])*step//steps - ny
                     for dx in (-1,0,1):
                         for dy in (-1,0,1):
                             expected[bitmap_offset(x+dx,y+dy)] |= 128 >> ((x+dx)%8)
@@ -154,7 +189,8 @@ class HardwareTests(unittest.TestCase):
             x = cx+round(math.cos(i*math.tau/32)*5)
             y = cy+round(math.sin(i*math.tau/32)*5)
             expected[bitmap_offset(x,y)] |= 128 >> (x%8)
-        self.assertEqual(bytes(self.r.bus[0x2000:0x3f40]), expected)
+        self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
+        self.assertEqual(bytes(self.r.bus[0x3b80:0x3f40]), expected[7040:])
 
     def test_all_aim_directions_restore_background_exactly(self):
         pattern = [(i*73+19)%256 for i in range(8000)]
@@ -173,8 +209,8 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.bus[0x2000:0x3f40], pattern)
 
     def test_keyboard_rows_and_simultaneous_keys(self):
-        keys = [((1,2),1), ((2,2),2), ((1,1),4), ((1,5),8), ((5,1),16)]
-        for mask in range(32):
+        keys = [((1,2),1), ((2,2),2), ((1,1),4), ((1,5),8), ((5,1),16), ((7,4),32)]
+        for mask in range(64):
             self.r.bus.pressed = {position for position,bit in keys if mask & bit}
             self.r.call('scan_keyboard')
             self.assertEqual(self.r.get('KEY_CURRENT'), mask)
@@ -235,7 +271,7 @@ class HardwareTests(unittest.TestCase):
         self.r.cpu.a = ord('A')
         self.r.call('draw_glyph')
         pointer = 0x2000+bitmap_offset(312,192)
-        self.assertEqual(self.r.bus[pointer:pointer+8], [56,68,68,124,68,68,68,0])
+        self.assertEqual(self.r.bus[pointer:pointer+8], [24,60,102,126,102,102,102,0])
         self.r.call('draw_static_hud')
         for power in range(1,33):
             self.r.put('POWER', power)

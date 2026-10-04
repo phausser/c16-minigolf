@@ -44,9 +44,9 @@ Tastaturbelegung als Ausgangspunkt: A/D drehen, W/S Stärke ändern, SPACE schla
 
 ### Zeit und Zahlenformat
 
-Fester Simulationsschritt von 1/50 Sekunde. PAL aktualisiert einmal je Bild. Positionen als vorzeichenlose 16-Bit-Werte mit acht Nachkommabits; Geschwindigkeiten als vorzeichenbehaftete 16-Bit-Werte mit acht Nachkommabits. Zwischenrechnungen verwenden ausreichende Breite, insbesondere für Quadrate und Skalarprodukte. Differenzen werden vor der Rechnung verbreitert; x > 255 darf nicht überlaufen.
+Fester Simulationsschritt von 1/50 Sekunde. PAL aktualisiert einmal je Bild. X-Position als vorzeichenloser 24-Bit-Wert Q16.8, Y-Position als vorzeichenloser 16-Bit-Wert Q8.8; Geschwindigkeiten als vorzeichenbehaftete 16-Bit-Werte mit acht Nachkommabits. Zwischenrechnungen verwenden ausreichende Breite, insbesondere für Quadrate und Skalarprodukte. Differenzen werden vor der Rechnung verbreitert; x > 255 darf nicht überlaufen.
 
-Verbindlich: pixelgenaue Bewegung. Der Ball kann auf jeder einzelnen Pixelposition dargestellt werden; seine Bewegung wird nicht auf Zeichen-, Zell- oder Zweipixelraster eingerastet. Die Physik behält Subpixel-Präzision, nur die Darstellung rundet nach einer festen Regel auf ganze Pixel. Das Zweipixelraster der kompakten Bahndaten beschränkt ausschließlich die Bahnkoordinaten. Kollisionsprüfungen verfolgen den vollständigen Weg in Teilintervallen von höchstens einem Pixel; schnelle Schläge dürfen zwischen zwei dargestellten Bildern mehrere Pixel zurücklegen.
+Verbindlich: pixelgenaue Bewegung. Der Ball kann auf jeder einzelnen Pixelposition dargestellt werden; seine Bewegung wird nicht auf Zeichen-, Zell- oder Zweipixelraster eingerastet. Die Physik behält Subpixel-Präzision, nur die Darstellung rundet nach einer festen Regel auf ganze Pixel. Das Zweipixelraster der kompakten Bahndaten beschränkt ausschließlich die Bahnkoordinaten. Kollisionsprüfungen verfolgen den vollständigen Weg durch einen kontinuierlichen geometrischen Sweep; schnelle Schläge dürfen zwischen zwei dargestellten Bildern mehrere Pixel zurücklegen.
 
 128 normierte Richtungsvektoren über Viertelwellen-Tabelle und Symmetrie. 32 monotone Startgeschwindigkeiten; vorläufig maximal 4 Pixel pro Simulationsschritt. Geschwindigkeit, Rollreibung und Lochfangschwelle werden gemeinsam kalibriert und als feste Konstanten dokumentiert.
 
@@ -54,17 +54,17 @@ Verbindlich: pixelgenaue Bewegung. Der Ball kann auf jeder einzelnen Pixelpositi
 
 Auf normalem Boden wirkt eine konstante Bremsbeschleunigung entgegen der Bewegungsrichtung. Die Implementierung darf eine kleine Integer-Näherung für den Betrag benutzen, muss aber die Richtungsabhängigkeit nach den untenstehenden Kriterien begrenzen. Keine unabhängige, gleich große Bremsung beider Achsen: das würde Diagonalschläge benachteiligen.
 
-Der Ball wird unterhalb einer klaren Geschwindigkeitsgrenze exakt stillgesetzt. Keine dauerhaft kriechende Kugel. Sand erhöht die Bremsung; Eis vermindert sie. Materialwechsel wird an der Ballmitte erkannt und gilt ab dem nächsten Teilintervall. Alle Materialwerte sind konstant, sichtbar und reproduzierbar.
+Der Ball wird unterhalb einer klaren Geschwindigkeitsgrenze exakt stillgesetzt. Keine dauerhaft kriechende Kugel. Sand erhöht die Bremsung; Eis vermindert sie. Materialwechsel wird an der Ballmitte erkannt und gilt ab dem nächsten Simulationsschritt. Alle Materialwerte sind konstant, sichtbar und reproduzierbar.
 
 ### Kollisionen
 
 Kollision basiert auf geometrischen Daten, niemals auf Bildschirm-Pixeln. Der Ball ist ein Kreis. Bahnen bestehen aus geschlossenen Konturen und gegebenenfalls geschlossenen Hindernissen. Erste Version unterstützt waagerechte und senkrechte Segmente sowie 45°-Segmente; beliebige Winkel sind nicht erforderlich.
 
-Adaptive Teilintervalle begrenzen die Weglänge auf höchstens 1 Pixel. Innerhalb jedes Teilintervalls wird die früheste Berührung entlang des Bewegungsweges bestimmt: Kreis gegen Segment einschließlich Endpunkt. Zeit des Kontakts, verbleibende Bewegung und Rundungsregeln sind Teil der Implementierung, damit der Ball keine Wand durchquert.
+Ein kontinuierlicher Sweep prüft den vollständigen Frame-Weg von höchstens 4 Pixeln. Er bestimmt die früheste Berührung entlang des Bewegungsweges: Kreis gegen Segment einschließlich Endpunkt. Zeit des Kontakts, verbleibende Bewegung und Rundungsregeln sind Teil der Implementierung, damit der Ball keine Wand durchquert.
 
 Reflexion am Kontakt: v' = v − (1 + e) · (v · n) · n. Einheitliche, leicht verlustbehaftete Bande mit vorläufig e = 15/16; kein künstlicher seitlicher Schub. Kontakt nur auflösen, wenn die Geschwindigkeit in die Fläche zeigt. Segmentenden werden als Kreis-Punkt-Kontakt behandelt; bloßes Spiegeln beider Achsen ist dort unzulässig.
 
-Gleichzeitige Kontakte erhalten eine stabile Reihenfolge und eine gemeinsame Auflösung ohne Energiegewinn. Ein kleines fest definiertes Abstandsepsilon verhindert Wiederkollision durch Rundungsreste. Maximal vier Kontaktauflösungen pro Teilintervall. Bei ausgeschöpftem Limit wird die Restbewegung verworfen, kein Durchtritt erlaubt; dieser Fall muss im Test sichtbar werden und darf in freigegebenen Bahnen nicht auftreten.
+Gleichzeitige Kontakte erhalten eine stabile Reihenfolge und eine gemeinsame Auflösung ohne Energiegewinn. Ein kleines fest definiertes Abstandsepsilon verhindert Wiederkollision durch Rundungsreste. Maximal vier Kontaktauflösungen pro Simulationsschritt. Bei ausgeschöpftem Limit wird die Restbewegung verworfen, kein Durchtritt erlaubt; dieser Fall muss im Test sichtbar werden und darf in freigegebenen Bahnen nicht auftreten.
 
 ### Einlochen
 
@@ -149,3 +149,26 @@ Tests: deterministische Wiedergaben im tatsächlichen 6502-Kern, unabhängige ho
 Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf), insbesondere Standard-Hi-Res, Bitmap-Organisation, Register und Timing. Der Hi-Res-Modus hat 320 × 200 Pixel und einen 8-KB-ausgerichteten Bitmap-Bereich. Registerwerte, Attributadressierung, RAM-Ladeverhalten und PAL/NTSC-Erkennung sind vor Implementierung am Datenblatt und im Emulator zu verifizieren. Diese Spezifikation behauptet noch keine gemessene Laufzeit oder fertig validierte Registerinitialisierung.
 
 Keine Rückfrage ist zum Start nötig. Die oben genannten Annahmen legen einen konkreten ersten Release fest; Steuerung und physikalische Konstanten werden nach dem spielbaren Prototyp fein abgestimmt.
+
+## Stand des Physikprototyps (2026-10-04)
+
+ACME-Kern mit 128 Viertelwellen-Richtungen, 32 Startgeschwindigkeiten
+(Stärke × 1/8 Pixel pro Schritt), radialer Bremsung 1/64 Pixel pro Schritt
+und exaktem Stillstand. Die Darstellung rundet Subpixelwerte zur nächsten
+Pixelmitte, bei genau einer Hälfte nach oben. Konturen nutzen fünf Bytes
+pro Segment: vier Halb-Pixelkoordinaten und einen einwärts gerichteten
+Normalenindex. Wandstriche liegen außerhalb der geometrischen Innenkante.
+
+Kontaktzeiten haben acht Nachkommabits; bei maximaler Geschwindigkeit
+entspricht eine Zeiteinheit höchstens 1/64 Pixel Weg. Kreis-Endpunkte
+verwenden eine Prüfung des nächsten Wegpunkts und anschließende Bisektion
+des Eintritts, damit auch Streifkontakte mit beiden Wegenden außerhalb
+erkannt werden. Geradensegment-Projektionen rechnen mit 1/64-Pixel-Präzision.
+Gleichzeitige Kontakte werden nach stabiler Segmentreihenfolge aufgelöst.
+Die Kontaktgrenze zählt Überschreitungen und verwirft die Restbewegung.
+
+Der Prototyp erfüllt noch nicht sämtliche Abnahmekriterien: offene
+Kontaktgrenzfälle, 50-Hz-Worst-Case und Platz für alle 18 Bahnen stehen in
+TODO.md. Der umfangreiche Physikkern benötigt derzeit 5255 Runtime-Bytes;
+281 bleiben im Hauptbereich frei. Exakte Speicher- und Laufzeitmessungen
+stehen in docs/hardware.md. Das 50-Hz-Ziel bleibt bestehen.

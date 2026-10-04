@@ -1,144 +1,29 @@
-draw_course:
-    lda #<course_segments
-    sta COURSE_PTR
-    lda #>course_segments
-    sta COURSE_PTR + 1
-    lda #COURSE_SEGMENT_COUNT
-    sta SEGMENTS_LEFT
-course_next:
-    ldy #0
-    lda (COURSE_PTR),y        ; x/2, including coordinates above 255
-    asl
-    sta LINE_X
-    lda #0
-    rol
-    sta LINE_X + 1
-    iny
-    lda (COURSE_PTR),y
-    asl
-    sta LINE_Y
-    iny
-    lda (COURSE_PTR),y
-    tax
-    lda line_steps_x,x
-    sta LINE_X_STEP
-    lda line_steps_y,x
-    sta LINE_Y_STEP
-    iny
-    lda (COURSE_PTR),y
-    sta LINE_LEFT
-course_line:
-    jsr plot_wall
-    lda LINE_LEFT
-    beq course_advance
-    dec LINE_LEFT
-    clc
-    lda LINE_X
-    adc LINE_X_STEP
-    sta LINE_X
-    lda LINE_X_STEP
-    bpl course_x_positive
-    lda #$ff
-    bne course_x_high
-course_x_positive:
-    lda #0
-course_x_high:
-    adc LINE_X + 1
-    sta LINE_X + 1
-    clc
-    lda LINE_Y
-    adc LINE_Y_STEP
-    sta LINE_Y
-    jmp course_line
-course_advance:
-    clc
-    lda COURSE_PTR
-    adc #4
-    sta COURSE_PTR
-    bcc course_pointer_ready
-    inc COURSE_PTR + 1
-course_pointer_ready:
-    dec SEGMENTS_LEFT
-    bne course_next
-
-    ; Cup ring is static and tests plotting at x > 255.
-    lda #0
-    sta POINT_INDEX
-cup_next:
-    ldx POINT_INDEX
-    lda cup_dx,x
-    clc
-    adc #<CUP_X
-    sta PIXEL_X
-    lda cup_dx,x
-    bpl cup_positive_x
-    lda #$ff
-    bne cup_x_sign
-cup_positive_x:
-    lda #0
-cup_x_sign:
-    adc #>CUP_X
-    sta PIXEL_X + 1
-    lda cup_dy,x
-    clc
-    adc #CUP_Y
-    sta PIXEL_Y
-    jsr plot_pixel
-    inc POINT_INDEX
-    lda POINT_INDEX
-    cmp #CUP_POINTS
-    bne cup_next
-    rts
-
-; A 3x3 stroke at each two-pixel segment step. For this hardware preview
-; wall strokes are centered; final collision contours will define inner edges.
-plot_wall:
-    lda #0
-    sta ROW_INDEX
-wall_row:
-    lda LINE_Y
-    sec
-    sbc #1
-    clc
-    adc ROW_INDEX
-    sta PIXEL_Y
-    lda LINE_X
-    sec
-    sbc #1
-    sta PIXEL_X
-    lda LINE_X + 1
-    sbc #0
-    sta PIXEL_X + 1
-    lda #3
-    sta GLYPH_BITS
-wall_column:
-    jsr plot_pixel
-    inc PIXEL_X
-    bne wall_no_carry
-    inc PIXEL_X + 1
-wall_no_carry:
-    dec GLYPH_BITS
-    bne wall_column
-    inc ROW_INDEX
-    lda ROW_INDEX
-    cmp #3
-    bne wall_row
-    rts
-
 draw_dynamic:
+    jsr ball_screen_position
+    lda HOLED
+    beq ball_visible
+    rts
+ball_visible:
     lda #0
     sta POINT_INDEX
 ball_next:
     ldx POINT_INDEX
     lda ball_dx,x
     clc
-    adc #<BALL_X
+    adc BALL_SCREEN_X
     sta PIXEL_X
-    lda #>BALL_X
-    sta PIXEL_X + 1          ; fixed test start does not cross a page
+    lda ball_dx,x
+    bpl ball_dx_positive
+    lda #$ff
+    bne ball_dx_sign
+ball_dx_positive:
+    lda #0
+ball_dx_sign:
+    adc BALL_SCREEN_X + 1
+    sta PIXEL_X + 1
     lda ball_dy,x
     clc
-    adc #BALL_Y
+    adc BALL_SCREEN_Y
     sta PIXEL_Y
     jsr plot_dynamic
     inc POINT_INDEX
@@ -147,22 +32,35 @@ ball_next:
     bne ball_next
     lda PAUSED
     bne aim_done
+    lda ROLLING
+    bne aim_done
 
     ; Fractional accumulation gives visibly distinct 128 directions without
     ; a separate bitmap for each angle. This is display data, not physics.
-    ldx ANGLE
-    lda aim_steps_x,x
+    lda ANGLE
+    jsr lookup_aim_step
     sta AIM_STEP_X
-    lda aim_steps_y,x
+    lda ANGLE
+    sec
+    sbc #32
+    jsr lookup_aim_step
     sta AIM_STEP_Y
-    lda #<(BALL_X * 16)
+    lda BALL_SCREEN_X
     sta AIM_X
-    lda #>(BALL_X * 16)
+    lda BALL_SCREEN_X + 1
     sta AIM_X + 1
-    lda #<(BALL_Y * 16)
+    lda BALL_SCREEN_Y
     sta AIM_Y
-    lda #>(BALL_Y * 16)
+    lda #0
     sta AIM_Y + 1
+    ldx #4
+aim_start_shift:
+    asl AIM_X
+    rol AIM_X + 1
+    asl AIM_Y
+    rol AIM_Y + 1
+    dex
+    bne aim_start_shift
     lda #0
     sta POINT_INDEX
 aim_next:
@@ -173,11 +71,47 @@ aim_next:
     cmp #3
     bcc aim_next
     jsr aim_coordinates
+    lda PIXEL_X + 1
+    cmp #1
+    bcc aim_x_on_screen
+    bne aim_skip_pixel
+    lda PIXEL_X
+    cmp #64
+    bcs aim_skip_pixel
+aim_x_on_screen:
+    lda PIXEL_Y
+    cmp #168
+    bcs aim_skip_pixel
     jsr plot_dynamic
+aim_skip_pixel:
     lda POINT_INDEX
     cmp #10
     bne aim_next
 aim_done:
+    rts
+
+lookup_aim_step:
+    jsr cosine_unit
+    +copy16 M_A, M_B
+    asl M_A
+    rol M_A + 1
+    +add16 M_A, M_B, M_A
+    clc
+    lda M_A
+    adc #8
+    sta M_A
+    lda M_A + 1
+    adc #0
+    sta M_A + 1
+    ldx #4
+aim_unit_scale:
+    lda M_A + 1
+    asl
+    ror M_A + 1
+    ror M_A
+    dex
+    bne aim_unit_scale
+    lda M_A
     rts
 
 advance_aim:
@@ -299,10 +233,24 @@ power_empty:
     lda TEXT_COLUMN
     cmp #31
     bne power_bar
+draw_status:
+    lda #24
+    sta TEXT_ROW
     lda #33
     sta TEXT_COLUMN
     lda #<hud_ready
     ldx #>hud_ready
+    ldy HOLED
+    beq status_rolling
+    lda #<hud_holed
+    ldx #>hud_holed
+    jmp status_pause
+status_rolling:
+    ldy ROLLING
+    beq status_pause
+    lda #<hud_rolling
+    ldx #>hud_rolling
+status_pause:
     ldy PAUSED
     beq power_status
     lda #<hud_paused
@@ -327,8 +275,18 @@ text_done:
 
 ; A = ASCII 32..93; aligned bitmap glyphs overwrite only their own cell.
 draw_glyph:
-    sec
-    sbc #32
+    cmp #'#'
+    bne glyph_rom
+    lda #<power_glyph
+    sta FONT_PTR
+    lda #>power_glyph
+    sta FONT_PTR + 1
+    jmp glyph_address
+glyph_rom:
+    cmp #64
+    bcc glyph_code
+    and #63
+glyph_code:
     sta FONT_PTR
     lda #0
     sta FONT_PTR + 1
@@ -340,11 +298,12 @@ glyph_offset:
     bne glyph_offset
     clc
     lda FONT_PTR
-    adc #<font
+    adc #<$d000
     sta FONT_PTR
     lda FONT_PTR + 1
-    adc #>font
+    adc #>$d000
     sta FONT_PTR + 1
+glyph_address:
     ldx TEXT_ROW
     lda bitmap_rows_lo,x
     sta BITMAP_PTR
@@ -373,17 +332,24 @@ glyph_copy:
     bne glyph_copy
     rts
 
-line_steps_x:
-!byte 2,2,0,$fe,$fe,$fe,0,2
-line_steps_y:
-!byte 0,2,2,2,0,$fe,$fe,$fe
+wall_offsets_x:
+!byte $ff,$ff,0,1,1,1,0,$ff
+wall_offsets_y:
+!byte 0,$ff,$ff,$ff,0,1,1,1
 hud_title:
-!text "C16 MINIGOLF / 16 KB / ZIELTEST",0
+!text "C16 MINIGOLF / PHYSIKTEST",0
 hud_controls:
-!text "A/D RICHTUNG  W/S KRAFT  P PAUSE",0
+!text "A/D ZIEL W/S KRAFT SPACE SCHLAG P PAUSE",0
 hud_power:
 !text "KRAFT 16/32  [                ]",0
 hud_ready:
 !text "BEREIT",0
 hud_paused:
 !text "PAUSE ",0
+hud_rolling:
+!text "ROLLT ",0
+hud_holed:
+!text "LOCH! ",0
+
+power_glyph:
+!byte 0,0,$7c,$7c,$7c,0,0,0

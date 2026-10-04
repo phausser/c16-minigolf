@@ -77,6 +77,9 @@ start:
     jsr draw_static_hud
     jsr draw_dynamic
     jsr draw_power
+    lda #0
+    sta DIRTY
+    sta HUD_DIRTY
     lda #$3b                  ; bitmap, display on, 25 rows, y-scroll 3
     sta TED_CONTROL1
 main_loop:
@@ -89,13 +92,25 @@ frame_counter_ready:
     jsr scan_keyboard
     jsr debounce_keyboard
     jsr apply_controls
+    jsr physics_tick
     lda DIRTY
-    beq frame_done
+    beq frame_hud
     jsr restore_dynamic
     jsr draw_dynamic
-    jsr draw_power
     lda #0
     sta DIRTY
+frame_hud:
+    lda HUD_DIRTY
+    beq frame_done
+    and #1
+    beq frame_status
+    jsr draw_power
+    jmp frame_hud_done
+frame_status:
+    jsr draw_status
+frame_hud_done:
+    lda #0
+    sta HUD_DIRTY
 frame_done:
     lda TED_RASTER_LO
     sta FRAME_END_RASTER
@@ -110,17 +125,41 @@ clear_state:
     bpl clear_state
     lda #16
     sta POWER
-    rts
+    jmp reset_ball
 
 !source "src/video.asm"
 !source "src/input.asm"
+!source "src/math.asm"
 !source "src/render.asm"
+!source "src/physics.asm"
+!source "src/collision.asm"
 !source "build/assets.inc"
 ; Test-only stress image: verify the safe copier even after the destination
 ; grows over the original SYS loader and part of its source image.
 !ifdef RELOCATION_TEST_PADDING { !fill RELOCATION_TEST_PADDING, $a5 }
 runtime_end:
 }
+payload_end:
+; Exact square tables and normals are installed in the black top bitmap row
+; by startup, before this load-image copy is erased by bitmap clearing.
+* = $3000
+lookup_image:
+!pseudopc $2000 {
+small_square_lo:
+!for square_index, 0, 127 { !byte <(square_index*square_index) }
+small_square_hi:
+!for square_index, 0, 127 { !byte >(square_index*square_index) }
+!source "src/normals.inc"
+!fill $2140 - *, 0
+}
+; Reusable static renderer in the permanently black 8px separator row.
+* = $3a40
+!source "src/course_renderer.asm"
+course_renderer_end:
+!if course_renderer_end > $3b80 { !error "course renderer exceeds hidden bitmap row" }
+; Startup uses otherwise unused bytes after the 8000 visible bitmap bytes.
+* = $3f40
+!source "src/initialise_video.asm"
 load_end:
 !if runtime_end > RUNTIME_LIMIT { !error "runtime overlaps renderer scratch" }
 !if load_end > BITMAP_END { !error "PRG exceeds physical C16 RAM" }

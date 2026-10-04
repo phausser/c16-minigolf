@@ -43,6 +43,14 @@ scan_p:
     ora #KEY_PAUSE
     sta KEY_CURRENT
 scan_done:
+    lda #$7f
+    jsr latch_row
+    and #$10
+    bne scan_release_rows
+    lda KEY_CURRENT
+    ora #KEY_SHOT
+    sta KEY_CURRENT
+scan_release_rows:
     lda #$ff
     sta KEYBOARD_ROW
     rts
@@ -96,10 +104,27 @@ apply_controls:
     lda PAUSED
     eor #1
     sta PAUSED
+    lda #2
+    sta HUD_DIRTY
     lda #1
     sta DIRTY
 control_movement:
     lda PAUSED
+    bne controls_done
+    lda KEY_ACTIONS
+    and #KEY_SHOT
+    beq control_check_rolling
+    lda HOLED
+    beq control_shoot
+    jsr reset_ball
+    jmp controls_dirty
+control_shoot:
+    lda ROLLING
+    bne controls_done
+    jsr start_shot
+    jmp controls_dirty
+control_check_rolling:
+    lda ROLLING
     bne controls_done
     ; Opposing directions cancel, instead of accumulating at the limits.
     lda KEY_ACTIONS
@@ -129,12 +154,15 @@ control_power:
     cmp #1
     beq controls_done
     dec POWER
-    jmp controls_dirty
+    jmp controls_hud_dirty
 control_up:
     lda POWER
     cmp #32
     beq controls_done
     inc POWER
+controls_hud_dirty:
+    lda #1
+    sta HUD_DIRTY
 controls_dirty:
     lda #1
     sta DIRTY

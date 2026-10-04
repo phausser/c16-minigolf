@@ -44,6 +44,24 @@ def main():
                      f"> ${s['ANGLE']:04x} {angle:02x}",
                      f"> ${s['PAUSED']:04x} 00", f"> ${s['DIRTY']:04x} 01",
                      'stopwatch reset', f"until ${s['frame_done']:04x}", 'stopwatch']
+    shot_cases = [
+        ('straight',64,112,0), ('vertical-wall',18.5,112,64),
+        ('diagonal-wall',292,40,0), ('rounded-corner',124,80,16),
+        ('double-corner',18.5,26.5,80), ('neck',160,78,0),
+    ]
+    for index,(name,x,y,angle) in enumerate(shot_cases):
+        commands += [f"until ${s['apply_controls']:04x}",
+                     f"> ${s['BALL_POS_X']:04x} {round(x*256)&255:02x} {int(x)&255:02x} {int(x)>>8:02x}",
+                     f"> ${s['BALL_POS_Y']:04x} {round(y*256)&255:02x} {int(y):02x}",
+                     f"> ${s['ANGLE']:04x} {angle:02x}", f"> ${s['POWER']:04x} 20",
+                     f"> ${s['ROLLING']:04x} 00 00", f"> ${s['PAUSED']:04x} 00",
+                     f"> ${s['KEY_ACTIONS']:04x} 20", 'stopwatch reset',
+                     f"until ${s['frame_done']:04x}", 'stopwatch',
+                     f'bsave "{prefix}-shot-{index}.bin" 0 $0038 $004c']
+        # Include sustained motion after the first contact and changing speed.
+        for _ in range(6):
+            commands += [f"until ${s['frame_begin']:04x}", 'stopwatch reset',
+                         f"until ${s['frame_done']:04x}", 'stopwatch']
     commands += [f"until ${s['frame_begin']:04x}",
                  f"until ${s['frame_begin']:04x}",
                  f'screenshot "{prefix}-aim.png" 2', 'quit']
@@ -57,7 +75,12 @@ def main():
     text = log.read_text(encoding='latin1')
     assert 'ERROR' not in text and 'not a valid checkpoint' not in text, log
     attrs = Path(f'{prefix}-attributes.bin').read_bytes()
-    assert attrs == bytes([7])*1024+bytes([16])*1024, 'hires colors/luminance'
+    expected_attrs = bytearray(bytes([7])*1024+bytes([16])*1024)
+    expected_attrs[840:880] = bytes(40)
+    expected_attrs[1024+840:1024+880] = bytes(40)
+    expected_attrs[:40] = bytes(40)
+    expected_attrs[1024:1024+40] = bytes(40)
+    assert attrs == expected_attrs, 'hires colors/luminance/hidden code row'
     video = Path(f'{prefix}-video.bin').read_bytes()
     assert video[0] & 0x7f == 0x3b, 'bitmap/display/25-row configuration'
     assert video[1] & 0x7f == 8, 'PAL hires 40-column configuration'
@@ -77,14 +100,20 @@ def main():
     assert Path(f'{prefix}-frame-4.bin').read_bytes() == initial, 'power restoration failed'
     assert Path(f'{prefix}-frame-6.bin').read_bytes() == initial, 'pause restoration failed'
     measurements = [int(v) for v in re.findall(r'Stopwatch:\s+(\d+)', text)]
-    assert len(measurements) == 1+len(events)+128, f'unexpected timing output: {measurements}'
+    assert len(measurements) == 1+len(events)+128+len(shot_cases)*7, f'unexpected timing output: {measurements}'
     period, frames = measurements[0], measurements[1:]
     assert 35000 <= period <= 36000, f'PAL frame period: {period}'
-    assert max(frames) < period, f'render overruns PAL frame: {max(frames)} >= {period}'
-    timings = {'pal_frame_ticks':period, 'worst_control_render_ticks':max(frames),
+    shot_times = frames[len(events)+128:]
+    for index in range(len(shot_cases)):
+        state = Path(f'{prefix}-shot-{index}.bin').read_bytes()
+        assert state[19] == 0, (shot_cases[index][0], 'contact limit reached', state)
+    timings = {'pal_frame_ticks':period, 'worst_control_render_ticks':max(frames[:len(events)+128]),
                'worst_fraction_of_frame':round(max(frames)/period,4),
-               'angles_measured':128, 'hardware':'VICE 3.x C16 PAL, 16 KB'}
+               'worst_physics_frame_ticks':max(shot_times),
+               'shot_cases': {case[0]:max(shot_times[i*7:i*7+7]) for i,case in enumerate(shot_cases)},
+               'frame_budget_passed':max(frames) < period, 'angles_measured':128, 'hardware':'VICE 3.x C16 PAL, 16 KB'}
     (ROOT/'build/timing.json').write_text(json.dumps(timings,indent=2)+'\n')
+    assert max(frames) < period, f'frame budget exceeded: {max(frames)} >= {period}; measurements saved to build/timing.json'
     print(f'VICE C16 PAL/16 KB: ROM boot, hires, controls, pause and 128 dirty renders passed; '
           f'worst {max(frames)}/{period} ticks ({max(frames)/period:.1%})')
     print(f'Screenshot: {prefix}.png')

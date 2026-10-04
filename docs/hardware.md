@@ -1,83 +1,101 @@
-# Hardware-Prototyp: Nachweise und Grenzen
+# C16-Prototyp: Nachweise und Grenzen
 
 Stand: 2026-10-04. ACME 0.97, VICE 3.10, C16/PAL mit 16 KB,
-KERNAL 318004-05 und BASIC 318006-01. Kein 64-KB-Plus/4 als Ersatzmodell.
+KERNAL 318004-05 und BASIC 318006-01.
 
 ## Speicher und Start
 
-PRG: 2363 Bytes einschließlich Ladeadresse. BASIC startet mit `SYS4109`.
-Ein Kopierer wird zuerst nach $0200 verlegt; erst dort kopiert er den
-Programmkörper von seiner Ladeadresse nach $0240. Dadurch darf der spätere
-Programmkörper seinen ursprünglichen SYS-Stub und bereits kopierte Quellbytes
-überschreiben. Ein zusätzlicher Test assembliert 3000 Füllbytes und prüft
-diesen überlappenden Fall im echten 6502-Code.
+PRG: 12229 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
+Ein temporärer Kopierer läuft im unteren Stackbereich ab $0100 und kopiert
+überlappungssicher den Laufzeitkörper nach $0200. Währenddessen erfolgt
+kein Unterprogrammaufruf; der Stackpointer wird danach auf $FF gesetzt.
+Die Tests führen den tatsächlichen Loader aus, auch mit zusätzlicher
+Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 
-Aktueller Programmkörper: $0240–$0B27, 2280 Bytes. Bis $1700 bleiben
-3032 Bytes für weitere Routinen und Daten. $1700–$17FF ist Renderer-Scratch,
-$1800–$1BFF Luminanz, $1C00–$1FFF Farbe, $2000–$3FFF Bitmap.
-Die 192 Bytes hinter der sichtbaren Bitmap bleiben reserviert.
-Zero Page enthält Zustand und Arbeitszeiger; $00/$01 bleiben CPU-I/O.
-Alle Größen werden aus dem ACME-Symboldump geprüft. Das ist noch kein
-Nachweis, dass der vollständige Physikkern und alle 18 Bahnen hineinpassen.
+| Bereich | Verwendung |
+|---|---|
+| $0200–$1686 | Laufzeitcode und Daten: 5255 Bytes |
+| $1687–$179F | 281 freie Bytes |
+| $17A0–$17FF | 96 Bytes Hintergrundrestaurierung |
+| $1800–$1FFF | TED-Luminanz und Farbe |
+| $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
+| $2140–$3A3F | Sichtbares Spielfeld |
+| $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner, 303 Bytes |
+| $3B80–$3F3F | HUD |
+| $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung, 132 Bytes |
 
-## TED und Eingabe
+Die beiden versteckten Bitmap-Zeilen haben identische schwarze Vorder- und
+Hintergrundfarbe. Zeichner und Clear-Routinen schützen diese Bereiche.
+Der Loader transportiert die oberen Tabellen zunächst ab $3000; die
+Initialisierung installiert sie vor dem Löschen der sichtbaren Bitmap.
+Zero Page enthält Zustand, temporäre Mathematik und die 32-Byte-
+Kandidatenliste. $00/$01 bleiben CPU-I/O. Größenbericht und Assemblierzeit-
+Prüfungen sichern das 16-KB-Limit. Alle 18 Bahnen passen noch nicht
+nachweislich hinein; weitere Speicheroptimierung ist Voraussetzung.
 
-Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf),
-Standard-Hi-Res und Registerbeschreibungen. Die Konfiguration verwendet
-$FF06=$3B (Bitmap/Anzeige/25 Zeilen), $FF07=$08 (PAL/40 Spalten/Hi-Res),
-$FF12=$08 (Bitmap $2000/RAM) und $FF14=$18 (Attributpaar $1800/$1C00).
-Attributwerte $07 und $10 ergeben weiße gesetzte Pixel auf schwarzem Grund.
-$FF13 wird auf null gesetzt; IRQ-Quellen sind deaktiviert. VICE-Rücklesewerte
-werden mit Masken für reservierte Bits geprüft.
+## TED, Darstellung und Eingabe
+
+Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf).
+$FF06=$3B, $FF07=$08, $FF12=$08, $FF14=$18 schalten 320×200-Hi-Res,
+PAL/40 Spalten, RAM-Bitmap $2000 und Attribute $1800/$1C00 ein.
+Attributwerte $07/$10 ergeben Weiß auf Schwarz; Multicolor bleibt aus.
+IRQ-Quellen sind deaktiviert. VICE prüft die Register mit passenden Masken.
 
 Bitmap-Adresse: $2000 + floor(y/8)×320 + floor(x/8)×8 + (y mod 8).
-Getestet über alle 200 Zeilen, insbesondere rechts von x=255.
-Die Anzeige wird während des initialen Bahnaufbaus ausgeschaltet.
+Die Tests prüfen alle 200 Zeilen, insbesondere x=255/256/319. Text liest
+den eingebauten ROM-Zeichensatz direkt, ohne ROM-Routinen aufzurufen.
 
-Die lokale VICE-Datei `PLUS4/gtk3_sym.vkm` ordnet A=(1,2), D=(2,2),
-W=(1,1), S=(1,5), P=(5,1) zu. $FD30 wählt aktive niedrige Zeilen,
-$FF08 übernimmt den Spaltenwert. Der Scan wird im modellierten Keyboard-Bus
-für alle 32 Kombinationen geprüft. Entprellung verlangt zwei gleiche Samples;
-P wiederholt nicht. Echte Tastatur und Joystick bleiben ungeprüft.
+17 Kontursegmente belegen 85 Bytes einschließlich Normalenindex. Renderer
+und Kollision nutzen dieselbe Innenkante. Drei Pixel breite Wandstriche
+liegen auf der festen Seite. Der Generator prüft Grenzen, Segmentlimit,
+Nullsegmente, zulässige Winkel und Konturschnittpunkte. Ballfreiheit und
+Erreichbarkeit sind noch keine vollständigen Validator-Nachweise.
 
-## Rendering und Takt
+21 Ballpunkte und acht Zielpunkte sichern Adresse und ursprüngliches
+Bitmap-Byte. Rückwärtsrestaurierung erhält den Hintergrund auch bei
+mehreren Punkten im selben Byte. Alle 128 Zielrichtungen sind geprüft.
+Der Ball rundet seine wirkliche Subpixelposition auf einzelne Pixel.
 
-17 Kontursegmente belegen 68 Bytes, mit Koordinaten auf Zweipixelraster.
-Der Generator prüft Grenzen, Segmentlimit, degenerierte Linien, 45°-Winkel,
-Konturschnittpunkte und überlappende Nachbarkanten. Er prüft noch keine
-Ballfreiheit oder Erreichbarkeit; diese folgen mit der Kollisionsgeometrie.
-Die Testdarstellung zeichnet zentrierte 3-Pixel-Wandstriche. Die endgültige
-Zuordnung von sichtbarer Innenkante und Kollisionskante ist noch offen.
+Tastaturmatrix: A=(1,2), D=(2,2), W=(1,1), S=(1,5), P=(5,1),
+SPACE=(7,4). $FD30 wählt aktive niedrige Zeilen, $FF08 liest Spalten.
+Zwei gleiche Samples entprellen; SPACE/P wiederholen nicht. Während des
+Rollens bleiben Richtung und Stärke unverändert. Physische Tasten bleiben
+ungeprüft; der Emulator-Smoke-Test injiziert logische Ereignisse.
 
-21 Ballpunkte und acht Zielpunkte sichern jeweils Adresse und ursprünglichen
-Bitmap-Bytewert. Restaurierung erfolgt rückwärts, damit mehrere Punkte im
-selben Byte den Hintergrund exakt wiederherstellen. Alle 128 Richtungen
-wurden gegen einen nichttrivialen Hintergrund geprüft. Zielvektoren dienen
-hier nur der Anzeige und sind keine vorberechneten Physikgeschwindigkeiten.
+## Physikprüfung und Laufzeit
 
-Die Hauptschleife wartet auf die aufsteigende Rastergrenze 205. VICE misst
-35569 Ticks von einer Framegrenze zur nächsten, entsprechend einem PAL-Bild
-mit geringer Polling-Abweichung. Der teuerste von 128 erzwungenen Redraws
-einschließlich HUD braucht 20965 Ticks, rund 58,9 % eines Frames. Das ist
-eine Messung des aktuellen Zielprototyps, kein zukünftiges Physikbudget.
-Vor dem Physikkern wird das HUD nur bei tatsächlichen Änderungen aktualisiert.
-Der initiale statische Bahnaufbau ist nicht an ein Ein-Frame-Limit gebunden.
+26 Tests des echten assemblierten 6502-Codes bestehen: Loader, Grafik,
+Eingabe, Hintergrund, exakte Arithmetik, 128 Richtungen, Reichweiten und
+Stillstand, Achsen-/Diagonalbanden, radiale Endpunkte, Streifkontakte,
+Lochfang und deterministische längere Testbahn-Replays. Das ersetzt noch
+keine vollständige unabhängige Geometrie-Referenz oder Physikfreigabe.
 
-## Prüfung und offene Punkte
+VICE bestätigt ROM-Start, TED-Konfiguration, Hintergrund und Steuerung.
+Die Hauptschleife synchronisiert an Rasterzeile 205. Gemessener PAL-Abstand:
+35563 Ticks; teuerster Ziel-/HUD-Redraw: 22859 Ticks.
 
-12 automatisierte Tests des assemblierten Codes bestanden. Der eigenständig
-gestartete VICE-Smoke-Test bestätigt ROM-Start, Grafikregister, Attribute,
-Richtungs-/Stärkeänderung, Pause, Hintergrundrestaurierung und Framebudget.
-Das VICE-Bild wurde visuell geprüft. Logische Kontrollereignisse werden nach
-dem Hardware-Scan injiziert; kein behaupteter physischer Tastendrucktest.
+| Bewegungsszenario, höchste Stärke | Schlechtester Frame, TED-Ticks |
+|---|---:|
+| Gerade | 12210 |
+| Senkrechte Bande | 19269 |
+| 45°-Bande | 34107 |
+| Gerundete Ecke | 66906 |
+| Doppelkontakt in Ecke | 46354 |
+| Engstelle | 12787 |
 
-In dieser eingeschränkten macOS-Umgebung scheitert der VICE-Start als
-Make/Python-Unterprozess vor dem ROM-Start, teilweise mit SIGSEGV; derselbe
-direkt gestartete CLI-Aufruf funktioniert. Vorbereitung und Prüfung sind
-deshalb getrennt ausführbar, siehe README. Dieses Host-Startproblem ist
-kein Fehler des C16-PRGs, aber `make smoke` konnte hier nicht als ein einzelner
-Aufruf bestätigt werden.
+**Die Framebudget-Abnahme scheitert.** Eckentreffer überschreiten ein
+PAL-Bild; die 45°-Bande hat zu wenig Reserve. Die Physik bleibt
+reproduzierbar, läuft bei diesen Spitzen aber langsamer als die beabsichtigte
+50-Hz-Zeitbasis. `make smoke` meldet dies als Fehler und schreibt auch bei
+Überschreitung `build/timing.json`. Die Grenze wird nicht gelockert. Vor
+Bahnproduktion und Effekten müssen diese Spitzen sowie der RAM-Verbrauch
+reduziert werden. Einloch-/Kontaktgrenzfälle bleiben in TODO.md offen.
 
-Offen: reale C16-Hardware, physische Tastatur, Joystick, Diskettenladen,
-Sound und NTSC. Es gibt noch keine Schläge, Roll-/Kollisionsphysik, Wertung
-oder vollständige Runde. Schritt 2 muss Speicher und Laufzeit erneut messen.
+In der eingeschränkten macOS-Umgebung startet VICE als Make/Python-
+Unterprozess teilweise nicht zuverlässig; der direkte CLI-Aufruf wurde
+geprüft. Vorbereitung, nativer Start und Prüfung sind deshalb getrennt
+aufrufbar; siehe README. Das Host-Startproblem und die tatsächlich gemessene
+Framebudget-Überschreitung sind getrennte Befunde.
+
+Offen: vollständige Physikabnahme, 18-Bahnen-Budget, reale Hardware,
+physische Eingabe, Wertung, Materialien, Sound und NTSC.
