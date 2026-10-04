@@ -5,7 +5,7 @@ KERNAL 318004-05 und BASIC 318006-01.
 
 ## Speicher und Start
 
-PRG: 12229 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
+PRG: 12277 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
 Ein temporärer Kopierer läuft im unteren Stackbereich ab $0100 und kopiert
 überlappungssicher den Laufzeitkörper nach $0200. Währenddessen erfolgt
 kein Unterprogrammaufruf; der Stackpointer wird danach auf $FF gesetzt.
@@ -14,17 +14,19 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 
 | Bereich | Verwendung |
 |---|---|
-| $0200–$175B | Laufzeitcode und Daten: 5468 Bytes |
-| $175C–$179F | 68 freie Bytes |
-| $17A0–$17FF | 96 Bytes Hintergrundrestaurierung |
+| $0200–$17C2 | Laufzeitcode und Daten: 5571 Bytes |
+| $17C3–$17C9 | 7 freie Bytes |
+| $17CA–$17FF | 54 Bytes Hintergrundrestaurierung |
 | $1800–$1FFF | TED-Luminanz und Farbe |
 | $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
 | $2140–$3A3F | Sichtbares Spielfeld |
-| $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner, 303 Bytes |
-| $3B80–$3F3F | HUD |
-| $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung, 132 Bytes |
+| $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner, 305 Bytes |
+| $3B80–$3CBF | Bedienhilfe, HUD-Zeile 22 |
+| $3CC0–$3DFF | Unsichtbare HUD-Zeile: weite Mathematik und Komponentennormierung, 287 Bytes |
+| $3E00–$3F3F | Stärke/Status, HUD-Zeile 24 |
+| $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 138 Bytes und Diagonal-Guard 42 Bytes |
 
-Die beiden versteckten Bitmap-Zeilen haben identische schwarze Vorder- und
+Die drei versteckten Bitmap-Zeilen haben identische schwarze Vorder- und
 Hintergrundfarbe. Zeichner und Clear-Routinen schützen diese Bereiche.
 Der Loader transportiert die oberen Tabellen zunächst ab $3000; die
 Initialisierung installiert sie vor dem Löschen der sichtbaren Bitmap.
@@ -51,10 +53,14 @@ liegen auf der festen Seite. Der Generator prüft Grenzen, Segmentlimit,
 Nullsegmente, zulässige Winkel und Konturschnittpunkte. Ballfreiheit und
 Erreichbarkeit sind noch keine vollständigen Validator-Nachweise.
 
-21 Ballpunkte und acht Zielpunkte sichern Adresse und ursprüngliches
-Bitmap-Byte. Rückwärtsrestaurierung erhält den Hintergrund auch bei
-mehreren Punkten im selben Byte. Alle 128 Zielrichtungen sind geprüft.
-Der Ball rundet seine wirkliche Subpixelposition auf einzelne Pixel.
+Die 21-Pixel-Ballform wird mit fünf Zeilenmasken gezeichnet. Höchstens
+zehn Bitmap-Bytes und acht Zielpunkte sichern Adresse und ursprünglichen
+Bytewert. Rückwärtsrestaurierung erhält überlappende Ball-/Ziel-/Wandbytes.
+Alle acht horizontalen Pixel-Ausrichtungen, x=255/256 und die rechte
+Bildkante sind gegen ein unabhängiges Pixelbild geprüft. Die Form und
+Subpixel-Rundung sind identisch zur vorherigen Darstellung. Die Bedienhilfe
+steht jetzt in Zeile 22; die vorherige Titelzeile entfällt zugunsten des
+Mathematikbereichs. Stärke und Status bleiben in Zeile 24.
 
 Tastaturmatrix: A=(1,2), D=(2,2), W=(1,1), S=(1,5), P=(5,1),
 SPACE=(7,4). $FD30 wählt aktive niedrige Zeilen, $FF08 liest Spalten.
@@ -65,7 +71,8 @@ Der automatisierte Emulator-Smoke-Test injiziert weiterhin logische Ereignisse.
 
 ## Physikprüfung und Laufzeit
 
-31 Tests des echten assemblierten 6502-Codes bestehen: Loader, Grafik,
+40 automatisierte Tests bestehen, davon 33 am assemblierten Kern und
+sieben für Host-Geometrie/Export. Geprüft sind: Loader, Grafik,
 Eingabe, Hintergrund, exakte Arithmetik, 128 Richtungen, Reichweiten und
 Stillstand, Achsen-/Diagonalbanden, radiale Endpunkte, Streifkontakte,
 Lochfang und deterministische längere Testbahn-Replays. Das ersetzt noch
@@ -78,16 +85,18 @@ das Ergebnis zu vergröbern. Zusätzliche Tests vergleichen zufällige
 Streifkontakte mit einer unabhängigen diskreten Geometrie-Referenz.
 Ein spezieller Einheitvektor-Multiplizierer und eine verkürzte exakte
 Geschwindigkeitswurzel sparen weitere Zyklen. Die Hauptschleife synchronisiert an Rasterzeile 205. Gemessener PAL-Abstand:
-35563 Ticks; teuerster Ziel-/HUD-Redraw: 22961 Ticks.
+35573 Ticks; teuerster Ziel-/HUD-Redraw: 16742 Ticks.
 
 | Bewegungsszenario, höchste Stärke | Schlechtester Frame, TED-Ticks |
 |---|---:|
-| Gerade | 10183 |
-| Senkrechte Bande | 16179 |
-| 45°-Bande | 27255 |
-| Gerundete Ecke | 51436 |
-| Doppelkontakt in Ecke | 45043 |
-| Engstelle | 10434 |
+| Gerade | 6454 |
+| Senkrechte Bande | 9642 |
+| 45°-Bande | 14542 |
+| Radiale Diagonalecke | 27133 |
+| Doppelkontakt in Ecke | 23976 |
+| Engstelle | 6515 |
+| Schräger Eckanflug | 40900 |
+| Flacher Eckanflug | 36985 |
 
 **Die Framebudget-Abnahme scheitert.** Eckentreffer überschreiten ein
 PAL-Bild. Die Physik bleibt
@@ -97,7 +106,9 @@ reproduzierbar, läuft bei diesen Spitzen aber langsamer als die beabsichtigte
 Bahnproduktion und Effekten müssen diese Spitzen sowie der RAM-Verbrauch
 reduziert werden. Die geprüften Einlochgrenzfälle umfassen jetzt den Start innerhalb des
 Fangradius und die reduzierte Geschwindigkeit unmittelbar nach einem
-Abpraller. Kontakt-Epsilon und weitere Kontaktgrenzfälle bleiben offen.
+Abpraller. Die Wand-Gap-Toleranz von 2/256 Pixel ist gegen ein und zwei
+Einheiten Überlappung geprüft. Gleichzeitige Kontakte und weitere
+Kontaktgrenzfälle bleiben offen.
 
 In der eingeschränkten macOS-Umgebung startet VICE als Make/Python-
 Unterprozess teilweise nicht zuverlässig; der direkte CLI-Aufruf wurde
@@ -107,6 +118,25 @@ Framebudget-Überschreitung sind getrennte Befunde.
 
 Offen: vollständige Physikabnahme, 18-Bahnen-Budget, reale Hardware,
 reale Eingabe am C16, Wertung, Materialien, Sound und NTSC.
+
+## Export- und RAM-Hochrechnung
+
+`make budget` erzeugt den Richtungs-/Längenstrom der Testbahn und liest
+seine Geometrie zurück. Der Export benötigt 39 statt 85 Bytes. Die
+Hochrechnung 18 × 39 + 36 Verzeichnisbytes ergibt 738 Bytes. Sie verwendet
+den echten Testexport, aber noch keine 18 finalen Bahnen. Der Hauptbereich
+hat nur sieben freie Bytes; bereits die Geometrie-Hochrechnung benötigt
+731 zusätzliche Bytes. ACME-Decoder, aktuelle entpackte Bahn, Name/Par,
+Materialien und Spielmodule sind in diesem Bedarf noch nicht enthalten.
+`build/course-budget.json` benennt diese Annahmen ausdrücklich.
+
+Die neuen Sonderfälle verbessern die Laufzeit auf Kosten des Codeumfangs.
+Weitere einzelne Abkürzungen im Hauptbereich lösen das Gesamtbudget nicht.
+Die konkrete nächste Architekturarbeit steht in TODO.md: geschützte,
+garantiert freie Bitmapbereiche für Daten ausweisen, Kursbestand und
+aktuelle Bahn trennen, anschließend allgemeinen Kreis-Sweep und
+Worst-Case-Messmatrix verbessern. Zielreserve: höchstens 32000 TED-Ticks
+für jeden geprüften Frame. Schritt 2 ist weiterhin nicht abgenommen.
 
 ## TED-Sound und PAL/NTSC für spätere Module
 

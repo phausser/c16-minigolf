@@ -146,7 +146,7 @@ Tests: deterministische Wiedergaben im tatsächlichen 6502-Kern, unabhängige ho
 
 ## Technische Quellen und offene Nachweise
 
-Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf), insbesondere Standard-Hi-Res, Bitmap-Organisation, Register und Timing. Der Hi-Res-Modus hat 320 × 200 Pixel und einen 8-KB-ausgerichteten Bitmap-Bereich. Registerwerte, Attributadressierung, RAM-Ladeverhalten und PAL/NTSC-Erkennung sind vor Implementierung am Datenblatt und im Emulator zu verifizieren. Diese Spezifikation behauptet noch keine gemessene Laufzeit oder fertig validierte Registerinitialisierung.
+Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf), insbesondere Standard-Hi-Res, Bitmap-Organisation, Register und Timing. Der Hi-Res-Modus hat 320 × 200 Pixel und einen 8-KB-ausgerichteten Bitmap-Bereich. Registerwerte, Attributadressierung, RAM-Ladeverhalten und PAL/NTSC-Erkennung sind vor Implementierung am Datenblatt und im Emulator zu verifizieren. Gemessene Register- und Laufzeitnachweise stehen in docs/hardware.md; offene Freigaben sind in TODO.md ausgewiesen.
 
 Keine Rückfrage ist zum Start nötig. Die oben genannten Annahmen legen einen konkreten ersten Release fest; Steuerung und physikalische Konstanten werden nach dem spielbaren Prototyp fein abgestimmt.
 
@@ -157,7 +157,9 @@ ACME-Kern mit 128 Viertelwellen-Richtungen, 32 Startgeschwindigkeiten
 und exaktem Stillstand. Die Darstellung rundet Subpixelwerte zur nächsten
 Pixelmitte, bei genau einer Hälfte nach oben. Konturen nutzen fünf Bytes
 pro Segment: vier Halb-Pixelkoordinaten und einen einwärts gerichteten
-Normalenindex. Wandstriche liegen außerhalb der geometrischen Innenkante.
+Normalenindex in Bits 0–2. Bit 7 markiert einen von seinen angrenzenden
+Wänden verdeckten Endpunkt; dessen Kreisprüfung kann entfallen. Replays
+mit und ohne dieses Flag müssen identische Ballzustände liefern. Wandstriche liegen außerhalb der geometrischen Innenkante.
 
 Kontaktzeiten haben acht Nachkommabits; bei maximaler Geschwindigkeit
 entspricht eine Zeiteinheit höchstens 1/64 Pixel Weg. Kreis-Endpunkte
@@ -169,6 +171,41 @@ Die Kontaktgrenze zählt Überschreitungen und verwirft die Restbewegung.
 
 Der Prototyp erfüllt noch nicht sämtliche Abnahmekriterien: offene
 Kontaktgrenzfälle, 50-Hz-Worst-Case und Platz für alle 18 Bahnen stehen in
-TODO.md. Der umfangreiche Physikkern benötigt derzeit 5468 Runtime-Bytes;
-68 bleiben im Hauptbereich frei. Exakte Speicher- und Laufzeitmessungen
+TODO.md. Der umfangreiche Physikkern benötigt derzeit 5571 Runtime-Bytes;
+7 bleiben im Hauptbereich frei. Exakte Speicher- und Laufzeitmessungen
 stehen in docs/hardware.md. Das 50-Hz-Ziel bleibt bestehen.
+
+### Rundung, Optimierungen und kompakter Export
+
+Geradenkontakte akzeptieren ein negatives unnormalisiertes Wand-Gap von
+höchstens zwei Q8.8-Einheiten (2/256 Pixel auf Achsen) als Kontaktzeit null.
+Größere negative Abstände werden nicht durch diese Rundungstoleranz
+verdeckt. Bei Kreis-Sweeps bleibt der letzte äußere Wegpunkt maßgeblich.
+
+Für exakt diagonale Geschwindigkeiten wird der Betrag mit 362/256 ≈ √2
+berechnet. Die Abweichung zur exakten ganzzahligen Wurzel beträgt im
+legalen Geschwindigkeitsbereich höchstens eine Q8.8-Einheit nach unten;
+alle Vorzeichenkombinationen sind geprüft. Diagonalreflexion verwendet
+31/32·(vx±vy), entsprechend e=15/16. Der spezielle radiale Diagonalfall
+bestimmt die erste innere ganzzahlige Kreisposition direkt und liefert
+denselben letzten äußeren Kontaktzeitpunkt wie die diskrete Geometrie.
+Alle anderen Endpunkte verwenden weiterhin den allgemeinen Sweep.
+
+Die Ballform bleibt 21 gesetzte Pixel groß. Der Renderer erzeugt sie über
+fünf Zeilenmasken und restauriert höchstens zehn Bitmap-Bytes; mit acht
+Zielpunkten benötigt er höchstens 18 Sicherungsplätze.
+
+Der neue Host-Export Version 1 speichert Start/Loch auf Zweipixelraster,
+Konturanzahl sowie pro Kontur Startpunkt, Run-Anzahl und Richtungs-/
+Längenbytes. Drei Bits kodieren eine von acht Richtungen, fünf Bits eine
+Länge von 1–32 Rastereinheiten (0 bedeutet 32). Lange Kanten werden in
+Runs geteilt und beim Dekodieren wieder zusammengefügt. Geometrie und
+Start/Loch werden verlustfrei zurückgelesen; Name, Par und Materialien
+sind noch nicht Teil dieses Formats. Der ACME-Kern verwendet derzeit
+weiter die expandierten Fünf-Byte-Segmente.
+
+`make budget` schreibt build/course-budget.json. Der echte Testexport
+benötigt 39 Bytes; 18 gleich große Bahnen plus 36-Byte-Verzeichnis würden
+738 Bytes benötigen. Das ist eine ausdrückliche Hochrechnungsannahme,
+kein Nachweis über 18 fertige Löcher. Gegenwärtig fehlen dafür bereits
+731 Runtime-Bytes, ohne Decoder, Metadaten und weitere Spielmodule.

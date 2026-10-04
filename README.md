@@ -36,13 +36,15 @@ Tests des tatsächlich assemblierten 6502-Codes:
 python3 -m venv .venv
 .venv/bin/python -m pip install -r tests/requirements.txt
 make test
+make budget # kompakten Bahnexport und 18-Bahnen-Hochrechnung prüfen
 make smoke # Zeitbudget-Prüfung meldet aktuell den bekannten Eckentreffer-Überlauf
 ```
 
 `make test` verwendet py65 für Loader, Bitmap-Adressierung, Geometrie,
-Hintergrundrestaurierung, Eingabe, Festkommaarithmetik, Bewegung und Kollisionen. `make smoke` startet VICE mit echten
+Hintergrundrestaurierung, Eingabe, Festkommaarithmetik, Bewegung und Kollisionen.
+Zusätzlich werden der Host-Bahnexport und der Rücklese-Decoder geprüft. `make smoke` startet VICE mit echten
 ROMs, PAL und ausdrücklich 16 KB, prüft die TED-Konfiguration und misst
-128 Richtungen und sechs Bewegungsszenarien. VICE steuert dabei logische Eingabeereignisse nach dem
+128 Richtungen und acht Bewegungsszenarien. VICE steuert dabei logische Eingabeereignisse nach dem
 Tastaturscan ein; das ersetzt keinen physischen Tastaturtest. Das Bild liegt
 danach in `build/vice-pal.png`, Speicher und Timing in `build/memory.json`
 und `build/timing.json`.

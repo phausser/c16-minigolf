@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 31 Tests des assemblierten Codes bestehen. VICE bestätigt ROM-Start, Hi-Res, Eingabe und Rendering; die erweiterte Zeitbudget-Prüfung scheitert noch an Eckentreffern. Schritt 2 bleibt offen, bis Laufzeit und das Speicherbudget für 18 Bahnen nachgewiesen sind. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 40 automatisierte Tests bestehen (33 am assemblierten Kern, sieben für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe und Rendering; die erweiterte Zeitbudget-Prüfung scheitert noch an Eckentreffern. Schritt 2 bleibt offen, bis Laufzeit und das Speicherbudget für 18 Bahnen nachgewiesen sind. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -22,21 +22,31 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] Kompaktes Bahnformat und Decoder für maximal 32 Segmente implementieren.
 - [x] Statische Geometrie sowie Ball-/Zielmarke zeichnen; Hintergrundrestaurierung prüfen.
 - [x] Ballposition aus der tatsächlichen Bewegung übernehmen.
-- [ ] Festkommaformate, Zwischenbreiten, Rundung und Kontakt-Epsilon festlegen.
+- [x] Festkommaformate, Zwischenbreiten, Rundung und Kontakt-Epsilon festlegen (SPEC; Wand-Gap-Toleranz 2/256 Pixel).
 - [x] Pixelgenaue Ballbewegung mit Subpixel-Physik implementieren und prüfen: jede Pixelposition erreichbar, kein Einrasten auf Zeichen- oder Zweipixelraster, auch rechts von x=255.
 - [x] 128 Richtungen und 32 Stärken erzeugen und normieren.
 - [x] Rollreibung, exakten Stillstand und Wegprüfung am Loch implementieren.
 - [x] Kreis-Segment- und Kreis-Endpunkt-Kontakte mit frühestem Kontakt implementieren.
 - [ ] Kontinuierlichen Sweep, Restbewegung, Doppelkontakte und Kontaktgrenze absichern (Basis implementiert).
 - [x] Zielen, Stärke, Schlag und Einlochen als vollständigen Ablauf verbinden.
-- [ ] Code-, Daten- und Scratchbedarf messen; 18-Bahnen-Budget mit echten Exportdaten hochrechnen.
+- [x] Code-, Daten- und Scratchbedarf messen; 18-Bahnen-Budget mit dem echten Testexport hochrechnen (`make budget`: 18 gleich große Exporte als ausdrückliche Annahme).
 - [x] Schlechteste Framezeit mit Anzeige messen, einschließlich Engstellen und Mehrfachkontakten.
-- [ ] Gemessene Eckentreffer von 51436 auf unter 35563 PAL-Ticks mit Reserve optimieren; `make smoke` muss bestehen.
-- [ ] Verbleibende 68 Runtime-Bytes vergrößern und echtes 18-Bahnen-Budget nachweisen.
+- [ ] Allgemeine schräge Eckentreffer von 40900 auf höchstens 32000 PAL-Ticks optimieren; `make smoke` muss bestehen.
+- [ ] Verbleibende 7 Runtime-Bytes vergrößern und echtes 18-Bahnen-Budget nachweisen.
 - [x] Start innerhalb des Fangradius und Lochfang unmittelbar nach einem Abpraller gezielt absichern.
-- [ ] Kontakt-Epsilon und gleichzeitige Kontaktauflösung vollständig absichern.
+- [x] Wand-Kontakt-Epsilon gegen Rundungsreste von ein bis zwei Festkommaeinheiten prüfen.
+- [ ] Gleichzeitige Kontakte und schrägere Endpunktfälle vollständig absichern.
+- [x] Ball zeilenweise bytegenau zeichnen; Pixelbild aller acht Ausrichtungen, x=255/256 und rechte Bildkante vergleichen.
+- [x] Verlustfreien Richtungs-/Längenexport samt Host-Decoder und Fehlerprüfungen implementieren (Testbahn 85 → 39 Bytes).
+- [ ] Komprimierten Export im ACME-Kern dekodieren und die entpackte aktuelle Bahn separat vom Kursbestand halten.
 
 Abnahme: spielbarer Kern erfüllt Speicher- und Zeitbudget mit begründeter Reserve. Bei Überschreitung zuerst Architektur/Daten optimieren; Bahnproduktion erst nach erneutem Nachweis fortsetzen.
+
+### Nächste Umsetzung innerhalb von Schritt 2
+
+1. Speicherarchitektur ändern: mindestens 738 Bytes für die gemessene Kurs-Hochrechnung bereitstellen, zusätzlich Decoder, aktuelle 160-Byte-Bahn und Spielmetadaten einplanen. Garantiert freie Bitmapbereiche als feste Datenbereiche ausweisen und durch Renderer/Clear-Routinen schützen; keine weitere Ansammlung einzelner Sonderfallroutinen im Hauptbereich. Ziel: mindestens 1 KB zusätzlicher nutzbarer Platz, ohne 64 KB oder Multicolor.
+2. Den allgemeinen Kreis-Sweep beschleunigen, insbesondere schräge Anflüge. Messmatrix um variierende Winkel, Positionen und Stärken erweitern; unabhängige Kontaktreferenz und Energieprüfung behalten. Alle geprüften Frames müssen höchstens 32000 TED-Ticks benötigen, mit voller Anzeige. Die schnellere exakte Diagonal-Abkürzung ersetzt diese allgemeine Abnahme nicht.
+3. ACME-Bahn-Decoder mit Host-Export bitgenau vergleichen, Kontakt-/Restbewegungsgrenzen systematisch prüfen und Speicherbericht erneut mit 18 tatsächlichen Bahnexporten rechnen. Erst danach Schritt 2 schließen und mit Bahnproduktion fortfahren.
 
 ## 3. Physik absichern
 
