@@ -6,7 +6,7 @@ TEST_PYTHON ?= .venv/bin/python
 PRG := build/minigolf.prg
 SOURCES := $(wildcard src/*.asm src/*.inc)
 
-.PHONY: all run test smoke budget check clean
+.PHONY: all run test smoke budget benchmark check clean
 all: $(PRG)
 
 build:
@@ -32,6 +32,9 @@ smoke: $(PRG)
 
 budget: $(PRG)
 	$(PYTHON) tools/course_codec.py
+
+benchmark: $(PRG)
+	$(TEST_PYTHON) tools/benchmark_math.py
 
 check: test smoke
 

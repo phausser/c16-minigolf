@@ -35,3 +35,17 @@ python3 tests/vice_smoke.py --verify-only
 
 Gemessene Ergebnisse und noch offene Hardware-Nachweise:
 [hardware.md](hardware.md).
+
+## Reproduzierbare Mathematikmessung
+
+`make benchmark` prüft die assemblierten Multiplikations- und Divisionsroutinen
+gegen ganzzahlige Referenzen und schreibt alle Operanden und CPU-Zyklen nach
+`build/math-benchmark.json`. Vorzeichen, Null, Achsenfaktoren und Grenzen der
+spezialisierten Routinen sind enthalten. Die verschiedenen Ergebnisverträge
+werden separat geprüft. Das ist eine deterministische Stichprobenmatrix,
+kein vollständiger Worst-Case-Nachweis; TED-Wartezeiten fehlen.
+
+Nächste Schritte: geschützte Speicherreserve schaffen, alternative Arithmetik
+an diesen Messfällen vergleichen, anschließend allgemeine Eckensweeps im
+PAL-Emulator messen und den kompakten Bahn-Decoder integrieren. Schritt 2
+bleibt bis zur Speicher- und Laufzeitabnahme offen.

@@ -49,3 +49,19 @@ Falls VICE beim Start aus dem Python-Smokeprozess in der eingeschränkten Umgebu
 3. python3 tests/vice_smoke.py --verify-only
 
 Letzte Implementierungscommits vor dieser Übergabe: 4bcaca9 (Renderer/Eckensweep), 9552c5d (Export/RAM-Bericht), beide auf main gepusht. Remote: git@github.com:phausser/c16-minigolf. Dokumentationsänderungen separat semantisch committen und pushen. Nach dem Clear zuerst git status prüfen, diesen Stand sowie TODO.md/SPEC.md lesen und keine erledigten Arbeiten wiederholen.
+
+## Reproduzierbarer Benchmark (2026-10-04)
+
+`make benchmark` implementiert jetzt eine feste Matrix mit 436 gegen
+ganzzahlige Referenzen geprüften Rechenfällen. Bericht:
+`build/math-benchmark.json`. CPU-Zyklen ohne TED-Wartezeiten:
+
+| Routine | Fälle | Minimum–Maximum |
+|---|---:|---:|
+| multiply_signed | 156 | 87–741 |
+| multiply_unit | 156 | 51–493 |
+| multiply_fraction | 91 | 50–405 |
+| divide_fraction | 33 | 287–711 |
+
+Die Matrix ist kein erschöpfender Worst-Case-Nachweis. Alle 40 Tests
+bestehen; Speicher- und PAL-Laufzeitabnahme bleiben offen.
