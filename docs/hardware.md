@@ -71,7 +71,7 @@ Der automatisierte Emulator-Smoke-Test injiziert weiterhin logische Ereignisse.
 
 ## Physikprüfung und Laufzeit
 
-40 automatisierte Tests bestehen, davon 33 am assemblierten Kern und
+42 automatisierte Tests bestehen, davon 35 am assemblierten Kern und
 sieben für Host-Geometrie/Export. Geprüft sind: Loader, Grafik,
 Eingabe, Hintergrund, exakte Arithmetik, 128 Richtungen, Reichweiten und
 Stillstand, Achsen-/Diagonalbanden, radiale Endpunkte, Streifkontakte,
@@ -85,18 +85,18 @@ das Ergebnis zu vergröbern. Zusätzliche Tests vergleichen zufällige
 Streifkontakte mit einer unabhängigen diskreten Geometrie-Referenz.
 Ein spezieller Einheitvektor-Multiplizierer und eine verkürzte exakte
 Geschwindigkeitswurzel sparen weitere Zyklen. Die Hauptschleife synchronisiert an Rasterzeile 205. Gemessener PAL-Abstand:
-35564 Ticks; teuerster Ziel-/HUD-Redraw: 16736 Ticks.
+35573 Ticks; teuerster Ziel-/HUD-Redraw: 16752 Ticks.
 
 | Bewegungsszenario, höchste Stärke | Schlechtester Frame, TED-Ticks |
 |---|---:|
-| Gerade | 6454 |
-| Senkrechte Bande | 9579 |
-| 45°-Bande | 14106 |
-| Radiale Diagonalecke | 25904 |
-| Doppelkontakt in Ecke | 23232 |
+| Gerade | 6444 |
+| Senkrechte Bande | 9558 |
+| 45°-Bande | 14046 |
+| Radiale Diagonalecke | 25918 |
+| Doppelkontakt in Ecke | 23046 |
 | Engstelle | 6515 |
-| Schräger Eckanflug | 40581 |
-| Flacher Eckanflug | 36825 |
+| Schräger Eckanflug | 40542 |
+| Flacher Eckanflug | 36841 |
 
 **Die Framebudget-Abnahme scheitert.** Eckentreffer überschreiten ein
 PAL-Bild. Die Physik bleibt
@@ -125,8 +125,8 @@ reale Eingabe am C16, Wertung, Materialien, Sound und NTSC.
 seine Geometrie zurück. Der Export benötigt 39 statt 85 Bytes. Die
 Hochrechnung 18 × 39 + 36 Verzeichnisbytes ergibt 738 Bytes. Sie verwendet
 den echten Testexport, aber noch keine 18 finalen Bahnen. Der Hauptbereich
-hat nur sieben freie Bytes; bereits die Geometrie-Hochrechnung benötigt
-731 zusätzliche Bytes. ACME-Decoder, aktuelle entpackte Bahn, Name/Par,
+hat jetzt 142 freie Bytes; bereits die Geometrie-Hochrechnung benötigt
+596 zusätzliche Bytes. ACME-Decoder, aktuelle entpackte Bahn, Name/Par,
 Materialien und Spielmodule sind in diesem Bedarf noch nicht enthalten.
 `build/course-budget.json` benennt diese Annahmen ausdrücklich.
 
@@ -190,3 +190,20 @@ die Division (337–578 CPU-Zyklen). Die ursprüngliche Matrix ohne die neuen
 Grenzfälle maß 287–711 Zyklen: einzelne leichte Fälle werden langsamer,
 der höchste gemessene Wert und die geprüften PAL-Kontaktframes sinken.
 Die Tabelle oben enthält die neue VICE-Messung; die Laufzeitabnahme bleibt offen.
+
+## Codeverkleinerung bei unverändertem Spielfeld
+
+Die Haupt-Runtime ist von 5571 auf 5436 Bytes geschrumpft: 135 Bytes
+gespart, 142 Bytes vor dem Render-Scratch frei. Gemeinsame Negationen
+werden nur in selteneren Physikpfaden genutzt; heiße Arithmetik bleibt
+inline. Achsennormierung nutzt einen gemeinsamen Pfad, Achsenreflexion
+berechnet direkt floor(v/16)−v. Der feste Kreisvergleich berücksichtigt
+die Nullbytes der Radienquadrate. Grenztests verlangen weiterhin einen
+strikten Vergleich am Radius und prüfen beide Achsen/Vorzeichen.
+42 Tests und 448 Mathematikfälle bestehen. Die Tabelle oben zeigt den
+aktuellen PAL-Stand; der schlechteste Frame liegt bei 40542 Ticks.
+
+142 Bytes reichen rechnerisch für drei weitere 39-Byte-Geometrien samt
+je zwei Zeigerbytes. Das ist keine Freigabe von vier spielbaren Bahnen:
+Decoder, Reserve für die aktuelle 32-Segment-Bahn und Metadaten fehlen
+weiterhin. Der existierende Kern spielt eine Testbahn.

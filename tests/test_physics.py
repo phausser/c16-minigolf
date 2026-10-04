@@ -108,6 +108,35 @@ class ArithmeticTests(unittest.TestCase):
             self.r.call('square_small')
             self.assertEqual(unsigned(self.r,'M_PRODUCT',4),value*value,value)
 
+    def test_fixed_circle_radii_strict_boundary(self):
+        for radius in (512, 768):
+            limit = radius*radius
+            put(self.r, 'RADIUS_SQUARED', limit, 4)
+            for square in (0, limit-1, limit, limit+1, 0xffffff, 0x1000000, 0xffffffff):
+                put(self.r, 'M_PRODUCT', square, 4)
+                self.r.call('compare_circle_radius')
+                self.assertEqual(bool(self.r.cpu.p & 1), square < limit, (radius, square))
+
+    def test_cardinal_normalization_and_axis_restitution(self):
+        for axis, other, unit, other_unit, normal in (
+            ('VELOCITY_X', 'VELOCITY_Y', 'UNIT_X', 'UNIT_Y', 'NX'),
+            ('VELOCITY_Y', 'VELOCITY_X', 'UNIT_Y', 'UNIT_X', 'NY')):
+            for velocity in (-1024, -257, -256, -1, 1, 255, 256, 1024):
+                put(self.r, axis, velocity)
+                put(self.r, other, 0)
+                put(self.r, 'UNIT_X', 123)
+                put(self.r, 'UNIT_Y', 456)
+                self.r.call('normalize_velocity')
+                self.assertEqual(unsigned(self.r, 'SPEED'), abs(velocity))
+                self.assertEqual(signed(self.r, unit), 256 if velocity > 0 else -256)
+                self.assertEqual(signed(self.r, other_unit), 0)
+                put(self.r, 'NX', 0)
+                put(self.r, 'NY', 0)
+                put(self.r, normal, 256 if velocity < 0 else -256)
+                self.r.call('reflect_velocity')
+                self.assertEqual(signed(self.r, axis), velocity//16-velocity)
+                self.assertEqual(signed(self.r, other), 0)
+
     def test_all_128_unit_vectors(self):
         for angle in range(128):
             self.r.put('ANGLE',angle)

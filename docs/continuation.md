@@ -77,3 +77,17 @@ Runtime weiterhin 5571 Bytes, sieben frei. VICE misst maximal 40581 Ticks
 (zuvor 40900), die 32000-Tick-Abnahme scheitert weiterhin. Messdetails in
 hardware.md. Die Kapazität bleibt eine eingebaute Testbahn, keine zusätzliche.
 Spielfeldmaße bleiben vorerst unverändert; Speicherarchitektur noch offen.
+
+## Fortsetzung nach Codeverkleinerung
+
+Unveränderte Spielfeldmaße. Haupt-Runtime 5436 Bytes, 142 frei (135 Bytes
+gewonnen). Heiße Arithmetik bleibt inline; gemeinsame Negationen nur in
+selteneren Physikpfaden. Achsennormierung und -reflexion sowie der Vergleich
+fester Kreisradien sind verkleinert. 42 Tests und 448 Benchmarkfälle bestehen.
+PAL-Worst-Case 40542 Ticks: Abnahme weiterhin offen. `make budget` nennt
+jetzt auch die rein rechnerische Zusatzkapazität: drei weitere gleich große
+Geometrien mit Zeigern, ohne Decoder, aktuelle-Bahn-Reserve und Metadaten.
+18-Geometrien-Hochrechnung: 738 Bytes, davon 596 noch nicht gedeckt.
+Als Nächstes größere Codeblöcke verkleinern bzw. den kompakten Decoder
+mit getrennter aktueller Bahn einpassen. Keine Bahnkapazität freigeben,
+bevor der tatsächliche gesamte RAM-Vertrag nachgewiesen ist.

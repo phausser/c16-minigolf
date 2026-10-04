@@ -228,10 +228,14 @@ line_sub_radius:
 line_gap_invalid:
     jmp line_no_contact
 collision_branch_1:
-    +copy16 GAP, SAVED_X
-    +copy16 DOT_STEP, M_DEN
-    +negate16 M_DEN
-    +copy16 SAVED_X, M_REM
+    sec
+    lda #0
+    sbc DOT_STEP
+    sta M_DEN
+    lda #0
+    sbc DOT_STEP + 1
+    sta M_DEN + 1
+    +copy16 GAP, M_REM
     lda #0
     sta M_DEN + 2
     sta M_REM + 2
@@ -418,7 +422,7 @@ circle_x_positive:
     +copy16 QX, M_A
     lda M_A + 1
     bpl circle_x_absolute
-    +negate16 M_A
+    jsr negate_math_a
 circle_x_absolute:
     lda M_A + 1
     cmp #7
@@ -428,7 +432,7 @@ collision_branch_7:
     +copy16 QY, M_A
     lda M_A + 1
     bpl circle_y_absolute
-    +negate16 M_A
+    jsr negate_math_a
 circle_y_absolute:
     lda M_A + 1
     cmp #7
@@ -793,20 +797,12 @@ circle_at_trial:
     +copy16 TRIAL_Y, QY
     jsr square_q
 compare_circle_radius:
+    ; Both supported radii have zero low 16 bits: $00040000 / $00090000.
+    ; A high-byte tie is already outside, regardless of the low bytes.
     lda M_PRODUCT + 3
-    cmp RADIUS_SQUARED + 3
-    bcc circle_inside
     bne circle_outside_radius
     lda M_PRODUCT + 2
     cmp RADIUS_SQUARED + 2
-    bcc circle_inside
-    bne circle_outside_radius
-    lda M_PRODUCT + 1
-    cmp RADIUS_SQUARED + 1
-    bcc circle_inside
-    bne circle_outside_radius
-    lda M_PRODUCT
-    cmp RADIUS_SQUARED
     bcs circle_outside_radius
 circle_inside:
     sec
@@ -838,7 +834,7 @@ swept_radius:
     clc
     rts
 swept_negative:
-    +negate16 M_A
+    jsr negate_math_a
     lda M_A + 1
     cmp M_COUNT
     bcc swept_near

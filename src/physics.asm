@@ -60,7 +60,7 @@ cosine_index:
     adc #32
     and #64
     beq cosine_done
-    +negate16 M_A
+    jsr negate_math_a
 cosine_done:
     rts
 
@@ -326,11 +326,11 @@ reflect_general:
     +copy16 NY, M_B
     lda M_A + 1
     bpl reflect_nx_absolute
-    +negate16 M_A
+    jsr negate_math_a
 reflect_nx_absolute:
     lda M_B + 1
     bpl reflect_ny_absolute
-    +negate16 M_B
+    jsr negate_math_b
 reflect_ny_absolute:
     lda M_A
     cmp M_B
@@ -423,19 +423,13 @@ reflect_axis_loss:
     ror M_A
     dey
     bne reflect_axis_loss
+    ; Combine negation and restitution: floor(v/16) - v, modulo 16 bits.
     sec
-    lda #0
+    lda M_A
     sbc 0,x
     sta 0,x
-    lda #0
+    lda M_A + 1
     sbc 1,x
-    sta 1,x
-    clc
-    lda 0,x
-    adc M_A
-    sta 0,x
-    lda 1,x
-    adc M_A + 1
     sta 1,x
     rts
 
@@ -454,11 +448,11 @@ normalize_has_y:
     +copy16 VELOCITY_Y, M_B
     lda M_A + 1
     bpl normalize_dx_absolute
-    +negate16 M_A
+    jsr negate_math_a
 normalize_dx_absolute:
     lda M_B + 1
     bpl normalize_dy_absolute
-    +negate16 M_B
+    jsr negate_math_b
 normalize_dy_absolute:
     lda M_A
     cmp M_B
@@ -511,30 +505,30 @@ normalize_oblique:
 normalize_done:
     rts
 normalize_vertical:
-    +copy16 VELOCITY_Y, SPEED
-    lda #0
-    sta UNIT_X
-    sta UNIT_X + 1
-    sta UNIT_Y
-    lda #1
-    sta UNIT_Y + 1
-    lda SPEED + 1
-    bpl normalize_done
-    +negate16 SPEED
-    lda #$ff
-    sta UNIT_Y + 1
-    rts
+    ldx #VELOCITY_Y
+    bne normalize_axis
 normalize_horizontal:
-    +copy16 VELOCITY_X, SPEED
+    ldx #VELOCITY_X
+!if UNIT_X - VELOCITY_X != 6 { !error "axis unit/velocity layout mismatch" }
+!if UNIT_Y - VELOCITY_Y != 6 { !error "axis unit/velocity layout mismatch" }
+normalize_axis:
+    lda 0,x
+    sta SPEED
+    lda 1,x
+    sta SPEED + 1
     lda #0
+    sta UNIT_X
+    sta UNIT_X + 1
     sta UNIT_Y
     sta UNIT_Y + 1
-    sta UNIT_X
-    lda #1
-    sta UNIT_X + 1
     lda SPEED + 1
-    bpl normalize_done
+    bpl normalize_axis_positive
     +negate16 SPEED
     lda #$ff
-    sta UNIT_X + 1
+    bne normalize_axis_store
+normalize_axis_positive:
+    lda #1
+normalize_axis_store:
+    ; UNIT_X/Y are exactly six bytes after their velocity component.
+    sta 7,x
     rts

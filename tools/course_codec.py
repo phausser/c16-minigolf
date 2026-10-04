@@ -96,12 +96,15 @@ def budget():
               'directory_bytes':directory_bytes, 'estimated_geometry_bytes':estimated,
               'runtime_free_bytes':free, 'additional_bytes_needed':max(0,estimated-free),
               'fits_current_runtime':estimated <= free,
+              'additional_geometry_only_capacity':free//(len(data)+2),
               'assumption':'18 courses with the measured test-course size; not 18 final exports',
               'not_included':['ACME run decoder','names/par','materials','score/effects']}
     (ROOT/'build/test-course.packed').write_bytes(data)
     (ROOT/'build/course-budget.json').write_text(json.dumps(report,indent=2)+'\n')
     print(f'Course geometry: {report["expanded_test_course_bytes"]} -> {len(data)} bytes; '
           f'18-course estimate + directory: {estimated} bytes; free: {free}.')
+    print(f'Free RAM would hold at most {free//(len(data)+2)} additional packed geometries '
+          'of this size with pointers; excludes decoder/current-course reserve and metadata.')
     if estimated > free:
         print('18-course RAM gate OPEN: geometry alone needs '
               f'{estimated-free} additional bytes, plus decoder and game metadata.')

@@ -20,6 +20,15 @@
     sbc .value + 1
     sta .value + 1
 }
+; Shared hot-scratch negations preserve X/Y and the macro's final flags.
+; Keep other negations inline: their operands and call frequency differ.
+negate_math_a:
+    +negate16 M_A
+    rts
+negate_math_b:
+    +negate16 M_B
+    rts
+
 !macro add16 .left, .right, .target {
     clc
     lda .left
