@@ -145,13 +145,14 @@ class HardwareTests(unittest.TestCase):
         self.r.bus[S['lookup_image']:S['lookup_image']+320] = lookup
         self.r.call('initialise_video')
         luma, colors = [7]*1024,[16]*1024
+        colors[40:840] = [1]*800
         luma[840:880] = colors[840:880] = [0]*40
         luma[:40] = colors[:40] = [0]*40
         luma[920:960] = colors[920:960] = [0]*40
         self.assertEqual(self.r.bus[0x1800:0x1c00], luma)
         self.assertEqual(self.r.bus[0x1c00:0x2000], colors)
         self.assertEqual(self.r.bus[0x2000:0x2140],lookup)
-        self.assertEqual(self.r.bus[0x2140:0x3a40], [0]*6400)
+        self.assertEqual(self.r.bus[0x2140:0x3a40], [255]*6400)
         self.assertEqual(self.r.bus[0x3b80:0x3cc0], [0]*320)
         self.assertEqual(self.r.bus[0x3e00:0x3f40], [0]*320)
         self.assertEqual(self.r.bus[0x3cc0:0x3e00],wide)
@@ -177,19 +178,30 @@ class HardwareTests(unittest.TestCase):
         self.r.call('draw_course')
         expected = bytearray(8000)
         contours = [COURSE['outline'], *COURSE['obstacles']]
-        for contour in contours:
-            for a,b in zip(contour, contour[1:]+contour[:1]):
-                area = sum(p[0]*q[1]-p[1]*q[0] for p,q in zip(contour,contour[1:]+contour[:1]))
-                sign = 1 if (area>0) == (contour is contours[0]) else -1
-                nx = -((b[1]>a[1])-(b[1]<a[1]))*sign
-                ny = ((b[0]>a[0])-(b[0]<a[0]))*sign
-                steps = max(abs(b[0]-a[0]),abs(b[1]-a[1]))//2
-                for step in range(steps+1):
-                    x = a[0]+(b[0]-a[0])*step//steps - nx
-                    y = a[1]+(b[1]-a[1])*step//steps - ny
-                    for dx in (-1,0,1):
-                        for dy in (-1,0,1):
-                            expected[bitmap_offset(x+dx,y+dy)] |= 128 >> ((x+dx)%8)
+        # Independent point-in-polygon reference, not the scanline export.
+        def playable(x, y):
+            inside = False
+            for contour in contours:
+                for a,b in zip(contour, contour[1:]+contour[:1]):
+                    if (a[1] <= y < b[1]) or (b[1] <= y < a[1]):
+                        crossing = a[0]+(y-a[1])*(b[0]-a[0])/(b[1]-a[1])
+                        if crossing <= x:
+                            inside = not inside
+            return inside
+        for y in range(8,168):
+            for x in range(320):
+                if not playable(x,y):
+                    expected[bitmap_offset(x,y)] |= 128 >> (x%8)
+        # Check cell colors before the black cup ring is overlaid: its pixels
+        # must not cast a shadow. Hidden code rows stay black/black.
+        for row in range(1,21):
+            for col in range(40):
+                x,y = col*8,row*8
+                dark = (not playable(x,y) or not playable(x,y-8) or
+                        col == 0 or not playable(x-8,y))
+                self.assertEqual(self.r.bus[0x1800+row*40+col],
+                                 0x10 if dark else 0x30, (x,y))
+                self.assertEqual(self.r.bus[0x1c00+row*40+col],1)
         cx,cy = COURSE['cup']
         for i in range(32):
             x = cx+round(math.cos(i*math.tau/32)*5)

@@ -6,18 +6,18 @@ Ein technisch anspruchsvolles Minigolfspiel für den unveränderten Commodore 16
 
 Planungsannahmen: PAL als erstes Ziel, ein Spieler, Tastatur als vollständige Grundsteuerung, optional ein C16-kompatibler Joystick. Alle 18 Löcher liegen im geladenen Programm; während einer Runde wird nichts nachgeladen. Auslieferung als PRG, zusätzlich ein D64 mit demselben Programm. Keine Speichererweiterung erforderlich. NTSC ist ein späteres Kompatibilitätsziel mit derselben Simulationszeit, aber eigener Laufzeitprüfung.
 
-„Kein Multicolor“ bedeutet hier bewusst ein monochromes Spielfeld: zwei feste Farben für das gesamte Bild, ein Bit pro Pixel, keine Multicolor-Modi und keine wechselnden Zellfarben. Farbe kann später als globale Palette gewählt werden, ohne das Grafikverfahren zu ändern.
+„Kein Multicolor“ bedeutet TED Standard-Hi-Res mit einem Bit pro Pixel und zwei Farben pro 8×8-Zelle. Die Bahn nutzt schwarze Vordergrundpixel und mittelgrauen Hintergrund; Schattenzellen verwenden dunkelgrauen Hintergrund. Die Pixelauflösung bleibt 320×200.
 
 ## Darstellung und Atmosphäre
 
 - TED Standard-Hi-Res-Bitmap, 320 × 200 Pixel, fester Bildschirm ohne Scrollen.
 - Spielfeldbereich: x = 8…311, y = 8…167. Statusbereich: y = 176…199; dazwischen Abstand.
-- Schwarzer Hintergrund, helle Linien und Flächen; Hindernisse und Materialien durch Muster unterscheidbar.
+- Spielbare Flächen mittelgrau, nichtspielbare Flächen und Hindernisse schwarz. Ball, Zielmarke und Lochring schwarz auf Grau; HUD weiß auf Schwarz.
 - Ball: kompakte, symmetrische 5 × 5-Pixel-Marke, physikalischer Radius 2 Pixel. Loch: klar erkennbarer Ring mit dunklem Zentrum.
-- Wände haben sichtbare Dicke. Die innere Wandkante ist die physikalische Kollisionskante; dekorative Dicke erweitert sie nach außen.
+- Die Grenze zwischen Grau und Schwarz entspricht der physikalischen Kollisionskante.
 - Laufrichtung vor dem Schlag als kurze gestrichelte Linie und Richtungsspitze; keine vollständige Flugbahnvorhersage.
 - HUD: Loch 01/18, Par, Schläge, Stärke als Balken, Gesamtstand relativ zu Par. Spieltext ohne Umlaute für einen kleinen Zeichensatz.
-- Kein Schatten, keine Perspektive, keine Höhenillusion und keine Hardware-Sprites.
+- Dunkelgrauer, am 8×8-Zellraster ausgerichteter Schatten an oberen und linken Innenkanten. Er verändert keine Kollisionsdaten. Keine Perspektive und keine Hardware-Sprites.
 
 Statische Bahn einmal zeichnen. Ball, Zielmarke und kleine Effekte als Softwaregrafik mit gesichertem Hintergrund aktualisieren. Überlappende Elemente werden in fester Reihenfolge restauriert und neu gezeichnet. Keine vollständige Bitmap-Kopie im RAM, kein Vollbild-Neuzeichnen pro Frame und kein flackerndes XOR als Standardlösung.
 

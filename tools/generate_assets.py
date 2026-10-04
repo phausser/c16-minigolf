@@ -89,6 +89,16 @@ def generate():
         encoded += [a[0]//2, a[1]//2, b[0]//2, b[1]//2,
                     normal | (0x80 if hidden_cap else 0)]
     lines.append(bytes_section('course_segments', encoded))
+    fill_edges = []
+    for a,b,*_ in segments:
+        if a[1] == b[1]:
+            continue
+        if a[1] > b[1]:
+            a,b = b,a
+        fill_edges += [a[0]//2, a[1], b[1]-a[1],
+                       (b[0]>a[0])-(b[0]<a[0])]
+    lines += [f'COURSE_FILL_COUNT = {len(fill_edges)//4}',
+              bytes_section('course_fill_edges', fill_edges)]
     rows = [0x2000+y*320 for y in range(25)]
     lines += [bytes_section('bitmap_rows_lo', rows),
               bytes_section('bitmap_rows_hi', [v>>8 for v in rows])]

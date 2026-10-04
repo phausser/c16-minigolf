@@ -1,14 +1,17 @@
+; Even/odd scanline fill. Bitmap 1 = solid black, 0 = playable gray.
+; Each nonhorizontal edge toggles the pixels to its right, with a half-open
+; y interval so shared vertices are counted exactly once. Obstacles use the
+; same parity rule. Requires a freshly initialized solid-black playfield.
 draw_course:
-    lda #<course_segments
+    lda #<course_fill_edges
     sta COURSE_PTR
-    lda #>course_segments
+    lda #>course_fill_edges
     sta COURSE_PTR + 1
-    lda #COURSE_SEGMENT_COUNT
+    lda #COURSE_FILL_COUNT
     sta SEGMENTS_LEFT
-course_next:
+fill_edge:
     ldy #0
     lda (COURSE_PTR),y
-    sta TEMP
     asl
     sta LINE_X
     lda #0
@@ -16,98 +19,78 @@ course_next:
     sta LINE_X + 1
     iny
     lda (COURSE_PTR),y
-    sta ROW_INDEX
-    asl
     sta LINE_Y
     iny
     lda (COURSE_PTR),y
-    cmp TEMP
-    beq course_x_same
-    bcc course_left
+    sta LINE_LEFT
+    iny
+    lda (COURSE_PTR),y
+    sta LINE_X_STEP
+fill_scanline:
+    lda LINE_X
+    sta PIXEL_X
+    lda LINE_X + 1
+    sta PIXEL_X + 1
+    lda LINE_Y
+    sta PIXEL_Y
+    jsr point_pixel
+    lda PIXEL_MASK
+    asl
+    sec
+    sbc #1                  ; first byte: bits from the crossing to the right
+    sta PIXEL_MASK
+    lda PIXEL_X + 1
+    lsr
+    lda PIXEL_X
+    ror
+    lsr
+    lsr
+    sta TEMP
+    lda #39
     sec
     sbc TEMP
-    ldx #2
-    bne course_x_ready
-course_left:
-    sta LINE_LEFT
-    lda TEMP
-    sec
-    sbc LINE_LEFT
-    ldx #$fe
-    bne course_x_ready
-course_x_same:
-    lda #0
-    ldx #0
-course_x_ready:
-    sta LINE_LEFT
-    stx LINE_X_STEP
-    iny
-    lda (COURSE_PTR),y
-    cmp ROW_INDEX
-    beq course_y_same
-    bcc course_up
-    sec
-    sbc ROW_INDEX
-    ldx #2
-    bne course_y_ready
-course_up:
-    sta LINE_LEFT
-    lda ROW_INDEX
-    sec
-    sbc LINE_LEFT
-    ldx #$fe
-course_y_ready:
-    sta LINE_LEFT
-    stx LINE_Y_STEP
-    jmp course_wall_offsets
-course_y_same:
-    lda #0
-    sta LINE_Y_STEP
-course_wall_offsets:
-    iny
-    lda (COURSE_PTR),y
-    and #7
-    tax
-    lda wall_offsets_x,x
-    sta WALL_X_OFFSET
-    lda wall_offsets_y,x
-    sta WALL_Y_OFFSET
-course_line:
-    jsr plot_wall
-    lda LINE_LEFT
-    beq course_advance
-    dec LINE_LEFT
+    sta GLYPH_BITS
+fill_byte:
+    lda (BITMAP_PTR),y
+    eor PIXEL_MASK
+    sta (BITMAP_PTR),y
+    clc
+    lda BITMAP_PTR
+    adc #8
+    sta BITMAP_PTR
+    bcc fill_byte_ready
+    inc BITMAP_PTR + 1
+fill_byte_ready:
+    lda #$ff
+    sta PIXEL_MASK
+    dec GLYPH_BITS
+    bne fill_byte
     clc
     lda LINE_X
     adc LINE_X_STEP
     sta LINE_X
-    lda LINE_X_STEP
-    bpl course_x_positive
-    lda #$ff
-    bne course_x_high
-course_x_positive:
     lda #0
-course_x_high:
+    bit LINE_X_STEP
+    bpl fill_step_positive
+    lda #$ff
+fill_step_positive:
     adc LINE_X + 1
     sta LINE_X + 1
-    clc
-    lda LINE_Y
-    adc LINE_Y_STEP
-    sta LINE_Y
-    jmp course_line
-course_advance:
+    inc LINE_Y
+    dec LINE_LEFT
+    bne fill_scanline
     clc
     lda COURSE_PTR
-    adc #5
+    adc #4
     sta COURSE_PTR
-    bcc course_pointer_ready
+    bcc fill_pointer_ready
     inc COURSE_PTR + 1
-course_pointer_ready:
+fill_pointer_ready:
     dec SEGMENTS_LEFT
-    beq course_finished
-    jmp course_next
-course_finished:
-
+    beq fill_done
+    jmp fill_edge
+fill_done:
+    jsr shade_course
     ; Cup ring is static and tests plotting at x > 255.
     lda #0
     sta POINT_INDEX
@@ -137,53 +120,75 @@ cup_x_sign:
     bne cup_next
     rts
 
-; A 3x3 stroke at each two-pixel segment step, offset into solid geometry.
-; The contour remains the visible inner edge used by collisions.
-plot_wall:
-    lda #0
-    sta ROW_INDEX
-wall_row:
-    lda LINE_Y
-    clc
-    adc WALL_Y_OFFSET
-    sec
-    sbc #1
-    clc
-    adc ROW_INDEX
+; Shade from solid top-left samples in this cell or its top/left neighbor.
+; Sampling on the cell grid keeps the shadow in aligned 8x8 blocks.
+; Row 0 lookup data is never sampled as geometry: row 1 uses black instead.
+shade_course:
+    lda #<$1828
+    sta COURSE_PTR
+    lda #>$1828
+    sta COURSE_PTR + 1
+    lda #8
     sta PIXEL_Y
-    lda LINE_X
-    clc
-    adc WALL_X_OFFSET
-    sta PIXEL_X
-    lda WALL_X_OFFSET
-    bpl wall_x_positive
-    lda #$ff
-    bne wall_x_high
-wall_x_positive:
+shade_row:
     lda #0
-wall_x_high:
-    adc LINE_X + 1
-    sta PIXEL_X + 1
-    lda PIXEL_X
-    sec
-    sbc #1
     sta PIXEL_X
-    lda PIXEL_X + 1
-    sbc #0
     sta PIXEL_X + 1
-    lda #3
-    sta GLYPH_BITS
-wall_column:
-    jsr plot_pixel
-    inc PIXEL_X
-    bne wall_no_carry
+shade_cell:
+    jsr point_pixel
+    lda (BITMAP_PTR),y
+    bmi shade_dark
+    lda PIXEL_Y
+    cmp #8
+    beq shade_dark
+    sec
+    lda BITMAP_PTR
+    sbc #<320
+    sta COPY_SOURCE
+    lda BITMAP_PTR + 1
+    sbc #>320
+    sta COPY_SOURCE + 1
+    lda (COPY_SOURCE),y
+    bmi shade_dark
+    lda PIXEL_X
+    ora PIXEL_X + 1
+    beq shade_dark
+    sec
+    lda BITMAP_PTR
+    sbc #8
+    sta COPY_SOURCE
+    lda BITMAP_PTR + 1
+    sbc #0
+    sta COPY_SOURCE + 1
+    lda (COPY_SOURCE),y
+    bmi shade_dark
+    lda #$30                 ; background white hue, middle luminance 3
+    bne shade_store
+shade_dark:
+    lda #$10                 ; background luminance 1
+shade_store:
+    ldy #0
+    sta (COURSE_PTR),y
+    inc COURSE_PTR
+    bne shade_attribute_ready
+    inc COURSE_PTR + 1
+shade_attribute_ready:
+    clc
+    lda PIXEL_X
+    adc #8
+    sta PIXEL_X
+    bcc shade_x_ready
     inc PIXEL_X + 1
-wall_no_carry:
-    dec GLYPH_BITS
-    bne wall_column
-    inc ROW_INDEX
-    lda ROW_INDEX
-    cmp #3
-    bne wall_row
+shade_x_ready:
+    lda PIXEL_X + 1
+    beq shade_cell
+    lda PIXEL_X
+    cmp #64
+    bcc shade_cell
+    clc
+    lda PIXEL_Y
+    adc #8
+    sta PIXEL_Y
+    cmp #168
+    bcc shade_row
     rts
-

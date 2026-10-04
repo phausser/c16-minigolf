@@ -12,7 +12,7 @@ initialise_video:
     lda #$18                  ; attributes $1800, color matrix $1c00
     sta TED_VIDEO
 
-    ; All 1024 attributes use foreground white/luminance 7, background black.
+    ; Default HUD palette; hidden rows and playfield colors are set below.
     ldx #0
 video_attributes:
     lda #$07
@@ -47,7 +47,7 @@ video_install_lookup_tail:
     sta BITMAP_PTR + 1
     ldx #25
     ldy #0
-    lda #0
+    lda #$ff                 ; solid black; parity fill opens gray surfaces
 video_clear_page:
     sta (BITMAP_PTR),y
     iny
@@ -68,5 +68,5 @@ video_hide_code:
     sta COLOR_BASE + 23*40,x
     dex
     bpl video_hide_code
+    jsr initialise_course_colors
     jmp clear_hud_bitmap
-

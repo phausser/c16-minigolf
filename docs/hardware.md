@@ -5,7 +5,7 @@ KERNAL 318004-05 und BASIC 318006-01.
 
 ## Speicher und Start
 
-PRG: 12277 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
+PRG: 12280 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
 Ein temporärer Kopierer läuft im unteren Stackbereich ab $0100 und kopiert
 überlappungssicher den Laufzeitkörper nach $0200. Währenddessen erfolgt
 kein Unterprogrammaufruf; der Stackpointer wird danach auf $FF gesetzt.
@@ -14,17 +14,17 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 
 | Bereich | Verwendung |
 |---|---|
-| $0200–$17C2 | Laufzeitcode und Daten: 5571 Bytes |
-| $17C3–$17C9 | 7 freie Bytes |
+| $0200–$17A4 | Laufzeitcode und Daten: 5541 Bytes |
+| $17A5–$17C9 | 37 freie Bytes |
 | $17CA–$17FF | 54 Bytes Hintergrundrestaurierung |
 | $1800–$1FFF | TED-Luminanz und Farbe |
 | $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
 | $2140–$3A3F | Sichtbares Spielfeld |
-| $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner, 305 Bytes |
+| $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner, 319 Bytes |
 | $3B80–$3CBF | Bedienhilfe, HUD-Zeile 22 |
 | $3CC0–$3DFF | Unsichtbare HUD-Zeile: weite Mathematik und Komponentennormierung, 308 Bytes |
 | $3E00–$3F3F | Stärke/Status, HUD-Zeile 24 |
-| $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 138 Bytes und Diagonal-Guard 42 Bytes |
+| $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 141 Bytes und Diagonal-Guard 42 Bytes |
 
 Die drei versteckten Bitmap-Zeilen haben identische schwarze Vorder- und
 Hintergrundfarbe. Zeichner und Clear-Routinen schützen diese Bereiche.
@@ -40,16 +40,22 @@ nachweislich hinein; weitere Speicheroptimierung ist Voraussetzung.
 Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf).
 $FF06=$3B, $FF07=$08, $FF12=$08, $FF14=$18 schalten 320×200-Hi-Res,
 PAL/40 Spalten, RAM-Bitmap $2000 und Attribute $1800/$1C00 ein.
-Attributwerte $07/$10 ergeben Weiß auf Schwarz; Multicolor bleibt aus.
+Im HUD ergeben Luminanz/Farbe $07/$10 Weiß auf Schwarz. Im Spielfeld
+ergeben $30/$01 Schwarz auf Mittelgrau, Schattenzellen $10/$01 Schwarz
+auf Dunkelgrau. Multicolor bleibt aus.
 IRQ-Quellen sind deaktiviert. VICE prüft die Register mit passenden Masken.
 
 Bitmap-Adresse: $2000 + floor(y/8)×320 + floor(x/8)×8 + (y mod 8).
 Die Tests prüfen alle 200 Zeilen, insbesondere x=255/256/319. Text liest
 den eingebauten ROM-Zeichensatz direkt, ohne ROM-Routinen aufzurufen.
 
-17 Kontursegmente belegen 85 Bytes einschließlich Normalenindex. Renderer
-und Kollision nutzen dieselbe Innenkante. Drei Pixel breite Wandstriche
-liegen auf der festen Seite. Der Generator prüft Grenzen, Segmentlimit,
+17 Kontursegmente belegen 85 Bytes einschließlich Normalenindex. Neun
+zusätzliche Füllkanten belegen 36 Bytes; sie sind aus denselben Konturen
+abgeleitet. Ein byteweiser Even/Odd-Scanline-Füller öffnet die graue Fläche
+in einer schwarzen Bitmap, mit halboffenen y-Intervallen. Renderer und
+Kollision nutzen dieselbe Innenkante. Obere/linke Innenkanten bekommen
+einen dunkelgrauen Hintergrund im 8×8-Zellraster. Schatten werden vor
+dem Lochring bestimmt; Ball und Loch werfen keine eigenen Schatten. Der Generator prüft Grenzen, Segmentlimit,
 Nullsegmente, zulässige Winkel und Konturschnittpunkte. Ballfreiheit und
 Erreichbarkeit sind noch keine vollständigen Validator-Nachweise.
 
@@ -225,3 +231,14 @@ Frames bytegenau. In VICE sinkt der schlechteste gemessene Frame von
 Die Haupt-Runtime benötigt jetzt 5480 Bytes, 98 bleiben frei. Gegenüber
 c01f930 kostet diese Beschleunigung 44 Bytes; Geometrie, Spielfeld und
 Kontaktgenauigkeit bleiben erhalten.
+
+## Graue Flächen und Zellschatten (2026-10-04)
+
+43 Tests bestehen, einschließlich unabhängiger punktweiser Konturprüfung,
+Zellfarben und unveränderter geschützter Bitmapzeilen. VICE bestätigt das
+Bild in `build/vice-pal.png`, ROM-Start, Eingabe und Restaurierung bei allen
+128 Richtungen. Neues Maximum für Anzeige/Steuerung: 16832 PAL-Ticks.
+Physikmaximum: 40250 PAL-Ticks; `make smoke` scheitert weiterhin am offenen
+32000-Tick-Budget. Die Physik und ihre gesicherten Replays sind unverändert.
+Die Grafik kostet 61 zusätzliche Runtime-Bytes sowie 14 Bytes im statischen
+Renderer und drei Bytes im Bitmap-Ende. Es bleiben 37 Runtime-Bytes frei.

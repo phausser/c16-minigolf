@@ -98,7 +98,8 @@ def budget():
               'fits_current_runtime':estimated <= free,
               'additional_geometry_only_capacity':free//(len(data)+2),
               'assumption':'18 courses with the measured test-course size; not 18 final exports',
-              'not_included':['ACME run decoder','names/par','materials','score/effects']}
+              'not_included':['ACME run decoder','current-course fill edges/reserve',
+                              'names/par','materials','score/effects']}
     (ROOT/'build/test-course.packed').write_bytes(data)
     (ROOT/'build/course-budget.json').write_text(json.dumps(report,indent=2)+'\n')
     print(f'Course geometry: {report["expanded_test_course_bytes"]} -> {len(data)} bytes; '

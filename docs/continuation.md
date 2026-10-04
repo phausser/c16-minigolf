@@ -109,3 +109,26 @@ sichert die Zustände aus c01f930 vor der Änderung für drei Eckenszenarien
 640 Bytes plus Decoder/Metadaten. Diese Optimierung kostet 44 Bytes.
 Nächster Fokus laut Profil: Bruchmultiplikationen, genaue Kreis-Suche und
 Normalisierung; aktuelle Ergebnisse allein rechtfertigen keine PAL-Abnahme.
+
+## Graue Spielflächen mit Zellschatten
+
+Auf Nutzerwunsch vor der Speicheroptimierung umgesetzt: mittelgraue
+spielbare Flächen, schwarze nichtspielbare Flächen/Hindernisse und
+8×8-Dunkelgrau-Zellen an oberen/linken Innenkanten. Hi-Res bleibt 320×200,
+kein Multicolor. Ball, Zielmarke und Lochring schwarz; HUD weiß auf Schwarz.
+SPEC erlaubt jetzt wechselnde Zellfarben und diesen Schatten.
+
+Der statische Renderer füllt mit Even/Odd-Scanlines byteweise aus denselben
+Konturen wie die Kollision. Neun zusätzliche Füllkanten kosten 36 Bytes.
+Initialisierung muss vor draw_course erfolgen (schwarze Bitmap als Basis).
+Zellschatten verwenden Top-left-Abtastung der aktuellen, oberen und linken
+Zelle; danach wird der Lochring gezeichnet. Keine Zusatzbitmap im RAM.
+
+43 Tests bestehen, auch unabhängige punktweise Geometrie-/Zellfarbenprüfung
+und Schutz der Codezeilen. VICE-Screenshots: build/vice-pal.png und -aim.png.
+Grafik-/Eingabeabnahme besteht; make smoke endet am bekannten Physikbudget:
+40250 > 32000 Ticks (Frameperiode 35573), Anzeige/Steuerung maximal 16832.
+Runtime 5541 Bytes, 37 frei, statischer Renderer 319/320 Bytes, Bitmap-Ende
+183/192 Bytes. PRG 12280 Bytes. 18-Geometrien-Hochrechnung 738 Bytes:
+701 Bytes fehlen, zusätzlich Decoder, aktuelle Bahn/Füllkanten, Metadaten.
+Nächster Schritt bleibt Speicherarchitektur; keine Bahnproduktion freigeben.
