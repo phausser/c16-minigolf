@@ -5,7 +5,7 @@ KERNAL 318004-05 und BASIC 318006-01.
 
 ## Speicher und Start
 
-PRG: 12280 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
+PRG: 12282 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
 Ein temporärer Kopierer läuft im unteren Stackbereich ab $0100 und kopiert
 überlappungssicher den Laufzeitkörper nach $0200. Währenddessen erfolgt
 kein Unterprogrammaufruf; der Stackpointer wird danach auf $FF gesetzt.
@@ -24,7 +24,7 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 | $3B80–$3CBF | Bedienhilfe, HUD-Zeile 22 |
 | $3CC0–$3DFF | Unsichtbare HUD-Zeile: weite Mathematik und Komponentennormierung, 308 Bytes |
 | $3E00–$3F3F | Stärke/Status, HUD-Zeile 24 |
-| $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 141 Bytes und Diagonal-Guard 42 Bytes |
+| $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 143 Bytes und Diagonal-Guard 42 Bytes |
 
 Die drei versteckten Bitmap-Zeilen haben identische schwarze Vorder- und
 Hintergrundfarbe. Zeichner und Clear-Routinen schützen diese Bereiche.
@@ -242,3 +242,7 @@ Physikmaximum: 40250 PAL-Ticks; `make smoke` scheitert weiterhin am offenen
 32000-Tick-Budget. Die Physik und ihre gesicherten Replays sind unverändert.
 Die Grafik kostet 61 zusätzliche Runtime-Bytes sowie 14 Bytes im statischen
 Renderer und drei Bytes im Bitmap-Ende. Es bleiben 37 Runtime-Bytes frei.
+
+Die Palette steht zentral in `src/palette.inc` als `(LUMINANZ << 4) + FARBE`.
+Die getrennten Hi-Res-Attributbytes werden zur Assemblierzeit daraus
+abgeleitet. Fläche und Schatten teilen sich denselben Farbton.

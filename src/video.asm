@@ -122,7 +122,7 @@ pixel_masks:
 ; Color setup is outside the bitmap tail, which must also hold the guard.
 initialise_course_colors:
     ldx #0
-    lda #$01
+    lda #((COURSE_SOLID_COLOR & $0f) << 4) + (COURSE_SURFACE_COLOR & $0f)
 video_course_colors:
     sta COLOR_BASE + 40,x
     sta COLOR_BASE + 296,x

@@ -7,6 +7,7 @@ initialise_video:
     sta TED_BITMAP
     lda #0                    ; allow TED's clock doubling in blanking
     sta TED_CLOCK
+    lda #BORDER_COLOR
     sta TED_BACKGROUND
     sta TED_BORDER
     lda #$18                  ; attributes $1800, color matrix $1c00
@@ -15,12 +16,12 @@ initialise_video:
     ; Default HUD palette; hidden rows and playfield colors are set below.
     ldx #0
 video_attributes:
-    lda #$07
+    lda #(HUD_BACKGROUND_COLOR & $70) + ((HUD_FOREGROUND_COLOR & $70) >> 4)
     sta LUMINANCE_BASE,x
     sta LUMINANCE_BASE + $100,x
     sta LUMINANCE_BASE + $200,x
     sta LUMINANCE_BASE + $300,x
-    lda #$10
+    lda #((HUD_FOREGROUND_COLOR & $0f) << 4) + (HUD_BACKGROUND_COLOR & $0f)
     sta COLOR_BASE,x
     sta COLOR_BASE + $100,x
     sta COLOR_BASE + $200,x

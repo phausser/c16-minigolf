@@ -132,3 +132,8 @@ Runtime 5541 Bytes, 37 frei, statischer Renderer 319/320 Bytes, Bitmap-Ende
 183/192 Bytes. PRG 12280 Bytes. 18-Geometrien-Hochrechnung 738 Bytes:
 701 Bytes fehlen, zusätzlich Decoder, aktuelle Bahn/Füllkanten, Metadaten.
 Nächster Schritt bleibt Speicherarchitektur; keine Bahnproduktion freigeben.
+
+Farben sind jetzt zentral in src/palette.inc als (LUMINANZ << 4) + FARBE
+konfiguriert. Hi-Res-Attributbytes werden daraus abgeleitet; Fläche und
+Schatten teilen sich den Farbton. Build besteht, Bildpalette unverändert.
+PRG jetzt 12282 Bytes, Bitmap-Ende 185/192 Bytes; Runtime weiter 5541/37.

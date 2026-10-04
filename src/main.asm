@@ -1,4 +1,5 @@
 !source "src/hardware.inc"
+!source "src/palette.inc"
 !source "src/memory.inc"
 
 ; A normal C16 BASIC program: 10 SYS4109. The load image and runtime are

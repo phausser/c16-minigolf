@@ -20,6 +20,10 @@ make run
 Das Programm liegt in `build/minigolf.prg`. `make run` startet einen
 PAL-C16 mit 16 KB RAM. Auf dem C16: `LOAD"MINIGOLF",8,1`, danach `RUN`.
 
+Die Farben werden in `src/palette.inc` als `(LUMINANZ << 4) + FARBE`
+konfiguriert: Luminanz 0–7, Farbe 0–15 (0 = Schwarz, 1 = Grau/Weiß).
+Fläche und Schatten teilen sich aktuell denselben Farbton.
+
 Weitere Dokumentation: [Spezifikation](SPEC.md),
 [Umsetzungsplan](TODO.md), [Entwicklung und Tests](docs/development.md)
 und [Hardware-Nachweise](docs/hardware.md).

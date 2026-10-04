@@ -162,10 +162,10 @@ shade_cell:
     sta COPY_SOURCE + 1
     lda (COPY_SOURCE),y
     bmi shade_dark
-    lda #$30                 ; background white hue, middle luminance 3
+    lda #(COURSE_SURFACE_COLOR & $70) + ((COURSE_SOLID_COLOR & $70) >> 4)
     bne shade_store
 shade_dark:
-    lda #$10                 ; background luminance 1
+    lda #(COURSE_SHADOW_COLOR & $70) + ((COURSE_SOLID_COLOR & $70) >> 4)
 shade_store:
     ldy #0
     sta (COURSE_PTR),y
