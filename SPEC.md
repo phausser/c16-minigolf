@@ -113,7 +113,7 @@ Texte erscheinen im HUD, Partikel nur nach Stillstand bzw. Einlochen. Höchstens
 
 ## Architektur und Daten
 
-6502-kompatibler Assembler, bevorzugt ca65/ld65; Python-Werkzeuge für Bahnprüfung, Datenexport und Testreferenz. BASIC dient höchstens als SYS-Startstub. Spielcode nutzt eigene Hauptschleife, TED-Synchronisation, Eingabe und Sound; ROM-Routinen sind während des Spiels keine Abhängigkeit.
+6502-kompatibler Assembler: verbindlich ACME (6502-Modus), Build über Make; Python-Werkzeuge für Bahnprüfung, Datenexport und Testreferenz. BASIC dient höchstens als SYS-Startstub. Spielcode nutzt eigene Hauptschleife, TED-Synchronisation, Eingabe und Sound; ROM-Routinen sind während des Spiels keine Abhängigkeit.
 
 Module: Start/Hardware, Frame-Takt, Eingabe, Zustand/Score, Festkomma, Bewegung/Kollision, Bahn-Decoder, Bitmap-Zeichner, HUD, Sound/Effekte. Zustand und Darstellung sind getrennt, damit der echte Assembler-Physikkern automatisiert geprüft werden kann.
 
@@ -128,7 +128,7 @@ Bahnquelle in menschenlesbarem Datenformat: Name, Par, Abschlag, Loch, Außenkon
 | $1800–$1FFF | 2048 | TED-Attribute, feste Farb-/Luminanzwerte. |
 | $2000–$3FFF | 8192 | Bitmap; 8000 sichtbare Bytes, Rest zunächst reserviert. |
 
-Arbeitsbudget innerhalb der 5632 Bytes: 3500 Code/Stub, 1400 gepackte Bahnen/Texte, 300 Tabellen, 432 Zustand/entpackte aktuelle Bahn/Scratch. Das ist eine harte Arbeitshypothese, keine bereits bewiesene Passform. Linker-Symbole und Größenbericht müssen jeden Bereich nachweisen. Kein Heap; Scratch wird zwischen ausschließlich nacheinander aktiven Routinen geteilt. Das Programm darf beim Laden den BASIC-Arbeitsbereich überschreiben, kehrt anschließend nicht zu BASIC zurück.
+Arbeitsbudget innerhalb der 5632 Bytes: 3500 Code/Stub, 1400 gepackte Bahnen/Texte, 300 Tabellen, 432 Zustand/entpackte aktuelle Bahn/Scratch. Das ist eine harte Arbeitshypothese, keine bereits bewiesene Passform. ACME-Symbole, Assemblierzeit-Grenzprüfungen und Größenbericht müssen jeden Bereich nachweisen. Kein Heap; Scratch wird zwischen ausschließlich nacheinander aktiven Routinen geteilt. Das Programm darf beim Laden den BASIC-Arbeitsbereich überschreiben, kehrt anschließend nicht zu BASIC zurück.
 
 Hi-Res benötigt einen großen Anteil der 16 KB. Deshalb wird vor der Produktion aller Bahnen ein vollständiger Vertikalschnitt mit echtem Physikkern und Größenmessung gebaut. Falls das Budget scheitert: Daten und Text komprimieren, Routinen vereinfachen und Effekte kürzen. Keine stille Umstellung auf 64 KB, Multicolor oder schwächere Eckphysik. Ein notwendiger Architekturwechsel wird ausdrücklich neu entschieden.
 

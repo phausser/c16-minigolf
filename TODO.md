@@ -1,24 +1,27 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Noch nichts implementiert oder am Gerät gemessen.
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand: Schritt 1 ist als Emulator-Prototyp umgesetzt; Testbahn und Ziel-/Stärkeanzeige aus Schritt 2 wurden vorgezogen. 12 Tests des assemblierten Codes und der eigenständig gestartete VICE-Smoke-Test bestehen. Reale Hardware und physische Tasten sind noch ungeprüft. Messungen und Host-Launcher-Einschränkung stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
-- [ ] ca65/ld65-Projekt, BASIC-SYS-Stub und reproduzierbaren Build einrichten.
-- [ ] Linkerlayout gemäß SPEC anlegen; Überlauf als Buildfehler, Größenbericht erzeugen.
-- [ ] TED-Datenblatt auswerten: Bitmap, Attribute, IRQ/Takt, Eingabe und Sound dokumentieren.
-- [ ] VICE xplus4 explizit für C16, 16 KB und PAL konfigurieren; Startkommando dokumentieren.
-- [ ] PRG laden und monochrome 320×200-Testgrafik darstellen; RAM-Grenzen prüfen.
-- [ ] Eigene Hauptschleife und zuverlässige 50-Hz-Synchronisation aufsetzen.
-- [ ] Tastaturmatrix prüfen; entprellte Eingabe und Pause implementieren.
+- [x] ACME-Projekt im 6502-Modus, BASIC-SYS-Stub und reproduzierbaren Build einrichten.
+- [x] ACME-Speicherlayout gemäß SPEC anlegen; Überlauf als Buildfehler, Größenbericht erzeugen.
+- [x] TED-Datenblatt auswerten: Bitmap, Attribute, IRQ/Takt und Eingabe dokumentieren.
+- [ ] TED-Soundregister und PAL/NTSC-Erkennung für die späteren Module dokumentieren.
+- [x] VICE xplus4 explizit für C16, 16 KB und PAL konfigurieren; Startkommando dokumentieren.
+- [x] PRG laden und monochrome 320×200-Testgrafik darstellen; RAM-Grenzen prüfen.
+- [x] Eigene Hauptschleife und zuverlässige 50-Hz-Synchronisation aufsetzen.
+- [x] Tastaturmatrix gegen VICE-Keymap prüfen; entprellte Eingabe und Pause implementieren.
+- [ ] Physische Tasten auf realem C16 oder über echte VICE-Tastaturereignisse bestätigen.
 
-Abnahme: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik, reagiert auf Eingabe und erzeugt einen nachvollziehbaren Speicherbericht.
+Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik und erzeugt einen nachvollziehbaren Speicherbericht. Logische Eingabeereignisse sind geprüft; der physische Tastatur-Nachweis bleibt offen.
 
 ## 2. Machbarer Vertikalschnitt
 
-- [ ] Eine Testbahn mit breiter Fläche, 10-Pixel-Engstelle, L-Ecke und 45°-Bande erstellen.
+- [x] Eine Testbahn mit breiter Fläche, 10-Pixel-Engstelle, L-Ecke und 45°-Bande erstellen.
 - [ ] Kompaktes Bahnformat und Decoder für maximal 32 Segmente implementieren.
-- [ ] Statische Geometrie zeichnen; Ball mit Hintergrundrestaurierung bewegen.
+- [x] Statische Geometrie sowie Ball-/Zielmarke zeichnen; Hintergrundrestaurierung prüfen.
+- [ ] Ballposition aus der tatsächlichen Bewegung übernehmen.
 - [ ] Festkommaformate, Zwischenbreiten, Rundung und Kontakt-Epsilon festlegen.
 - [ ] 128 Richtungen und 32 Stärken erzeugen und normieren.
 - [ ] Rollreibung, exakten Stillstand und Wegprüfung am Loch implementieren.

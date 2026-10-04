@@ -1,0 +1,14 @@
+; MOS TED 7360 register names. No VIC-II registers or C64 keyboard scan.
+TED_CONTROL1 = $ff06
+TED_CONTROL2 = $ff07
+TED_KEYBOARD = $ff08
+TED_IRQ_STATUS = $ff09
+TED_IRQ_ENABLE = $ff0a
+TED_SOUND = $ff11
+TED_BITMAP = $ff12
+TED_CLOCK = $ff13
+TED_VIDEO = $ff14
+TED_BACKGROUND = $ff15
+TED_BORDER = $ff19
+TED_RASTER_LO = $ff1d
+KEYBOARD_ROW = $fd30
