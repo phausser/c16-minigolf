@@ -59,8 +59,9 @@ Der Ball rundet seine wirkliche Subpixelposition auf einzelne Pixel.
 Tastaturmatrix: A=(1,2), D=(2,2), W=(1,1), S=(1,5), P=(5,1),
 SPACE=(7,4). $FD30 wählt aktive niedrige Zeilen, $FF08 liest Spalten.
 Zwei gleiche Samples entprellen; SPACE/P wiederholen nicht. Während des
-Rollens bleiben Richtung und Stärke unverändert. Physische Tasten bleiben
-ungeprüft; der Emulator-Smoke-Test injiziert logische Ereignisse.
+Rollens bleiben Richtung und Stärke unverändert. Der Nutzer hat am
+2026-10-04 A/D/W/S/SPACE/P mit echten VICE-Tastenereignissen bestätigt.
+Der automatisierte Emulator-Smoke-Test injiziert weiterhin logische Ereignisse.
 
 ## Physikprüfung und Laufzeit
 
@@ -98,4 +99,41 @@ aufrufbar; siehe README. Das Host-Startproblem und die tatsächlich gemessene
 Framebudget-Überschreitung sind getrennte Befunde.
 
 Offen: vollständige Physikabnahme, 18-Bahnen-Budget, reale Hardware,
-physische Eingabe, Wertung, Materialien, Sound und NTSC.
+reale Eingabe am C16, Wertung, Materialien, Sound und NTSC.
+
+## TED-Sound und PAL/NTSC für spätere Module
+
+Registerbelegung laut TED-Datenblatt, Abschnitte Sound und Register 14–18:
+
+| Register | Bedeutung |
+|---|---|
+| $FF0E | Stimme 1, Frequenzwert Bits 0–7 |
+| $FF12 Bits 0–1 | Stimme 1, Frequenzwert Bits 8–9 |
+| $FF0F | Stimme 2, Frequenzwert Bits 0–7 |
+| $FF10 Bits 0–1 | Stimme 2, Frequenzwert Bits 8–9 |
+| $FF11 Bits 0–3 | Gemeinsame Lautstärke 0–8; 9–15 ebenfalls Maximum |
+| $FF11 Bit 4 | Stimme 1 einschalten |
+| $FF11 Bit 5 | Stimme 2 als Rechteck einschalten |
+| $FF11 Bit 6 | Rauschen einschalten; Rechteck-Stimme 2 hat Vorrang |
+| $FF11 Bit 7 | Sound-Reload/Test; im normalen Betrieb null |
+
+Für Frequenzwert N gilt ungefähr f = 110840,45/(1024−N) Hz bei PAL,
+111860,781/(1024−N) Hz bei NTSC. Beide Stimmen teilen die Lautstärke.
+Wichtig für Hi-Res: Sound darf beim Schreiben von $FF12 nur Bits 0–1
+ändern; Bitmap- und ROM/RAM-Auswahl bleiben erhalten. Dafür verwendet das
+spätere Soundmodul einen gemeinsamen Register-Schatten mit der Grafik.
+Der aktuelle Start schaltet Sound über $FF11=0 aus.
+
+$FF07 Bit 6 wählt NTSC (1) oder PAL (0). Eine Moduserkennung muss **vor**
+der Videoinitialisierung erfolgen: diese setzt derzeit ausdrücklich PAL.
+Als unabhängige Kontrolle lässt sich über einen vollständigen Rasterumlauf
+der höchste 9-Bit-Zeilenwert messen: $FF1C Bit 0 und $FF1D konsistent
+lesen (High–Low–High; bei geändertem High wiederholen). PAL zählt 0–311,
+NTSC 0–261. Das gewählte Bit ist kein Beweis für den Hardware-Oszillator.
+Der Release bleibt daher PAL-only, bis ein eigener NTSC-Laufzeitnachweis
+und eine 50-Hz-Zeitbasis für NTSC vorliegen. Keine automatische Umstellung
+auf PAL auf einem NTSC-Gerät als vermeintliche Unterstützung.
+
+Schritt 1 ist damit abgeschlossen: Sound-/Modusregister sind dokumentiert,
+Build und PAL-Emulatorstart geprüft und die sechs Spieltasten vom Nutzer
+in VICE bestätigt. Dies ist keine Behauptung eines Tests auf echtem C16.

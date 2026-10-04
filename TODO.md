@@ -7,14 +7,14 @@ Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem
 - [x] ACME-Projekt im 6502-Modus, BASIC-SYS-Stub und reproduzierbaren Build einrichten.
 - [x] ACME-Speicherlayout gemäß SPEC anlegen; Überlauf als Buildfehler, Größenbericht erzeugen.
 - [x] TED-Datenblatt auswerten: Bitmap, Attribute, IRQ/Takt und Eingabe dokumentieren.
-- [ ] TED-Soundregister und PAL/NTSC-Erkennung für die späteren Module dokumentieren.
+- [x] TED-Soundregister und PAL/NTSC-Erkennung für die späteren Module dokumentieren.
 - [x] VICE xplus4 explizit für C16, 16 KB und PAL konfigurieren; Startkommando dokumentieren.
 - [x] PRG laden und monochrome 320×200-Testgrafik darstellen; RAM-Grenzen prüfen.
 - [x] Eigene Hauptschleife und zuverlässige 50-Hz-Synchronisation aufsetzen.
 - [x] Tastaturmatrix gegen VICE-Keymap prüfen; entprellte Eingabe und Pause implementieren.
-- [ ] Physische Tasten auf realem C16 oder über echte VICE-Tastaturereignisse bestätigen.
+- [x] Physische Tasten auf realem C16 oder über echte VICE-Tastaturereignisse bestätigen (A/D/W/S/SPACE/P vom Nutzer in VICE bestätigt).
 
-Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik und erzeugt einen nachvollziehbaren Speicherbericht. Logische Eingabeereignisse sind geprüft; der physische Tastatur-Nachweis bleibt offen.
+Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik und erzeugt einen nachvollziehbaren Speicherbericht. Logische Eingabeereignisse sind geprüft; der Nutzer hat am 2026-10-04 alle sechs Tasten in VICE bestätigt. Schritt 1 ist abgeschlossen. Reale C16-Hardware bleibt Teil der Freigabe.
 
 ## 2. Machbarer Vertikalschnitt
 
