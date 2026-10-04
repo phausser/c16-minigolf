@@ -145,15 +145,13 @@ class HardwareTests(unittest.TestCase):
         self.r.bus[S['lookup_image']:S['lookup_image']+320] = lookup
         self.r.call('initialise_video')
         luma, colors = [7]*1024,[16]*1024
-        colors[40:840] = [((S["COURSE_INK_COLOR"] & 15) << 4) + (S["COURSE_SOLID_COLOR"] & 15)]*800
-        luma[40:840] = [(S["COURSE_SOLID_COLOR"] & 0x70) + ((S["COURSE_INK_COLOR"] & 0x70) >> 4)]*800
         luma[840:880] = colors[840:880] = [0]*40
         luma[:40] = colors[:40] = [0]*40
         luma[920:960] = colors[920:960] = [0]*40
         self.assertEqual(self.r.bus[0x1800:0x1c00], luma)
         self.assertEqual(self.r.bus[0x1c00:0x2000], colors)
         self.assertEqual(self.r.bus[0x2000:0x2140],lookup)
-        self.assertEqual(self.r.bus[0x2140:0x3a40], [0]*6400)
+        self.assertEqual(self.r.bus[0x2140:0x3a40], [255]*6400)
         self.assertEqual(self.r.bus[0x3b80:0x3cc0], [0]*320)
         self.assertEqual(self.r.bus[0x3e00:0x3f40], [0]*320)
         self.assertEqual(self.r.bus[0x3cc0:0x3e00],wide)
@@ -191,17 +189,18 @@ class HardwareTests(unittest.TestCase):
             return inside
         for y in range(8,168):
             for x in range(320):
-                if playable(x,y) and (x+y) % 2 == 0:
+                if not playable(x,y):
                     expected[bitmap_offset(x,y)] |= 128 >> (x%8)
-        # Uniform surface palette, including boundary cells; code rows stay hidden.
+        # Independently classify whole floor cells and cells with solid pixels.
         for row in range(1,21):
             for col in range(40):
+                whole = all(playable(x,y) for y in range(row*8,row*8+8)
+                            for x in range(col*8,col*8+8))
+                ink = S['COURSE_INK_COLOR'] if whole else S['COURSE_SOLID_COLOR']
                 self.assertEqual(self.r.bus[0x1800+row*40+col],
-                                 (S['COURSE_SOLID_COLOR'] & 0x70) +
-                                 ((S['COURSE_INK_COLOR'] & 0x70) >> 4))
+                                 (S['COURSE_SURFACE_COLOR'] & 0x70) + ((ink & 0x70) >> 4))
                 self.assertEqual(self.r.bus[0x1c00+row*40+col],
-                                 ((S['COURSE_INK_COLOR'] & 15) << 4) +
-                                 (S['COURSE_SOLID_COLOR'] & 15))
+                                 ((ink & 15) << 4) + (S['COURSE_SURFACE_COLOR'] & 15))
         cx,cy = COURSE['cup']
         for i in range(32):
             x = cx+round(math.cos(i*math.tau/32)*5)
@@ -210,6 +209,23 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
         self.assertEqual(bytes(self.r.bus[0x3b80:0x3cc0]), expected[7040:7360])
         self.assertEqual(bytes(self.r.bus[0x3e00:0x3f40]), expected[7680:])
+
+    def test_markers_restore_floor_and_boundary_cells_without_recoloring(self):
+        self.r.call('initialise_video')
+        self.r.call('draw_course')
+        background = self.r.bus[0x2000:0x3f40].copy()
+        attrs = self.r.bus[0x1800:0x2000].copy()
+        # Pure floor, across cell boundaries, straight edge at x=196 and diagonal.
+        for x,y in ((64,112),(71,111),(194,88),(294,42),(299,49)):
+            self.r.bus[S['BALL_POS_X']:S['BALL_POS_X']+3] = [0,x&255,x>>8]
+            self.r.bus[S['BALL_POS_Y']:S['BALL_POS_Y']+2] = [0,y]
+            self.r.put('DYNAMIC_COUNT',0)
+            self.r.put('PAUSED',0)
+            self.r.put('ANGLE',17)
+            self.r.call('draw_dynamic')
+            self.assertEqual(self.r.bus[0x1800:0x2000],attrs,(x,y))
+            self.r.call('restore_dynamic')
+            self.assertEqual(self.r.bus[0x2000:0x3f40],background,(x,y))
 
     def test_byte_ball_renderer_matches_every_pixel_alignment(self):
         for x in [*range(18,26),254,255,256,257,317,318,319]:

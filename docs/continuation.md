@@ -163,3 +163,19 @@ Keine Schatten, keine zusätzliche Bitmap. 43 Tests und VICE-Grafikprüfung
 bestehen. Runtime 5516 Bytes, 62 frei; Renderer inkl. Palette/Muster 253/320.
 PRG 12282 Bytes. Physikmaximum weiterhin 40253 > 32000 PAL-Ticks.
 Vorschau build/vice-pal.png. Nächster Schritt weiterhin Speicherarchitektur.
+
+## Glatte graue Fläche wiederhergestellt, Zellfarben als Kompromiss
+
+Aktueller Nutzerwunsch ersetzt das Muster: glatte Fläche, keine Schatten.
+COURSE_SURFACE_COLOR=(5 << 4)+1 wieder vorhanden, INK weiß, SOLID schwarz.
+Alle acht statischen Bitmapbytes einer Zelle werden vor dem Lochring geprüft:
+alle null => vollständig spielbar => Vordergrund Weiß; sonst Schwarz.
+Hintergrund immer Grau. Ball/Zielmarke/Lochring übernehmen die Zellfarbe,
+am Übergang teilweise weiß/schwarz. Auch unrasterige gerade Kanten bleiben
+exakt schwarz. initialise_video füllt Bitmap $ff, draw_course öffnet Fläche,
+initialise_course_colors klassifiziert, danach cup. Keine laufenden
+Attributänderungen; restore_dynamic bleibt unverändert.
+44 Tests bestehen, VICE-Grafik/Eingabeprüfung ebenso. Runtime 5516 Bytes,
+62 frei; Renderer/Palette 287/320, Bitmap-Ende 182/192, PRG 12279 Bytes.
+Physikmaximum 40253 >32000 weiter offen; gespeicherte Replays unverändert.
+Nächster Schritt bleibt Speicherarchitektur. build/vice-pal.png zeigt das Bild.

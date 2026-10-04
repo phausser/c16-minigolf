@@ -5,7 +5,7 @@ KERNAL 318004-05 und BASIC 318006-01.
 
 ## Speicher und Start
 
-PRG: 12282 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
+PRG: 12279 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
 Ein temporärer Kopierer läuft im unteren Stackbereich ab $0100 und kopiert
 überlappungssicher den Laufzeitkörper nach $0200. Währenddessen erfolgt
 kein Unterprogrammaufruf; der Stackpointer wird danach auf $FF gesetzt.
@@ -20,11 +20,11 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 | $1800–$1FFF | TED-Luminanz und Farbe |
 | $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
 | $2140–$3A3F | Sichtbares Spielfeld |
-| $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner mit Paletteninitialisierung, 253 Bytes |
+| $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner mit Zellklassifizierung, 287 Bytes |
 | $3B80–$3CBF | Bedienhilfe, HUD-Zeile 22 |
 | $3CC0–$3DFF | Unsichtbare HUD-Zeile: weite Mathematik und Komponentennormierung, 308 Bytes |
 | $3E00–$3F3F | Stärke/Status, HUD-Zeile 24 |
-| $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 143 Bytes und Diagonal-Guard 42 Bytes |
+| $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 140 Bytes und Diagonal-Guard 42 Bytes |
 
 Die drei versteckten Bitmap-Zeilen haben identische schwarze Vorder- und
 Hintergrundfarbe. Zeichner und Clear-Routinen schützen diese Bereiche.
@@ -40,10 +40,12 @@ nachweislich hinein; weitere Speicheroptimierung ist Voraussetzung.
 Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf).
 $FF06=$3B, $FF07=$08, $FF12=$08, $FF14=$18 schalten 320×200-Hi-Res,
 PAL/40 Spalten, RAM-Bitmap $2000 und Attribute $1800/$1C00 ein.
-Im HUD und im Spielfeld ergeben Luminanz/Farbe $07/$10 Weiß auf Schwarz.
-Die Spielfläche nutzt ein 50%-Schachbrettmuster ($aa auf geraden, $55 auf
-ungeraden Pixelzeilen) für optisches Grau. Ball, Zielmarke und Lochring sind
-vollständig weiße Pixel. Palette in src/palette.inc, Multicolor bleibt aus.
+Im HUD ergeben Luminanz/Farbe $07/$10 Weiß auf Schwarz. Im Spielfeld ist
+Grau die Hintergrundfarbe (Luminanz 5). Vollständig spielbare 8×8-Zellen
+verwenden $57/$11 (Weiß auf Grau), Zellen mit Geometriepixeln $50/$01
+(Schwarz auf Grau). Alle acht statischen Bitmapbytes müssen null sein,
+damit eine Zelle Weiß verwendet. Klassifizierung vor Lochring/Ball/Zielmarke.
+Palette in src/palette.inc; keine Muster, keine Schatten, kein Multicolor.
 IRQ-Quellen sind deaktiviert. VICE prüft die Register mit passenden Masken.
 
 Bitmap-Adresse: $2000 + floor(y/8)×320 + floor(x/8)×8 + (y mod 8).
@@ -52,7 +54,7 @@ den eingebauten ROM-Zeichensatz direkt, ohne ROM-Routinen aufzurufen.
 
 17 Kontursegmente belegen 85 Bytes einschließlich Normalenindex. Neun
 zusätzliche Füllkanten belegen 36 Bytes; sie sind aus denselben Konturen
-abgeleitet. Ein byteweiser Even/Odd-Scanline-Füller zeichnet das Muster
+abgeleitet. Ein byteweiser Even/Odd-Scanline-Füller öffnet die glatte Fläche
 in einer schwarzen Bitmap, mit halboffenen y-Intervallen. Renderer und
 Kollision nutzen dieselbe Innenkante. Die Flächenfarbe ist
 gleichmäßig; Zellschatten wurden auf Nutzerwunsch wieder entfernt. Der Generator prüft Grenzen, Segmentlimit,
@@ -266,3 +268,17 @@ bestätigt Bild, Palette und Restaurierung. Runtime unverändert 5516 Bytes,
 62 frei; Renderer/Palette/Muster 253/320 Bytes. PRG 12282 Bytes. Physikmaximum
 40253 PAL-Ticks, Laufzeitabnahme weiter offen. Historische Graufarbwerte und
 Schattenmessungen oben sind überholt.
+
+## Glatte Fläche mit zellabhängiger Markierungsfarbe (2026-10-04)
+
+Aktueller Stand ersetzt die Musterlösung: Grau als Hintergrund, Weiß als
+Vordergrund in vollständig spielbaren Zellen, Schwarz als Vordergrund in
+allen Zellen mit festen Geometriepixeln. Die schwarze Kontur bleibt exakt.
+Markierungen übernehmen die Zellfarbe und können am Übergang schwarz/weiß
+geteilt sein. Keine Änderung der Bahngeometrie oder Physik.
+44 Tests bestehen, einschließlich unabhängiger Kontur-/Zellklassifizierung
+und Restaurierung von Markierungen an geraden/schrägen Kanten. VICE prüft
+alle 800 Zellattribute gegen die Geometrie und bestätigt die glatte Fläche.
+Runtime weiter 5516 Bytes, 62 frei; statischer Renderer 287/320 Bytes;
+Bitmap-Ende 182/192 Bytes. PRG 12279 Bytes. Physikmaximum weiterhin 40253
+PAL-Ticks; die Abnahme von höchstens 32000 bleibt offen.

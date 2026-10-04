@@ -48,7 +48,7 @@ video_install_lookup_tail:
     sta BITMAP_PTR + 1
     ldx #25
     ldy #0
-    lda #0                   ; black; parity fill adds the white surface pattern
+    lda #$ff                 ; black solid; parity fill opens gray floor
 video_clear_page:
     sta (BITMAP_PTR),y
     iny
@@ -69,5 +69,4 @@ video_hide_code:
     sta COLOR_BASE + 23*40,x
     dex
     bpl video_hide_code
-    jsr initialise_course_colors
     jmp clear_hud_bitmap

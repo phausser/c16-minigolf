@@ -22,9 +22,10 @@ PAL-C16 mit 16 KB RAM. Auf dem C16: `LOAD"MINIGOLF",8,1`, danach `RUN`.
 
 Die Farben werden in `src/palette.inc` als `(LUMINANZ << 4) + FARBE`
 konfiguriert: Luminanz 0–7, Farbe 0–15 (0 = Schwarz, 1 = Grau/Weiß).
-`COURSE_INK_COLOR` färbt Ball, Zielmarke, Lochring und die hellen
-Flächenpixel. Die Fläche wirkt durch ein 50%-Schachbrettmuster grau;
-`COURSE_SOLID_COLOR` ist der schwarze Hintergrund.
+`COURSE_SURFACE_COLOR` ist die glatte graue Fläche. `COURSE_INK_COLOR`
+färbt Ball, Zielmarke und Lochring in vollständig spielbaren 8×8-Zellen weiß.
+Zellen mit Außenbereich oder Hindernissen verwenden `COURSE_SOLID_COLOR`
+(Schwarz) auch für die Markierungen, damit die Konturen schwarz bleiben.
 
 Weitere Dokumentation: [Spezifikation](SPEC.md),
 [Umsetzungsplan](TODO.md), [Entwicklung und Tests](docs/development.md)

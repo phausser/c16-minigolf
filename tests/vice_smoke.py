@@ -83,10 +83,24 @@ def main():
     expected_attrs[1024+920:1024+960] = bytes(40)
     expected_attrs[:40] = bytes(40)
     expected_attrs[1024:1024+40] = bytes(40)
-    luma = (s['COURSE_SOLID_COLOR'] & 0x70) + ((s['COURSE_INK_COLOR'] & 0x70) >> 4)
-    color = ((s['COURSE_INK_COLOR'] & 15) << 4) + (s['COURSE_SOLID_COLOR'] & 15)
-    expected_attrs[40:840] = bytes([luma])*800
-    expected_attrs[1024+40:1024+840] = bytes([color])*800
+    course = json.loads((ROOT/'assets/test-course.json').read_text())
+    contours = [course['outline'], *course['obstacles']]
+    def playable(x,y):
+        inside = False
+        for contour in contours:
+            for a,b in zip(contour,contour[1:]+contour[:1]):
+                if (a[1] <= y < b[1]) or (b[1] <= y < a[1]):
+                    if a[0]+(y-a[1])*(b[0]-a[0])/(b[1]-a[1]) <= x:
+                        inside = not inside
+        return inside
+    for row in range(1,21):
+        for col in range(40):
+            whole = all(playable(x,y) for y in range(row*8,row*8+8)
+                        for x in range(col*8,col*8+8))
+            ink = s['COURSE_INK_COLOR'] if whole else s['COURSE_SOLID_COLOR']
+            index = row*40+col
+            expected_attrs[index] = (s['COURSE_SURFACE_COLOR'] & 0x70) + ((ink & 0x70) >> 4)
+            expected_attrs[1024+index] = ((ink & 15) << 4) + (s['COURSE_SURFACE_COLOR'] & 15)
     assert attrs == expected_attrs, 'hires colors/luminance/hidden code row'
     video = Path(f'{prefix}-video.bin').read_bytes()
     assert video[0] & 0x7f == 0x3b, 'bitmap/display/25-row configuration'

@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 43 automatisierte Tests bestehen (36 am assemblierten Kern, sieben für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe und Rendering; die erweiterte Zeitbudget-Prüfung scheitert noch an Eckentreffern. Schritt 2 bleibt offen, bis Laufzeit und das Speicherbudget für 18 Bahnen nachgewiesen sind. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 44 automatisierte Tests bestehen (37 am assemblierten Kern, sieben für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe und Rendering; die erweiterte Zeitbudget-Prüfung scheitert noch an Eckentreffern. Schritt 2 bleibt offen, bis Laufzeit und das Speicherbudget für 18 Bahnen nachgewiesen sind. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -44,15 +44,16 @@ Abnahme: spielbarer Kern erfüllt Speicher- und Zeitbudget mit begründeter Rese
 
 ### Grafikänderung vor der Speicheroptimierung
 
-Auf Nutzerwunsch weiße Markierungen im unveränderten Hi-Res-Modus:
-Spielflächen mit feinem 50%-Schwarz-Weiß-Schachbrettmuster (optisch grau),
-Außenbereich/Hindernisse schwarz, Ball/Zielmarke/Lochring weiß. Keine Schatten.
-Palette in src/palette.inc als (LUMINANZ << 4) + FARBE: COURSE_INK_COLOR und
-COURSE_SOLID_COLOR. Das Muster steht in course_pattern ($aa/$55).
-43 Tests bestehen; VICE bestätigt Bild und Restaurierung. Runtime 5516 Bytes,
-62 frei; statischer Renderer 253/320 Bytes. Kurs-Hochrechnung: 676 Bytes fehlen
-plus Decoder, aktuelle Bahn, Füllkanten und Metadaten. Laufzeitabnahme weiter
-offen: 40253 statt höchstens 32000 PAL-Ticks. Physik unverändert.
+Glatte graue Fläche wiederhergestellt, Pixelmuster und Schatten entfernt.
+Vollständig spielbare 8×8-Zellen: Grau/Weiß. Zellen mit festen Geometriepixeln:
+Grau/Schwarz. Ball/Zielmarke/Lochring nehmen die jeweilige Zell-Vordergrundfarbe
+an; beim Zellübergang teilweise schwarz/weiß. Keine Konturänderung.
+Palette zentral in src/palette.inc als (LUMINANZ << 4) + FARBE, Fläche weiter
+Luminanz 5. Klassifizierung aus statischer Bitmap vor den Markierungen.
+44 Tests bestehen, VICE bestätigt Bild und Restaurierung. Runtime 5516 Bytes,
+62 frei; statischer Renderer/Palette 287/320 Bytes. Kurs-Hochrechnung: 676 Bytes
+fehlen plus Decoder, aktuelle Bahn, Füllkanten und Metadaten. Laufzeitabnahme
+weiter offen: 40253 statt höchstens 32000 PAL-Ticks. Physik unverändert.
 
 ### Nächste Umsetzung innerhalb von Schritt 2
 

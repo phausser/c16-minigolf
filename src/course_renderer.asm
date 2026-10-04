@@ -1,8 +1,7 @@
-; Even/odd scanline fill. Bitmap 1 = white ink, 0 = black solid.
-; Playable gray is a 50% checkerboard; ball and aim use solid white ink.
-; Each nonhorizontal edge toggles the pixels to its right, with a half-open
-; y interval so shared vertices are counted exactly once. Obstacles use the
-; same parity rule. Requires a freshly initialized zero-filled playfield.
+; Even/odd fill: 0 = gray floor, 1 = foreground ink or solid geometry.
+; Whole floor cells use white ink; cells containing solid pixels use black.
+; Requires a freshly initialized $ff-filled playfield. Half-open y intervals
+; count shared vertices once, and obstacles follow the same parity rule.
 draw_course:
     lda #<course_fill_edges
     sta COURSE_PTR
@@ -35,16 +34,10 @@ fill_scanline:
     lda LINE_Y
     sta PIXEL_Y
     jsr point_pixel
-    lda LINE_Y
-    and #1
-    tax
-    lda course_pattern,x
-    sta WALL_X_OFFSET
     lda PIXEL_MASK
     asl
     sec
     sbc #1                  ; first byte: bits from the crossing to the right
-    and WALL_X_OFFSET
     sta PIXEL_MASK
     lda PIXEL_X + 1
     lsr
@@ -68,7 +61,7 @@ fill_byte:
     bcc fill_byte_ready
     inc BITMAP_PTR + 1
 fill_byte_ready:
-    lda WALL_X_OFFSET
+    lda #$ff
     sta PIXEL_MASK
     dec GLYPH_BITS
     bne fill_byte
@@ -97,6 +90,7 @@ fill_pointer_ready:
     beq fill_done
     jmp fill_edge
 fill_done:
+    jsr initialise_course_colors
     ; Cup ring is static and tests plotting at x > 255.
     lda #0
     sta POINT_INDEX
@@ -126,30 +120,58 @@ cup_x_sign:
     bne cup_next
     rts
 
-; Uniform course palette. Hidden bitmap rows and HUD are excluded.
+; Choose the palette from static geometry before drawing cup/ball/aim.
+; Scan only rows 1..20; lookup, renderer and HUD code stay hidden and intact.
 initialise_course_colors:
-    ldx #0
-video_course_colors:
-    lda #(COURSE_SOLID_COLOR & $70) + ((COURSE_INK_COLOR & $70) >> 4)
-    sta LUMINANCE_BASE + 40,x
-    sta LUMINANCE_BASE + 296,x
-    sta LUMINANCE_BASE + 552,x
-    lda #((COURSE_INK_COLOR & $0f) << 4) + (COURSE_SOLID_COLOR & $0f)
-    sta COLOR_BASE + 40,x
-    sta COLOR_BASE + 296,x
-    sta COLOR_BASE + 552,x
-    inx
-    bne video_course_colors
-    ldx #31
-video_course_color_tail:
-    lda #(COURSE_SOLID_COLOR & $70) + ((COURSE_INK_COLOR & $70) >> 4)
-    sta LUMINANCE_BASE + 808,x
-    lda #((COURSE_INK_COLOR & $0f) << 4) + (COURSE_SOLID_COLOR & $0f)
-    sta COLOR_BASE + 808,x
-    dex
-    bpl video_course_color_tail
+    lda #<$2140
+    sta BITMAP_PTR
+    lda #>$2140
+    sta BITMAP_PTR + 1
+    lda #<(LUMINANCE_BASE + 40)
+    sta COURSE_PTR
+    lda #>(LUMINANCE_BASE + 40)
+    sta COURSE_PTR + 1
+course_color_cell:
+    lda #0
+    ldy #7
+course_color_scan:
+    ora (BITMAP_PTR),y
+    dey
+    bpl course_color_scan
+    cmp #0                  ; DEY changed flags; test the accumulated bitmap
+    bne course_color_boundary
+    lda #(COURSE_SURFACE_COLOR & $70) + ((COURSE_INK_COLOR & $70) >> 4)
+    ldx #((COURSE_INK_COLOR & $0f) << 4) + (COURSE_SURFACE_COLOR & $0f)
+    jmp course_color_store
+course_color_boundary:
+    lda #(COURSE_SURFACE_COLOR & $70) + ((COURSE_SOLID_COLOR & $70) >> 4)
+    ldx #((COURSE_SOLID_COLOR & $0f) << 4) + (COURSE_SURFACE_COLOR & $0f)
+course_color_store:
+    ldy #0
+    sta (COURSE_PTR),y
+    lda COURSE_PTR + 1
+    clc
+    adc #4
+    sta COPY_TARGET + 1
+    lda COURSE_PTR
+    sta COPY_TARGET
+    txa
+    sta (COPY_TARGET),y
+    clc
+    lda BITMAP_PTR
+    adc #8
+    sta BITMAP_PTR
+    bcc course_color_next
+    inc BITMAP_PTR + 1
+course_color_next:
+    inc COURSE_PTR
+    bne course_color_end
+    inc COURSE_PTR + 1
+course_color_end:
+    lda BITMAP_PTR + 1
+    cmp #>$3a40
+    bne course_color_cell
+    lda BITMAP_PTR
+    cmp #<$3a40
+    bne course_color_cell
     rts
-
-; Alternating pixel parity on adjacent scanlines: no 8x8 cell seams.
-course_pattern:
-!byte $aa,$55
