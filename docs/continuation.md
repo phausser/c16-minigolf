@@ -137,3 +137,16 @@ Farben sind jetzt zentral in src/palette.inc als (LUMINANZ << 4) + FARBE
 konfiguriert. Hi-Res-Attributbytes werden daraus abgeleitet; Fläche und
 Schatten teilen sich den Farbton. Build besteht, Bildpalette unverändert.
 PRG jetzt 12282 Bytes, Bitmap-Ende 185/192 Bytes; Runtime weiter 5541/37.
+
+## Schatten auf Nutzerwunsch entfernt
+
+Aktueller Stand ersetzt die Schattenbeschreibung oben: keine Schatten im
+Kurs. Flächen gleichmäßig, Nutzereinstellung COURSE_SURFACE_COLOR =
+(5 << 4) + 1 bleibt erhalten. COURSE_SHADOW_COLOR und shade_course entfernt.
+initialise_course_colors liegt jetzt mit dem statischen Renderer in Zeile21
+und initialisiert Luminanz/Farbton der 800 Spielfeldzellen, ohne Code/HUD.
+43 Tests bestehen; VICE-Bild und Grafik/Eingabeprüfung ebenfalls. Runtime
+5516 Bytes, 62 frei; statischer Renderer einschließlich Paletteninitialisierung
+239/320 Bytes. PRG weiter 12282 Bytes. Physikmaximum 40253 > 32000 Ticks.
+Kurs-Hochrechnung: 676 Bytes fehlen plus Decoder/aktuelle Bahn/Metadaten.
+Nächster Schritt bleibt die Speicherarchitektur.

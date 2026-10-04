@@ -90,7 +90,6 @@ fill_pointer_ready:
     beq fill_done
     jmp fill_edge
 fill_done:
-    jsr shade_course
     ; Cup ring is static and tests plotting at x > 255.
     lda #0
     sta POINT_INDEX
@@ -120,75 +119,26 @@ cup_x_sign:
     bne cup_next
     rts
 
-; Shade from solid top-left samples in this cell or its top/left neighbor.
-; Sampling on the cell grid keeps the shadow in aligned 8x8 blocks.
-; Row 0 lookup data is never sampled as geometry: row 1 uses black instead.
-shade_course:
-    lda #<$1828
-    sta COURSE_PTR
-    lda #>$1828
-    sta COURSE_PTR + 1
-    lda #8
-    sta PIXEL_Y
-shade_row:
-    lda #0
-    sta PIXEL_X
-    sta PIXEL_X + 1
-shade_cell:
-    jsr point_pixel
-    lda (BITMAP_PTR),y
-    bmi shade_dark
-    lda PIXEL_Y
-    cmp #8
-    beq shade_dark
-    sec
-    lda BITMAP_PTR
-    sbc #<320
-    sta COPY_SOURCE
-    lda BITMAP_PTR + 1
-    sbc #>320
-    sta COPY_SOURCE + 1
-    lda (COPY_SOURCE),y
-    bmi shade_dark
-    lda PIXEL_X
-    ora PIXEL_X + 1
-    beq shade_dark
-    sec
-    lda BITMAP_PTR
-    sbc #8
-    sta COPY_SOURCE
-    lda BITMAP_PTR + 1
-    sbc #0
-    sta COPY_SOURCE + 1
-    lda (COPY_SOURCE),y
-    bmi shade_dark
+; Uniform course palette. Hidden bitmap rows and HUD are excluded.
+initialise_course_colors:
+    ldx #0
+video_course_colors:
     lda #(COURSE_SURFACE_COLOR & $70) + ((COURSE_SOLID_COLOR & $70) >> 4)
-    bne shade_store
-shade_dark:
-    lda #(COURSE_SHADOW_COLOR & $70) + ((COURSE_SOLID_COLOR & $70) >> 4)
-shade_store:
-    ldy #0
-    sta (COURSE_PTR),y
-    inc COURSE_PTR
-    bne shade_attribute_ready
-    inc COURSE_PTR + 1
-shade_attribute_ready:
-    clc
-    lda PIXEL_X
-    adc #8
-    sta PIXEL_X
-    bcc shade_x_ready
-    inc PIXEL_X + 1
-shade_x_ready:
-    lda PIXEL_X + 1
-    beq shade_cell
-    lda PIXEL_X
-    cmp #64
-    bcc shade_cell
-    clc
-    lda PIXEL_Y
-    adc #8
-    sta PIXEL_Y
-    cmp #168
-    bcc shade_row
+    sta LUMINANCE_BASE + 40,x
+    sta LUMINANCE_BASE + 296,x
+    sta LUMINANCE_BASE + 552,x
+    lda #((COURSE_SOLID_COLOR & $0f) << 4) + (COURSE_SURFACE_COLOR & $0f)
+    sta COLOR_BASE + 40,x
+    sta COLOR_BASE + 296,x
+    sta COLOR_BASE + 552,x
+    inx
+    bne video_course_colors
+    ldx #31
+video_course_color_tail:
+    lda #(COURSE_SURFACE_COLOR & $70) + ((COURSE_SOLID_COLOR & $70) >> 4)
+    sta LUMINANCE_BASE + 808,x
+    lda #((COURSE_SOLID_COLOR & $0f) << 4) + (COURSE_SURFACE_COLOR & $0f)
+    sta COLOR_BASE + 808,x
+    dex
+    bpl video_course_color_tail
     rts

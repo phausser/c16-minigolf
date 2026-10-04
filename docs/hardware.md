@@ -14,13 +14,13 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 
 | Bereich | Verwendung |
 |---|---|
-| $0200–$17A4 | Laufzeitcode und Daten: 5541 Bytes |
-| $17A5–$17C9 | 37 freie Bytes |
+| $0200–$178B | Laufzeitcode und Daten: 5516 Bytes |
+| $178C–$17C9 | 62 freie Bytes |
 | $17CA–$17FF | 54 Bytes Hintergrundrestaurierung |
 | $1800–$1FFF | TED-Luminanz und Farbe |
 | $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
 | $2140–$3A3F | Sichtbares Spielfeld |
-| $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner, 319 Bytes |
+| $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner mit Paletteninitialisierung, 239 Bytes |
 | $3B80–$3CBF | Bedienhilfe, HUD-Zeile 22 |
 | $3CC0–$3DFF | Unsichtbare HUD-Zeile: weite Mathematik und Komponentennormierung, 308 Bytes |
 | $3E00–$3F3F | Stärke/Status, HUD-Zeile 24 |
@@ -41,8 +41,8 @@ Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/c
 $FF06=$3B, $FF07=$08, $FF12=$08, $FF14=$18 schalten 320×200-Hi-Res,
 PAL/40 Spalten, RAM-Bitmap $2000 und Attribute $1800/$1C00 ein.
 Im HUD ergeben Luminanz/Farbe $07/$10 Weiß auf Schwarz. Im Spielfeld
-ergeben $30/$01 Schwarz auf Mittelgrau, Schattenzellen $10/$01 Schwarz
-auf Dunkelgrau. Multicolor bleibt aus.
+ergeben aktuell $50/$01 Schwarz auf Grau (Flächenluminanz vom Nutzer
+auf 5 eingestellt). Die Farben stehen in src/palette.inc. Multicolor bleibt aus.
 IRQ-Quellen sind deaktiviert. VICE prüft die Register mit passenden Masken.
 
 Bitmap-Adresse: $2000 + floor(y/8)×320 + floor(x/8)×8 + (y mod 8).
@@ -53,9 +53,8 @@ den eingebauten ROM-Zeichensatz direkt, ohne ROM-Routinen aufzurufen.
 zusätzliche Füllkanten belegen 36 Bytes; sie sind aus denselben Konturen
 abgeleitet. Ein byteweiser Even/Odd-Scanline-Füller öffnet die graue Fläche
 in einer schwarzen Bitmap, mit halboffenen y-Intervallen. Renderer und
-Kollision nutzen dieselbe Innenkante. Obere/linke Innenkanten bekommen
-einen dunkelgrauen Hintergrund im 8×8-Zellraster. Schatten werden vor
-dem Lochring bestimmt; Ball und Loch werfen keine eigenen Schatten. Der Generator prüft Grenzen, Segmentlimit,
+Kollision nutzen dieselbe Innenkante. Die Flächenfarbe ist
+gleichmäßig; Zellschatten wurden auf Nutzerwunsch wieder entfernt. Der Generator prüft Grenzen, Segmentlimit,
 Nullsegmente, zulässige Winkel und Konturschnittpunkte. Ballfreiheit und
 Erreichbarkeit sind noch keine vollständigen Validator-Nachweise.
 
@@ -245,4 +244,12 @@ Renderer und drei Bytes im Bitmap-Ende. Es bleiben 37 Runtime-Bytes frei.
 
 Die Palette steht zentral in `src/palette.inc` als `(LUMINANZ << 4) + FARBE`.
 Die getrennten Hi-Res-Attributbytes werden zur Assemblierzeit daraus
-abgeleitet. Fläche und Schatten teilen sich denselben Farbton.
+abgeleitet. Die Spielfläche hat eine gleichmäßige Hintergrundfarbe.
+
+## Schatten wieder entfernt (2026-10-04)
+
+Schattenroutine und Schattenfarbe entfernt; gleichmäßige Fläche mit der vom
+Nutzer gewählten Luminanz 5. 43 Tests und VICE-Grafikprüfung bestehen.
+Runtime 5516 Bytes, 62 frei; Renderer/Paletteninitialisierung 239/320 Bytes.
+Physikmaximum 40253 PAL-Ticks; die 32000-Tick-Abnahme bleibt offen. Die
+vorherigen Schattenmessungen oben beschreiben den historischen Stand.

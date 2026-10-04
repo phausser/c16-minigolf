@@ -119,19 +119,3 @@ restore_done:
 pixel_masks:
 !byte $80,$40,$20,$10,$08,$04,$02,$01
 
-; Color setup is outside the bitmap tail, which must also hold the guard.
-initialise_course_colors:
-    ldx #0
-    lda #((COURSE_SOLID_COLOR & $0f) << 4) + (COURSE_SURFACE_COLOR & $0f)
-video_course_colors:
-    sta COLOR_BASE + 40,x
-    sta COLOR_BASE + 296,x
-    sta COLOR_BASE + 552,x
-    inx
-    bne video_course_colors
-    ldx #31
-video_course_color_tail:
-    sta COLOR_BASE + 808,x
-    dex
-    bpl video_course_color_tail
-    rts

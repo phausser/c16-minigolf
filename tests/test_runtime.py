@@ -145,7 +145,8 @@ class HardwareTests(unittest.TestCase):
         self.r.bus[S['lookup_image']:S['lookup_image']+320] = lookup
         self.r.call('initialise_video')
         luma, colors = [7]*1024,[16]*1024
-        colors[40:840] = [1]*800
+        colors[40:840] = [((S["COURSE_SOLID_COLOR"] & 15) << 4) + (S["COURSE_SURFACE_COLOR"] & 15)]*800
+        luma[40:840] = [(S["COURSE_SURFACE_COLOR"] & 0x70) + ((S["COURSE_SOLID_COLOR"] & 0x70) >> 4)]*800
         luma[840:880] = colors[840:880] = [0]*40
         luma[:40] = colors[:40] = [0]*40
         luma[920:960] = colors[920:960] = [0]*40
@@ -192,16 +193,15 @@ class HardwareTests(unittest.TestCase):
             for x in range(320):
                 if not playable(x,y):
                     expected[bitmap_offset(x,y)] |= 128 >> (x%8)
-        # Check cell colors before the black cup ring is overlaid: its pixels
-        # must not cast a shadow. Hidden code rows stay black/black.
+        # Uniform surface palette, including boundary cells; code rows stay hidden.
         for row in range(1,21):
             for col in range(40):
-                x,y = col*8,row*8
-                dark = (not playable(x,y) or not playable(x,y-8) or
-                        col == 0 or not playable(x-8,y))
                 self.assertEqual(self.r.bus[0x1800+row*40+col],
-                                 0x10 if dark else 0x30, (x,y))
-                self.assertEqual(self.r.bus[0x1c00+row*40+col],1)
+                                 (S['COURSE_SURFACE_COLOR'] & 0x70) +
+                                 ((S['COURSE_SOLID_COLOR'] & 0x70) >> 4))
+                self.assertEqual(self.r.bus[0x1c00+row*40+col],
+                                 ((S['COURSE_SOLID_COLOR'] & 15) << 4) +
+                                 (S['COURSE_SURFACE_COLOR'] & 15))
         cx,cy = COURSE['cup']
         for i in range(32):
             x = cx+round(math.cos(i*math.tau/32)*5)

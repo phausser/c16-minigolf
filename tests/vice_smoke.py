@@ -83,11 +83,10 @@ def main():
     expected_attrs[1024+920:1024+960] = bytes(40)
     expected_attrs[:40] = bytes(40)
     expected_attrs[1024:1024+40] = bytes(40)
-    # Cell shadows are independently checked against geometry in py65.
-    # VICE checks the same RAM palette, with protected rows/HUD unchanged.
-    expected_attrs[40:840] = attrs[40:840]
-    expected_attrs[1024+40:1024+840] = bytes([1])*800
-    assert set(attrs[40:840]) == {0x10,0x30}, 'gray surfaces and cell shadows'
+    luma = (s['COURSE_SURFACE_COLOR'] & 0x70) + ((s['COURSE_SOLID_COLOR'] & 0x70) >> 4)
+    color = ((s['COURSE_SOLID_COLOR'] & 15) << 4) + (s['COURSE_SURFACE_COLOR'] & 15)
+    expected_attrs[40:840] = bytes([luma])*800
+    expected_attrs[1024+40:1024+840] = bytes([color])*800
     assert attrs == expected_attrs, 'hires colors/luminance/hidden code row'
     video = Path(f'{prefix}-video.bin').read_bytes()
     assert video[0] & 0x7f == 0x3b, 'bitmap/display/25-row configuration'

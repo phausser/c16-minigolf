@@ -6,7 +6,7 @@ Ein technisch anspruchsvolles Minigolfspiel für den unveränderten Commodore 16
 
 Planungsannahmen: PAL als erstes Ziel, ein Spieler, Tastatur als vollständige Grundsteuerung, optional ein C16-kompatibler Joystick. Alle 18 Löcher liegen im geladenen Programm; während einer Runde wird nichts nachgeladen. Auslieferung als PRG, zusätzlich ein D64 mit demselben Programm. Keine Speichererweiterung erforderlich. NTSC ist ein späteres Kompatibilitätsziel mit derselben Simulationszeit, aber eigener Laufzeitprüfung.
 
-„Kein Multicolor“ bedeutet TED Standard-Hi-Res mit einem Bit pro Pixel und zwei Farben pro 8×8-Zelle. Die Bahn nutzt schwarze Vordergrundpixel und mittelgrauen Hintergrund; Schattenzellen verwenden dunkelgrauen Hintergrund. Die Pixelauflösung bleibt 320×200.
+„Kein Multicolor“ bedeutet TED Standard-Hi-Res mit einem Bit pro Pixel und zwei Farben pro 8×8-Zelle. Die Bahn nutzt schwarze Vordergrundpixel und mittelgrauen Hintergrund. Die Pixelauflösung bleibt 320×200.
 
 ## Darstellung und Atmosphäre
 
@@ -17,7 +17,7 @@ Planungsannahmen: PAL als erstes Ziel, ein Spieler, Tastatur als vollständige G
 - Die Grenze zwischen Grau und Schwarz entspricht der physikalischen Kollisionskante.
 - Laufrichtung vor dem Schlag als kurze gestrichelte Linie und Richtungsspitze; keine vollständige Flugbahnvorhersage.
 - HUD: Loch 01/18, Par, Schläge, Stärke als Balken, Gesamtstand relativ zu Par. Spieltext ohne Umlaute für einen kleinen Zeichensatz.
-- Dunkelgrauer, am 8×8-Zellraster ausgerichteter Schatten an oberen und linken Innenkanten. Er verändert keine Kollisionsdaten. Keine Perspektive und keine Hardware-Sprites.
+- Gleichmäßig gefärbte Spielflächen ohne Schatten. Keine Perspektive und keine Hardware-Sprites.
 
 Statische Bahn einmal zeichnen. Ball, Zielmarke und kleine Effekte als Softwaregrafik mit gesichertem Hintergrund aktualisieren. Überlappende Elemente werden in fester Reihenfolge restauriert und neu gezeichnet. Keine vollständige Bitmap-Kopie im RAM, kein Vollbild-Neuzeichnen pro Frame und kein flackerndes XOR als Standardlösung.
 
