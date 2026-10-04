@@ -171,8 +171,8 @@ Die Kontaktgrenze zählt Überschreitungen und verwirft die Restbewegung.
 
 Der Prototyp erfüllt noch nicht sämtliche Abnahmekriterien: offene
 Kontaktgrenzfälle, 50-Hz-Worst-Case und Platz für alle 18 Bahnen stehen in
-TODO.md. Der umfangreiche Physikkern benötigt derzeit 5436 Runtime-Bytes;
-142 bleiben im Hauptbereich frei. Exakte Speicher- und Laufzeitmessungen
+TODO.md. Der umfangreiche Physikkern benötigt derzeit 5480 Runtime-Bytes;
+98 bleiben im Hauptbereich frei. Exakte Speicher- und Laufzeitmessungen
 stehen in docs/hardware.md. Das 50-Hz-Ziel bleibt bestehen.
 
 ### Rundung, Optimierungen und kompakter Export

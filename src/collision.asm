@@ -444,8 +444,7 @@ collision_branch_8:
     lda RADIUS_SQUARED + 2
     cmp #9
     bne circle_start_outside
-    jsr square_q
-    jsr compare_circle_radius
+    jsr square_circle
     bcc circle_start_outside
     lda #0
     sta TRIAL_T
@@ -626,8 +625,7 @@ circle_delta_half:
     +add24 CIRCLE_OUT + 3, CIRCLE_DELTA + 3, CIRCLE_TRIAL + 3
     +copy16 CIRCLE_TRIAL + 1, QX
     +copy16 CIRCLE_TRIAL + 4, QY
-    jsr square_q
-    jsr compare_circle_radius
+    jsr square_circle
     bcs circle_next_bit
     lda TRIAL_T
     sta BISECT_LO
@@ -795,19 +793,42 @@ circle_at_trial:
     +add16 SAVED_Y, TRIAL_Y, TRIAL_Y
     +copy16 TRIAL_X, QX
     +copy16 TRIAL_Y, QY
-    jsr square_q
-compare_circle_radius:
-    ; Both supported radii have zero low 16 bits: $00040000 / $00090000.
-    ; A high-byte tie is already outside, regardless of the low bytes.
-    lda M_PRODUCT + 3
-    bne circle_outside_radius
+    ; Fall through to the circle predicate; no full square sum is needed.
+; Exact predicate QX^2 + QY^2 < radius^2 for the two fixed circle radii.
+; |QX|, |QY| <= 2815 after the 7px prefilter plus a <=4px step.
+; Inputs remain unchanged; math scratch/product contents are unspecified.
+; A single coordinate outside the radius rejects before the other square.
+square_circle:
+    +copy16 QX, M_A
+    jsr square_small
     lda M_PRODUCT + 2
     cmp RADIUS_SQUARED + 2
-    bcs circle_outside_radius
-circle_inside:
+    bcs circle_square_outside
+    lda M_PRODUCT
+    sta DX_WIDE
+    lda M_PRODUCT + 1
+    sta DX_WIDE + 1
+    lda M_PRODUCT + 2
+    sta DX_WIDE + 2
+    +copy16 QY, M_A
+    jsr square_small
+    lda M_PRODUCT + 2
+    cmp RADIUS_SQUARED + 2
+    bcs circle_square_outside
+    ; The low radius bytes are zero: carry the exact low-byte sum upward,
+    ; then compare the high byte without storing an unused full product.
+    clc
+    lda M_PRODUCT
+    adc DX_WIDE
+    lda M_PRODUCT + 1
+    adc DX_WIDE + 1
+    lda M_PRODUCT + 2
+    adc DX_WIDE + 2
+    cmp RADIUS_SQUARED + 2
+    bcs circle_square_outside
     sec
     rts
-circle_outside_radius:
+circle_square_outside:
     clc
     rts
 

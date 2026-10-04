@@ -49,3 +49,19 @@ Nächste Schritte: geschützte Speicherreserve schaffen, alternative Arithmetik
 an diesen Messfällen vergleichen, anschließend allgemeine Eckensweeps im
 PAL-Emulator messen und den kompakten Bahn-Decoder integrieren. Schritt 2
 bleibt bis zur Speicher- und Laufzeitabnahme offen.
+
+## Eckensweep-Profil
+
+`make profile` führt sieben Physikframes für radiale, schräge und flache
+Eckentreffer im assemblierten 6502-Code aus. `build/sweep-profile.json`
+enthält die Aufrufzahlen sowie inklusive und exklusive CPU-Zyklen jedes
+Aufrufs. Inklusive Zeiten enthalten Unteraufrufe und dürfen nicht addiert
+werden; exklusive Zeiten teilen die Gesamtzeit auf. Äußere JSR fehlen,
+interne JSR werden dem Aufrufer zugerechnet, RTS dem aufgerufenen Block.
+Tail-Jumps und Inline-Code bleiben dem jeweiligen Aufruf zugeordnet.
+Unbenannte Helfer erscheinen als Adresse. TED-Wartezeiten und Darstellung
+fehlen: die PAL-Abnahme erfolgt weiterhin mit `make smoke`.
+
+Die Zustandsfixtures in `tests/fixtures/corner-replays.json` stammen aus
+Commit c01f930 vor dem direkten Kreisvergleich. Sie sichern Position,
+Geschwindigkeit, Richtung und Spielzustand der jeweils sieben Frames.

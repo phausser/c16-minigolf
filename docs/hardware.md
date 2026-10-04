@@ -71,7 +71,7 @@ Der automatisierte Emulator-Smoke-Test injiziert weiterhin logische Ereignisse.
 
 ## Physikprüfung und Laufzeit
 
-42 automatisierte Tests bestehen, davon 35 am assemblierten Kern und
+43 automatisierte Tests bestehen, davon 36 am assemblierten Kern und
 sieben für Host-Geometrie/Export. Geprüft sind: Loader, Grafik,
 Eingabe, Hintergrund, exakte Arithmetik, 128 Richtungen, Reichweiten und
 Stillstand, Achsen-/Diagonalbanden, radiale Endpunkte, Streifkontakte,
@@ -85,18 +85,18 @@ das Ergebnis zu vergröbern. Zusätzliche Tests vergleichen zufällige
 Streifkontakte mit einer unabhängigen diskreten Geometrie-Referenz.
 Ein spezieller Einheitvektor-Multiplizierer und eine verkürzte exakte
 Geschwindigkeitswurzel sparen weitere Zyklen. Die Hauptschleife synchronisiert an Rasterzeile 205. Gemessener PAL-Abstand:
-35573 Ticks; teuerster Ziel-/HUD-Redraw: 16752 Ticks.
+35573 Ticks; teuerster Ziel-/HUD-Redraw: 16751 Ticks.
 
 | Bewegungsszenario, höchste Stärke | Schlechtester Frame, TED-Ticks |
 |---|---:|
-| Gerade | 6444 |
+| Gerade | 6445 |
 | Senkrechte Bande | 9558 |
-| 45°-Bande | 14046 |
-| Radiale Diagonalecke | 25918 |
-| Doppelkontakt in Ecke | 23046 |
+| 45°-Bande | 14045 |
+| Radiale Diagonalecke | 25880 |
+| Doppelkontakt in Ecke | 23038 |
 | Engstelle | 6515 |
-| Schräger Eckanflug | 40542 |
-| Flacher Eckanflug | 36841 |
+| Schräger Eckanflug | 40247 |
+| Flacher Eckanflug | 36550 |
 
 **Die Framebudget-Abnahme scheitert.** Eckentreffer überschreiten ein
 PAL-Bild. Die Physik bleibt
@@ -125,8 +125,8 @@ reale Eingabe am C16, Wertung, Materialien, Sound und NTSC.
 seine Geometrie zurück. Der Export benötigt 39 statt 85 Bytes. Die
 Hochrechnung 18 × 39 + 36 Verzeichnisbytes ergibt 738 Bytes. Sie verwendet
 den echten Testexport, aber noch keine 18 finalen Bahnen. Der Hauptbereich
-hat jetzt 142 freie Bytes; bereits die Geometrie-Hochrechnung benötigt
-596 zusätzliche Bytes. ACME-Decoder, aktuelle entpackte Bahn, Name/Par,
+hat jetzt 98 freie Bytes; bereits die Geometrie-Hochrechnung benötigt
+640 zusätzliche Bytes. ACME-Decoder, aktuelle entpackte Bahn, Name/Par,
 Materialien und Spielmodule sind in diesem Bedarf noch nicht enthalten.
 `build/course-budget.json` benennt diese Annahmen ausdrücklich.
 
@@ -207,3 +207,21 @@ aktuellen PAL-Stand; der schlechteste Frame liegt bei 40542 Ticks.
 je zwei Zeigerbytes. Das ist keine Freigabe von vier spielbaren Bahnen:
 Decoder, Reserve für die aktuelle 32-Segment-Bahn und Metadaten fehlen
 weiterhin. Der existierende Kern spielt eine Testbahn.
+
+## Direktes Kreisprädikat und Aufrufprofil
+
+`make profile` misst Aufrufzahlen und inklusive/exklusive CPU-Zyklen der
+assemblierten Physik. Vor dem Umbau: schräge Ecke 25255 CPU-Zyklen, danach
+24974. Die Kreisprüfung summiert die exakten Quadrate ohne unnötige
+Produktstores und bricht bei einer bereits zu großen Achsenkomponente ab.
+Unter dem 7-Pixel-Prefilter plus maximal vier Pixel Schritt gilt
+|QX|, |QY| <=2815. Die beiden festen Radien bleiben strikt; Kreisgrenzen
+und Zufallskoordinaten werden gegen Integer-Geometrie geprüft.
+
+Alle 43 Tests sowie 448 Mathematikfälle bestehen. Drei gespeicherte
+Eckenszenarien behalten ihre bisherigen Zustände über jeweils sieben
+Frames bytegenau. In VICE sinkt der schlechteste gemessene Frame von
+40542 auf 40247 Ticks. **Das PAL-Zeitbudget scheitert weiterhin.**
+Die Haupt-Runtime benötigt jetzt 5480 Bytes, 98 bleiben frei. Gegenüber
+c01f930 kostet diese Beschleunigung 44 Bytes; Geometrie, Spielfeld und
+Kontaktgenauigkeit bleiben erhalten.

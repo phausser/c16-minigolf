@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 42 automatisierte Tests bestehen (35 am assemblierten Kern, sieben für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe und Rendering; die erweiterte Zeitbudget-Prüfung scheitert noch an Eckentreffern. Schritt 2 bleibt offen, bis Laufzeit und das Speicherbudget für 18 Bahnen nachgewiesen sind. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 43 automatisierte Tests bestehen (36 am assemblierten Kern, sieben für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe und Rendering; die erweiterte Zeitbudget-Prüfung scheitert noch an Eckentreffern. Schritt 2 bleibt offen, bis Laufzeit und das Speicherbudget für 18 Bahnen nachgewiesen sind. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -31,8 +31,8 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] Zielen, Stärke, Schlag und Einlochen als vollständigen Ablauf verbinden.
 - [x] Code-, Daten- und Scratchbedarf messen; 18-Bahnen-Budget mit dem echten Testexport hochrechnen (`make budget`: 18 gleich große Exporte als ausdrückliche Annahme).
 - [x] Schlechteste Framezeit mit Anzeige messen, einschließlich Engstellen und Mehrfachkontakten.
-- [ ] Allgemeine schräge Eckentreffer von 40542 auf höchstens 32000 PAL-Ticks optimieren; `make smoke` muss bestehen.
-- [ ] Verbleibende 142 Runtime-Bytes vergrößern und echtes 18-Bahnen-Budget nachweisen.
+- [ ] Allgemeine schräge Eckentreffer von 40247 auf höchstens 32000 PAL-Ticks optimieren; `make smoke` muss bestehen.
+- [ ] Verbleibende 98 Runtime-Bytes vergrößern und echtes 18-Bahnen-Budget nachweisen.
 - [x] Start innerhalb des Fangradius und Lochfang unmittelbar nach einem Abpraller gezielt absichern.
 - [x] Wand-Kontakt-Epsilon gegen Rundungsreste von ein bis zwei Festkommaeinheiten prüfen.
 - [ ] Gleichzeitige Kontakte und schrägere Endpunktfälle vollständig absichern.
@@ -43,6 +43,16 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 Abnahme: spielbarer Kern erfüllt Speicher- und Zeitbudget mit begründeter Reserve. Bei Überschreitung zuerst Architektur/Daten optimieren; Bahnproduktion erst nach erneutem Nachweis fortsetzen.
 
 ### Nächste Umsetzung innerhalb von Schritt 2
+
+`make profile` misst jetzt die Teilkosten der drei Eckenszenarien. Der
+schräge Worst-Case benötigt 24974 CPU-Zyklen reine Physik: Kreisprüfungen
+10719 inklusive, Bruchmultiplikationen über alle Aufrufer 5511 inklusive,
+Normalisierung 3470 inklusive. Diese überlappenden Werte nicht addieren.
+Direkter Kreisvergleich und vor dem Umbau gespeicherte 7-Frame-Replays
+sind umgesetzt; PAL weiterhin 40247 > 32000 Ticks. Die neue Routine kostet
+44 zusätzliche Runtime-Bytes gegenüber c01f930. Nächste Optimierung anhand
+dieses Profils bewerten, inklusive Codegröße und exakten Ballzuständen.
+
 
 Zusätzlich vorgemerkt: Multiplikation und Division anhand der tatsächlichen Aufrufer und Wertebereiche vergleichen. `make benchmark` prüft jetzt 448 Rechenfälle. Ein exakter 16-Bit-Divisionspfad für kleine Nenner ist umgesetzt; die Routinen sind weiterhin nicht als schnellstmöglich nachgewiesen. Messstand und Fortsetzungskontext: [docs/continuation.md](docs/continuation.md).
 

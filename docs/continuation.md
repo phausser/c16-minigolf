@@ -91,3 +91,21 @@ Geometrien mit Zeigern, ohne Decoder, aktuelle-Bahn-Reserve und Metadaten.
 Als Nächstes größere Codeblöcke verkleinern bzw. den kompakten Decoder
 mit getrennter aktueller Bahn einpassen. Keine Bahnkapazität freigeben,
 bevor der tatsächliche gesamte RAM-Vertrag nachgewiesen ist.
+
+## Aufrufprofil und direkter Kreisvergleich
+
+`make profile` ist implementiert (tools/profile_sweep.py), Bericht
+build/sweep-profile.json. Inclusive-Zeiten überlappen; exklusive Zeiten
+teilen die gemessene reine CPU-Zeit auf, ohne TED-Stalls/Rendering.
+Schräge Worst-Case-Physik: 25255 -> 24974 CPU-Zyklen. VICE-Worst-Case:
+40542 -> 40247 Ticks; Grenze 32000 weiter überschritten.
+Die exakte Kreisprüfung verwendet jetzt square_circle mit früher Ablehnung
+einer Achsenkomponente >=Radius, statt voller Quadratsumme und separatem
+Vergleich. Scratch/Product-Ausgaben sind unspezifiziert; QX/QY bleiben
+unverändert. Vertrag |QX|,|QY|<=2815 und Radius 512/768.
+43 Tests und 448 Mathematikfälle bestehen. tests/fixtures/corner-replays.json
+sichert die Zustände aus c01f930 vor der Änderung für drei Eckenszenarien
+über sieben Frames. Haupt-Runtime 5480 Bytes, 98 frei; 18-Geometrien-Lücke
+640 Bytes plus Decoder/Metadaten. Diese Optimierung kostet 44 Bytes.
+Nächster Fokus laut Profil: Bruchmultiplikationen, genaue Kreis-Suche und
+Normalisierung; aktuelle Ergebnisse allein rechtfertigen keine PAL-Abnahme.

@@ -108,14 +108,20 @@ class ArithmeticTests(unittest.TestCase):
             self.r.call('square_small')
             self.assertEqual(unsigned(self.r,'M_PRODUCT',4),value*value,value)
 
-    def test_fixed_circle_radii_strict_boundary(self):
+    def test_short_circle_predicate_matches_exact_integer_squares(self):
+        rng = random.Random(7360)
         for radius in (512, 768):
-            limit = radius*radius
-            put(self.r, 'RADIUS_SQUARED', limit, 4)
-            for square in (0, limit-1, limit, limit+1, 0xffffff, 0x1000000, 0xffffffff):
-                put(self.r, 'M_PRODUCT', square, 4)
-                self.r.call('compare_circle_radius')
-                self.assertEqual(bool(self.r.cpu.p & 1), square < limit, (radius, square))
+            put(self.r, 'RADIUS_SQUARED', radius*radius, 4)
+            cases = [(x,y) for x in (-radius-1,-radius,-radius+1,-1,0,1,radius-1,radius,radius+1)
+                     for y in (-radius,-1,0,1,radius)]
+            cases += [(rng.randrange(-2815,2816),rng.randrange(-2815,2816)) for _ in range(500)]
+            for x,y in cases:
+                put(self.r, 'QX', x)
+                put(self.r, 'QY', y)
+                self.r.call('square_circle')
+                self.assertEqual(bool(self.r.cpu.p & 1), x*x+y*y < radius*radius, (radius,x,y))
+                self.assertEqual(signed(self.r,'QX'),x)
+                self.assertEqual(signed(self.r,'QY'),y)
 
     def test_cardinal_normalization_and_axis_restitution(self):
         for axis, other, unit, other_unit, normal in (
@@ -329,6 +335,22 @@ class MovementTests(unittest.TestCase):
         self.r.call('physics_tick')
         self.assertEqual(self.r.get('HOLED'),1)
         self.assertEqual(self.r.get('CONTACT_LIMIT_HITS'),0)
+
+    def test_corner_replays_preserve_preoptimization_states(self):
+        import json
+        from pathlib import Path
+        fixture = json.loads((Path(__file__).parent/'fixtures/corner-replays.json').read_text())
+        for case in fixture:
+            r = Runtime()
+            r.call('initialise_state')
+            position(r, case['x'], case['y'])
+            r.put('ANGLE', case['angle'])
+            r.put('POWER', 32)
+            r.call('start_shot')
+            for frame, expected in enumerate(case['states']):
+                r.call('physics_tick')
+                self.assertEqual(r.bus[S['BALL_POS_X']:S['STATE_END']], expected,
+                                 (case['name'], frame))
 
     def test_time_bit_circle_search_matches_discrete_geometric_oracle(self):
         rng = random.Random(512)
