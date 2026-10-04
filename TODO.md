@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 44 automatisierte Tests bestehen (37 am assemblierten Kern, sieben für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe und Rendering; die erweiterte Zeitbudget-Prüfung scheitert noch an Eckentreffern. Schritt 2 bleibt offen, bis Laufzeit und das Speicherbudget für 18 Bahnen nachgewiesen sind. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 47 automatisierte Tests bestehen (40 am assemblierten Kern, sieben für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe und Rendering; die erweiterte Zeitbudget-Prüfung scheitert noch an Eckentreffern. Schritt 2 bleibt offen, bis Laufzeit und das Speicherbudget für 18 Bahnen nachgewiesen sind. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -18,7 +18,7 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 
 ## 2. Machbarer Vertikalschnitt
 
-- [x] Eine Testbahn mit breiter Fläche, 12-Pixel-Engstelle, L-Ecke und 45°-Bande erstellen.
+- [x] Eine Testbahn mit breiter Fläche, 16-Pixel-Engstelle, L-Ecke und 45°-Bande erstellen.
 - [x] Kompaktes Bahnformat und Decoder für maximal 32 Segmente implementieren.
 - [x] Statische Geometrie sowie Ball-/Zielmarke zeichnen; Hintergrundrestaurierung prüfen.
 - [x] Ballposition aus der tatsächlichen Bewegung übernehmen.
@@ -31,8 +31,8 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] Zielen, Stärke, Schlag und Einlochen als vollständigen Ablauf verbinden.
 - [x] Code-, Daten- und Scratchbedarf messen; 18-Bahnen-Budget mit dem echten Testexport hochrechnen (`make budget`: 18 gleich große Exporte als ausdrückliche Annahme).
 - [x] Schlechteste Framezeit mit Anzeige messen, einschließlich Engstellen und Mehrfachkontakten.
-- [ ] Allgemeine schräge Eckentreffer von 40253 auf höchstens 32000 PAL-Ticks optimieren; `make smoke` muss bestehen.
-- [ ] Verbleibende 62 Runtime-Bytes vergrößern und echtes 18-Bahnen-Budget nachweisen.
+- [ ] Allgemeine schräge Eckentreffer von 38873 auf höchstens 32000 PAL-Ticks optimieren; `make smoke` muss bestehen.
+- [ ] Verbleibende 197 Runtime-Bytes vergrößern und echtes 18-Bahnen-Budget nachweisen.
 - [x] Start innerhalb des Fangradius und Lochfang unmittelbar nach einem Abpraller gezielt absichern.
 - [x] Wand-Kontakt-Epsilon gegen Rundungsreste von ein bis zwei Festkommaeinheiten prüfen.
 - [ ] Gleichzeitige Kontakte und schrägere Endpunktfälle vollständig absichern.
@@ -50,10 +50,14 @@ Grau/Schwarz. Ball/Zielmarke/Lochring nehmen die jeweilige Zell-Vordergrundfarbe
 an; beim Zellübergang teilweise schwarz/weiß. Keine Konturänderung.
 Palette zentral in src/palette.inc als (LUMINANZ << 4) + FARBE, Fläche weiter
 Luminanz 5. Klassifizierung aus statischer Bitmap vor den Markierungen.
-44 Tests bestehen, VICE bestätigt Bild und Restaurierung. Runtime 5516 Bytes,
-62 frei; statischer Renderer/Palette 287/320 Bytes. Kurs-Hochrechnung: 676 Bytes
-fehlen plus Decoder, aktuelle Bahn, Füllkanten und Metadaten. Laufzeitabnahme
-weiter offen: 40253 statt höchstens 32000 PAL-Ticks. Physik unverändert.
+47 Tests bestehen, VICE bestätigt Bild und Restaurierung sowie den echten
+emulierten Joystick-Port. Gerade Kanten am 8×8-Raster, Engstelle nun 16 Pixel.
+Nur Stärkeanzeige im HUD; Joystick links/rechts dreht, Feuer halten lädt,
+Loslassen schlägt. Runtime 5381 Bytes, 197 frei; Renderer/Palette 287/320.
+Kurs-Hochrechnung benötigt 505 weitere Bytes plus Decoder, aktuelle Bahn,
+Füllkanten und Metadaten. Laufzeitabnahme offen: 38873 >32000 PAL-Ticks
+auf der veränderten Testbahn. Historische Physik-Replays verwenden ihre
+ursprüngliche Geometrie in fixtures/course-before-cell-grid.json.
 
 ### Nächste Umsetzung innerhalb von Schritt 2
 
@@ -62,7 +66,7 @@ schräge Worst-Case benötigt 24974 CPU-Zyklen reine Physik: Kreisprüfungen
 10719 inklusive, Bruchmultiplikationen über alle Aufrufer 5511 inklusive,
 Normalisierung 3470 inklusive. Diese überlappenden Werte nicht addieren.
 Direkter Kreisvergleich und vor dem Umbau gespeicherte 7-Frame-Replays
-sind umgesetzt; PAL nach Grafikänderung 40253 > 32000 Ticks. Die neue Routine kostet
+sind umgesetzt; PAL nach Raster-/Steuerungsänderung 38873 > 32000 Ticks. Die neue Routine kostet
 44 zusätzliche Runtime-Bytes gegenüber c01f930. Nächste Optimierung anhand
 dieses Profils bewerten, inklusive Codegröße und exakten Ballzuständen.
 
@@ -114,7 +118,7 @@ Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kante
 - [ ] Lochbilanz und bestätigten Übergang zum nächsten Loch implementieren.
 - [ ] Schlaglimit mit 13er-Wertung und Abbruchmarkierung implementieren.
 - [ ] 18 Ergebnisse, Endwertung und bestätigten Rundenneustart implementieren.
-- [ ] Optionalen Joystick prüfen und integrieren; Tastatur bleibt vollständig nutzbar.
+- [x] Joystick Port 1 integriert und im VICE-Port getestet; Tastatur nur noch P. Feuerdauer steuert Stärke.
 - [ ] Grafiküberlappungen, Pausieren und gehaltene Tasten an Zustandsübergängen prüfen.
 
 Abnahme: vollständige Runde vom Start bis zur korrekten Endwertung ohne Neustart, Speicherfehler oder Eingabesperre spielbar.

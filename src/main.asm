@@ -124,8 +124,6 @@ clear_state:
     sta STATE_BEGIN,x
     dex
     bpl clear_state
-    lda #16
-    sta POWER
     jmp reset_ball
 
 !source "src/video.asm"

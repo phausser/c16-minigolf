@@ -4,7 +4,7 @@
 
 Ein technisch anspruchsvolles Minigolfspiel für den unveränderten Commodore 16 mit 16 KB RAM. 18 handgestaltete Löcher, reine 2D-Draufsicht, geometrische Bahnen mit breiten Flächen, schmalen Wegen und bewusst spielbaren Ecken. Präzise Richtung und Schlagstärke, nachvollziehbare Ballbewegung und kleine humorvolle Reaktionen machen den Reiz aus.
 
-Planungsannahmen: PAL als erstes Ziel, ein Spieler, Tastatur als vollständige Grundsteuerung, optional ein C16-kompatibler Joystick. Alle 18 Löcher liegen im geladenen Programm; während einer Runde wird nichts nachgeladen. Auslieferung als PRG, zusätzlich ein D64 mit demselben Programm. Keine Speichererweiterung erforderlich. NTSC ist ein späteres Kompatibilitätsziel mit derselben Simulationszeit, aber eigener Laufzeitprüfung.
+Planungsannahmen: PAL als erstes Ziel, ein Spieler, C16-kompatibler Joystick an Port 1 als Grundsteuerung, P auf der Tastatur zum Pausieren. Alle 18 Löcher liegen im geladenen Programm; während einer Runde wird nichts nachgeladen. Auslieferung als PRG, zusätzlich ein D64 mit demselben Programm. Keine Speichererweiterung erforderlich. NTSC ist ein späteres Kompatibilitätsziel mit derselben Simulationszeit, aber eigener Laufzeitprüfung.
 
 „Kein Multicolor“ bedeutet TED Standard-Hi-Res mit einem Bit pro Pixel und zwei Farben pro 8×8-Zelle. Graue Spielflächen sind die Hintergrundfarbe. Vollständig spielbare Zellen nutzen weiße Vordergrundfarbe; Zellen mit festen Geometriepixeln schwarze. Die Pixelauflösung bleibt 320×200.
 
@@ -14,9 +14,9 @@ Planungsannahmen: PAL als erstes Ziel, ein Spieler, Tastatur als vollständige G
 - Spielfeldbereich: x = 8…311, y = 8…167. Statusbereich: y = 176…199; dazwischen Abstand.
 - Spielbare Flächen glatt grau, nichtspielbare Flächen und Hindernisse schwarz. Ball, Zielmarke und Lochring weiß in vollständigen Bahnzellen, schwarz in Zellen mit einer Kontur. Bei Zellübergängen können Markierungen teilweise weiß und teilweise schwarz sein. HUD weiß auf Schwarz.
 - Ball: kompakte, symmetrische 5 × 5-Pixel-Marke, physikalischer Radius 2 Pixel. Loch: klar erkennbarer Ring.
-- Die Grenze zwischen Grau und Schwarz entspricht der physikalischen Kollisionskante.
+- Die Grenze zwischen Grau und Schwarz entspricht der physikalischen Kollisionskante. Alle geraden Kanten liegen vollständig auf dem 8×8-Zellraster; nur schräge Kanten schneiden Zellen.
 - Laufrichtung vor dem Schlag als kurze gestrichelte Linie und Richtungsspitze; keine vollständige Flugbahnvorhersage.
-- HUD: Loch 01/18, Par, Schläge, Stärke als Balken, Gesamtstand relativ zu Par. Spieltext ohne Umlaute für einen kleinen Zeichensatz.
+- HUD zeigt nur Schlagstärke (0–32) und den Ladebalken. Keine Anleitung oder Statuswörter darunter. Weitere Wertungen auf separaten Ergebnisbildern; Spieltext ohne Umlaute.
 - Gleichmäßig gefärbte Flächen ohne Schatten oder Pixelmuster. Keine Perspektive und keine Hardware-Sprites.
 
 Statische Bahn einmal zeichnen. Ball, Zielmarke und kleine Effekte als Softwaregrafik mit gesichertem Hintergrund aktualisieren. Überlappende Elemente werden in fester Reihenfolge restauriert und neu gezeichnet. Keine vollständige Bitmap-Kopie im RAM, kein Vollbild-Neuzeichnen pro Frame und kein flackerndes XOR als Standardlösung.
@@ -25,12 +25,16 @@ Statische Bahn einmal zeichnen. Ball, Zielmarke und kleine Effekte als Softwareg
 
 Titel → Start → Lochvorstellung → Zielen → Stärke einstellen → Schlag → Ball rollt → nächster Schlag oder Einlochen → Lochbilanz → nächstes Loch → Endwertung.
 
-Tastaturbelegung als Ausgangspunkt: A/D drehen, W/S Stärke ändern, SPACE schlagen bzw. bestätigen, RETURN zwischen Richtung und Stärke wechseln, P pausieren. Tastenerfassung verwendet einen eigenen, entprellten Scan. Die endgültige Matrixbelegung wird am Gerät geprüft. Joystick: links/rechts drehen, hoch/runter Stärke, Feuer schlagen; Taste P bleibt verfügbar.
+Joystick Port 1: links/rechts drehen, Feuer halten lädt die Schlagstärke,
+Feuer loslassen schlägt. P pausiert. A/D/W/S/SPACE steuern das Spiel nicht mehr.
+Joystick und Pause werden getrennt gelesen und über zwei gleiche Samples
+entprellt. Nach Pause/Rollen/Neustart muss Feuer erst losgelassen werden;
+keine ungewollte Aufladung durch eine bereits gehaltene Taste.
 
 - 128 Richtungen über den Vollkreis, Startausrichtung zum ersten sinnvollen Bahnabschnitt.
-- 32 Stärkestufen; gewählte Stärke bleibt zwischen Schlägen bestehen.
+- 32 Stärkestufen: beim akzeptierten Feuerdruck Start mit 1, danach alle zwei PAL-Frames +1 bis 32 (etwa 1,3 Sekunden). Maximum halten, kein Pendeln und kein automatischer Schlag. Loslassen löst aus und leert die Anzeige; Pause bricht die Aufladung ab.
 - Kurzes Drücken bewegt einen Schritt; Halten wiederholt nach einer Verzögerung. Keine automatisch pendelnde Stärkeanzeige.
-- Ein Schlag ist nur bei ruhendem Ball möglich. Nach einem Schlag wird die Richtung-/Stärkeanzeige ausgeblendet.
+- Ein Schlag ist nur bei ruhendem Ball möglich. Nach einem Schlag verschwindet die Richtungsmarke; die Stärkeanzeige steht wieder auf 0.
 - Richtung und Stärke bleiben vollständig frei wählbar; empfohlenes Par verlangt kein pixelgenaues Rätsel.
 - Nach Einlochen wird das Ergebnis kurz angezeigt; Bestätigung führt weiter.
 - Nach 12 Schlägen ohne Einlochen wird das Loch mit 13 Schlägen gewertet und als abgebrochen markiert. Kein endloser Stillstand.
@@ -89,7 +93,7 @@ Dies sind verbindliche Designbriefs; exakte Koordinaten entstehen im Bahneditor 
 | 1 | GERADER GEHT'S NICHT | 2 | Breites Rechteck, gerader Weg; Stärke und Ausrollen lernen. |
 | 2 | RECHTS AB | 2 | Breites L, ein rechtwinkliger Knick; erste Bande. |
 | 3 | LINKS AUCH | 2 | Gespiegeltes L mit engerem Schlussstück. |
-| 4 | DER FLASCHENHALS | 3 | Große Startkammer, 12-Pixel-Durchgang, große Zielkammer. |
+| 4 | DER FLASCHENHALS | 3 | Große Startkammer, 16-Pixel-Durchgang, große Zielkammer. |
 | 5 | ZWEIMAL UM DIE ECKE | 3 | Z-Bahn, zwei Knicke und sichere Zwischenpositionen. |
 | 6 | DIE ABKUERZUNG | 3 | U-Bahn um eine dicke Innenwand; gezielter Bandenschlag. |
 | 7 | DICK UND DUENN | 3 | Drei breite Räume mit versetzten schmalen Verbindungen. |

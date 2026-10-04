@@ -14,8 +14,8 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 
 | Bereich | Verwendung |
 |---|---|
-| $0200–$178B | Laufzeitcode und Daten: 5516 Bytes |
-| $178C–$17C9 | 62 freie Bytes |
+| $0200–$1704 | Laufzeitcode und Daten: 5381 Bytes |
+| $1705–$17C9 | 197 freie Bytes |
 | $17CA–$17FF | 54 Bytes Hintergrundrestaurierung |
 | $1800–$1FFF | TED-Luminanz und Farbe |
 | $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
@@ -282,3 +282,31 @@ alle 800 Zellattribute gegen die Geometrie und bestätigt die glatte Fläche.
 Runtime weiter 5516 Bytes, 62 frei; statischer Renderer 287/320 Bytes;
 Bitmap-Ende 182/192 Bytes. PRG 12279 Bytes. Physikmaximum weiterhin 40253
 PAL-Ticks; die Abnahme von höchstens 32000 bleibt offen.
+
+## Rasterkonturen, Joystick und aufgeladener Schlag (2026-10-04)
+
+Gerade Konturen jetzt vollständig am 8×8-Raster: x=196→200, y=84→88;
+Engstelle 16 statt 12 Pixel. Der Generator weist unrasterige gerade Kanten
+zurück. Diagonale bleibt unverändert. Originalgeometrie als Testfixture
+bewahrt; alte sieben-Frame-Replays laufen weiterhin bitgenau dagegen.
+
+Joystick Port 1 getrennt von der Tastatur: FD30=$FF, FF08=$FB, links/rechts
+Bits 2/3, Feuer Bit 6 aktiv niedrig. Pause: FD30=$DF, FF08=$FF, Bit 1.
+47 Tests bestehen. VICE-Binärmonitor mit I/O-Simulationsgerät bestätigt den
+TED-Abfragepfad, links/rechts, Laden bis 32 und Schlag erst beim Loslassen.
+Nur Stärke bleibt im HUD; Anleitung und Statuswörter entfernt.
+
+Bei 50 Hz Start mit Stärke 1, alle zwei Frames +1, Sättigung bei 32 nach etwa
+1,3 s. Loslassen entprellt, Pause löscht die Aufladung. Während Rollen und
+nach Pause/Neustart gehaltenes Feuer wird bis zum Loslassen gesperrt.
+Reale Hardware bleibt ungeprüft; make run nutzt NumPad an Port 1, JOYDEV=4
+wählt das erste Host-Joystickgerät.
+
+Runtime 5381 Bytes, 197 frei; 135 Bytes gegenüber dem letzten Stand gewonnen.
+PRG 12279 Bytes. Renderer 287, weite Mathematik 308, Bitmap-Ende 182 Bytes.
+VICE: Anzeige/Steuerung maximal 7205 Ticks, Physik-/Schlagframe maximal 38873,
+Frameperiode 35569. Kein Nachweis einer Physikoptimierung: Geometrie und
+HUD/Steuerungsarbeit wurden geändert. 32000-Tick-Abnahme weiterhin offen.
+
+Neuer kompakter Testexport 37 statt 39 Bytes; 18 gleich große Exporte
+plus Verzeichnis: 702 Bytes, 505 fehlen plus Decoder/Metadaten.

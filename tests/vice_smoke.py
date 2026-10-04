@@ -46,9 +46,9 @@ def main():
                      'stopwatch reset', f"until ${s['frame_done']:04x}", 'stopwatch']
     shot_cases = [
         ('straight',64,112,0), ('vertical-wall',18.5,112,64),
-        ('diagonal-wall',292,40,0), ('rounded-corner',124,80,16),
-        ('double-corner',18.5,26.5,80), ('neck',160,78,0),
-        ('oblique-corner',124,79,17), ('shallow-corner',123,80,14),
+        ('diagonal-wall',292,40,0), ('rounded-corner',124,84,16),
+        ('double-corner',18.5,26.5,80), ('neck',160,80,0),
+        ('oblique-corner',124,83,17), ('shallow-corner',123,84,14),
     ]
     for index,(name,x,y,angle) in enumerate(shot_cases):
         commands += [f"until ${s['apply_controls']:04x}",
@@ -56,7 +56,9 @@ def main():
                      f"> ${s['BALL_POS_Y']:04x} {round(y*256)&255:02x} {int(y):02x}",
                      f"> ${s['ANGLE']:04x} {angle:02x}", f"> ${s['POWER']:04x} 20",
                      f"> ${s['ROLLING']:04x} 00 00", f"> ${s['PAUSED']:04x} 00",
-                     f"> ${s['KEY_ACTIONS']:04x} 20", 'stopwatch reset',
+                     f"> ${s['KEY_ACTIONS']:04x} 00",
+                     f"> ${s['CHARGING']:04x} 01", f"> ${s['FIRE_LOCK']:04x} 00",
+                     f"> ${s['KEY_PREVIOUS']:04x} 00", 'stopwatch reset',
                      f"until ${s['frame_done']:04x}", 'stopwatch',
                      f'bsave "{prefix}-shot-{index}.bin" 0 $0038 $004c']
         # Include sustained motion after the first contact and changing speed.
@@ -113,8 +115,8 @@ def main():
     states = []
     for index in range(len(events)):
         states.append(Path(f'{prefix}-state-{index}.bin').read_bytes())
-    expected = [(0,16,0),(127,16,0),(0,16,0),(0,17,0),(0,16,0),
-                (0,16,1),(0,16,0),(0,16,0),(0,16,1)]
+    expected = [(0,0,0),(127,0,0),(0,0,0),(0,0,0),(0,0,0),
+                (0,0,1),(0,0,0),(0,0,0),(0,0,1)]
     assert [tuple(state[:3]) for state in states] == expected, states
     assert Path(f'{prefix}-frame-0.bin').read_bytes() == initial, 'redraw changed background'
     assert Path(f'{prefix}-frame-2.bin').read_bytes() == initial, 'angle restoration failed'

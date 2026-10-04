@@ -200,15 +200,6 @@ aim_shift_y:
     rts
 
 draw_static_hud:
-    lda #22
-    sta TEXT_ROW
-    lda #1
-    sta TEXT_COLUMN
-    lda #<hud_controls
-    sta TEXT_PTR
-    lda #>hud_controls
-    sta TEXT_PTR + 1
-    jsr draw_text
     lda #24
     sta TEXT_ROW
     lda #1
@@ -264,32 +255,10 @@ power_empty:
     lda TEXT_COLUMN
     cmp #31
     bne power_bar
+    rts
+
 draw_status:
-    lda #24
-    sta TEXT_ROW
-    lda #33
-    sta TEXT_COLUMN
-    lda #<hud_ready
-    ldx #>hud_ready
-    ldy HOLED
-    beq status_rolling
-    lda #<hud_holed
-    ldx #>hud_holed
-    jmp status_pause
-status_rolling:
-    ldy ROLLING
-    beq status_pause
-    lda #<hud_rolling
-    ldx #>hud_rolling
-status_pause:
-    ldy PAUSED
-    beq power_status
-    lda #<hud_paused
-    ldx #>hud_paused
-power_status:
-    sta TEXT_PTR
-    stx TEXT_PTR + 1
-    jmp draw_text
+    rts
 
 draw_text:
     ldy #0
@@ -367,19 +336,8 @@ wall_offsets_x:
 !byte $ff,$ff,0,1,1,1,0,$ff
 wall_offsets_y:
 !byte 0,$ff,$ff,$ff,0,1,1,1
-hud_controls:
-!text "A/D ZIEL W/S KRAFT SPACE SCHLAG P PAUSE",0
 hud_power:
-!text "KRAFT 16/32  [                ]",0
-hud_ready:
-!text "BEREIT",0
-hud_paused:
-!text "PAUSE ",0
-hud_rolling:
-!text "ROLLT ",0
-hud_holed:
-!text "LOCH! ",0
-
+!text "KRAFT 00/32  [                ]",0
 power_glyph:
 !byte 0,0,$7c,$7c,$7c,0,0,0
 

@@ -15,7 +15,7 @@ Hintergrundrestaurierung, Eingabe, Festkommaarithmetik, Bewegung und Kollisionen
 Zusätzlich werden der Host-Bahnexport und der Rücklese-Decoder geprüft. `make smoke` startet VICE mit echten
 ROMs, PAL und ausdrücklich 16 KB, prüft die TED-Konfiguration und misst
 128 Richtungen und acht Bewegungsszenarien. VICE steuert dabei logische Eingabeereignisse nach dem
-Tastaturscan ein; das ersetzt keinen physischen Tastaturtest. Das Bild liegt
+Eingabescan ein; das ersetzt keinen physischen Tastaturtest. Das Bild liegt
 danach in `build/vice-pal.png`, Speicher und Timing in `build/memory.json`
 und `build/timing.json`.
 
@@ -65,3 +65,27 @@ fehlen: die PAL-Abnahme erfolgt weiterhin mit `make smoke`.
 Die Zustandsfixtures in `tests/fixtures/corner-replays.json` stammen aus
 Commit c01f930 vor dem direkten Kreisvergleich. Sie sichern Position,
 Geschwindigkeit, Richtung und Spielzustand der jeweils sieben Frames.
+
+## Joystick-Port und Feuerdauer
+
+47 Tests prüfen auch die getrennte Joystick-/Pause-Abfrage, Entprellung,
+Feuerdauer, Sättigung, Loslassen, Abbruch bei Pause sowie gehaltenes Feuer
+nach Rollen/Neustart. Historische Eckensweep-Replays bekommen die gespeicherte
+Geometrie aus `tests/fixtures/course-before-cell-grid.json`, damit die neuen
+Rastermaße die alten Referenzzustände nicht verändern.
+
+Zusätzlicher VICE-Test über den echten emulierten TED-Joystick-Pfad:
+
+```sh
+python3 tests/vice_joystick.py --prepare-only
+/opt/homebrew/bin/xplus4 -silent -default -console -model c16 -pal -ramsize 16 -sounddev dummy -warp -autostartprgmode 1 -autostart build/minigolf.prg -initbreak 0x0200 -moncommands build/vice-joystick.mon -binarymonitor -binarymonitoraddress 127.0.0.1:6503
+# Während VICE im Monitor wartet, in einem zweiten Terminal:
+python3 tests/vice_joystick.py --verify-only
+```
+
+Der Client aktiviert das VICE-I/O-Simulationsgerät an Port 1 und setzt dessen
+aktive-low Leitungen; er injiziert keine logischen Eingabe- oder Ladezustände.
+Prüft Links/Rechts, 64 Feuerframes, Loslassen sowie leere Anleitung/Status und
+gefüllten Balken. Bericht: `build/joystick-smoke.json`. Protokoll und Ressourcen:
+[offizieller VICE-Monitor](https://vice-emu.sourceforge.io/vice_13.html).
+Reale C16-Hardware und ein Host-USB-Joystick sind noch nicht geprüft.

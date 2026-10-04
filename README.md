@@ -4,8 +4,10 @@ Minigolf für den Commodore 16 mit 16 KB RAM: monochrome 320×200-Grafik,
 Draufsicht und pixelgenaue Ballphysik. Der aktuelle Prototyp bietet eine
 Testbahn; die geplante 18-Loch-Runde ist noch in Entwicklung.
 
-A/D wählt die Richtung, W/S die Stärke, SPACE schlägt und P pausiert.
-Nach dem Einlochen startet SPACE die Testbahn neu.
+Joystick an Port 1: links/rechts drehen die Richtung. Feuer halten lädt die
+Schlagstärke; Loslassen schlägt. Bei voller Stärke bleibt der Balken gefüllt.
+P pausiert und bricht eine laufende Aufladung ab. Nach dem Einlochen startet
+Feuer die Testbahn neu; vor dem nächsten Schlag einmal loslassen.
 
 ## Bauen und starten
 
@@ -16,6 +18,10 @@ Zum Spielen im Emulator: VICE xplus4 mit C16-ROMs.
 make
 make run
 ```
+
+`make run` aktiviert die NumPad-Joystickemulation an Port 1, ohne Autofeuer.
+Für einen angeschlossenen Host-Joystick: `make run JOYDEV=4` (erstes Gerät).
+Weitere Geräte/Keysets lassen sich in VICE unter Joystick-Einstellungen wählen.
 
 Das Programm liegt in `build/minigolf.prg`. `make run` startet einen
 PAL-C16 mit 16 KB RAM. Auf dem C16: `LOAD"MINIGOLF",8,1`, danach `RUN`.

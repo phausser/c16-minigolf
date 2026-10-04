@@ -2,6 +2,7 @@ ACME ?= acme
 VICE ?= xplus4
 PYTHON ?= python3
 TEST_PYTHON ?= .venv/bin/python
+JOYDEV ?= 1 # VICE: 1 = NumPad, 4 = erster Host-Joystick
 
 PRG := build/minigolf.prg
 SOURCES := $(wildcard src/*.asm src/*.inc)
@@ -20,7 +21,7 @@ $(PRG): $(SOURCES) build/assets.inc
 	$(PYTHON) tools/check_build.py
 
 run: $(PRG)
-	$(VICE) -default -model c16 -pal -ramsize 16 -autostartprgmode 1 -autostart-delay 1 -autostart-warp -autostart $(PRG)
+	$(VICE) -default -model c16 -pal -ramsize 16 -joydev1 $(JOYDEV) +joystick1autofire -autostartprgmode 1 -autostart-delay 1 -autostart-warp -autostart $(PRG)
 
 test: $(PRG)
 	$(TEST_PYTHON) -m unittest discover -s tests -p 'test_*.py' -v

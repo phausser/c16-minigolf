@@ -53,9 +53,9 @@ def write(r, name, value, size=2):
 
 def main():
     report = dict(measurement='py65 CPU cycles; no TED stalls; inclusive totals overlap', cases={})
-    for name, x, y, angle in (('rounded-corner',124,80,16),
-                              ('oblique-corner',124,79,17),
-                              ('shallow-corner',123,80,14)):
+    for name, x, y, angle in (('rounded-corner',124,84,16),
+                              ('oblique-corner',124,83,17),
+                              ('shallow-corner',123,84,14)):
         r = Runtime()
         r.call('initialise_state')
         write(r, 'BALL_POS_X', round(x*256), 3)

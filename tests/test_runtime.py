@@ -26,6 +26,7 @@ class KeyboardBus(list):
     def __init__(self):
         super().__init__([0]*65536)
         self.pressed = set()
+        self.joysticks = [0,0]
         self.row = 255
         self.latched = 255
 
@@ -42,6 +43,12 @@ class KeyboardBus(list):
             for row, column in self.pressed:
                 if not self.row & (1 << row):
                     self.latched &= ~(1 << column)
+            for port,select,fire in ((0,4,64),(1,2,128)):
+                if not value & select:
+                    pressed = self.joysticks[port]
+                    self.latched &= ~(pressed & 15)
+                    if pressed & 16:
+                        self.latched &= ~fire
         super().__setitem__(key, value)
 
 
@@ -262,13 +269,17 @@ class HardwareTests(unittest.TestCase):
         self.r.call('restore_dynamic')
         self.assertEqual(self.r.bus[0x2000:0x3f40], pattern)
 
-    def test_keyboard_rows_and_simultaneous_keys(self):
-        keys = [((1,2),1), ((2,2),2), ((1,1),4), ((1,5),8), ((5,1),16), ((7,4),32)]
-        for mask in range(64):
-            self.r.bus.pressed = {position for position,bit in keys if mask & bit}
-            self.r.call('scan_keyboard')
-            self.assertEqual(self.r.get('KEY_CURRENT'), mask)
-            self.assertEqual(self.r.bus.row, 255)
+    def test_joystick_port_one_and_separate_pause_keyboard(self):
+        for mask in range(32):
+            for pause in (False,True):
+                self.r.bus.joysticks = [mask,31]  # Port 2 must not leak in.
+                self.r.bus.pressed = {(1,2),(2,2),(1,1),(1,5),(7,4)}
+                if pause:
+                    self.r.bus.pressed.add((5,1))
+                self.r.call('scan_keyboard')
+                expected = ((mask & 12) >> 2) | (32 if mask & 16 else 0) | (16 if pause else 0)
+                self.assertEqual(self.r.get('KEY_CURRENT'),expected)
+                self.assertEqual(self.r.bus.row,255)
 
     def tick(self, keys):
         self.r.put('KEY_CURRENT', keys)
@@ -303,20 +314,104 @@ class HardwareTests(unittest.TestCase):
         self.tick(16)
         self.assertEqual(self.r.get('PAUSED'), 0)
 
-    def test_power_limits_and_opposing_keys(self):
-        for power in (1,16,32):
-            self.r.put('POWER', power)
-            self.r.put('KEY_ACTIONS', 12)
-            self.r.call('apply_controls')
-            self.assertEqual(self.r.get('POWER'), power)
-        for actions, power, expected in [(8,1,1),(4,32,32),(4,1,2),(8,32,31)]:
-            self.r.put('POWER', power)
-            self.r.put('KEY_ACTIONS', actions)
-            self.r.call('apply_controls')
-            self.assertEqual(self.r.get('POWER'), expected)
-        self.r.put('KEY_ACTIONS', 3)
-        self.r.call('apply_controls')
-        self.assertEqual(self.r.get('ANGLE'), 0)
+    def test_fire_charges_saturates_and_fires_only_on_debounced_release(self):
+        self.tick(0)
+        self.tick(0)
+        self.assertEqual(self.r.get('POWER'),0)
+        self.tick(32)
+        self.assertEqual(self.r.get('CHARGING'),0)
+        self.tick(32)
+        self.assertEqual(self.r.get('POWER'),1)
+        for power in range(2,33):
+            self.tick(32)
+            self.assertEqual(self.r.get('POWER'),power-1)
+            self.tick(32)
+            self.assertEqual(self.r.get('POWER'),power)
+            self.assertEqual(self.r.get('SHOTS'),0)
+        for _ in range(20):
+            self.tick(32)
+        self.assertEqual(self.r.get('POWER'),32)
+        self.tick(0)
+        self.assertEqual(self.r.get('SHOTS'),0)
+        self.tick(0)
+        self.assertEqual(self.r.get('SHOTS'),1)
+        self.assertEqual(self.r.get('ROLLING'),1)
+        self.assertEqual(self.r.get('POWER'),0)
+        self.assertEqual(self.r.get('CHARGING'),0)
+        self.assertEqual(self.r.get('SPEED')+256*self.r.bus[S['SPEED']+1],1024)
+
+    def test_charge_duration_selects_strength_and_ignores_ws_and_opposing_directions(self):
+        for frames in (2,12,32,64):
+            self.r.call('initialise_state')
+            self.tick(0)
+            self.tick(0)
+            for _ in range(frames):
+                self.tick(32)
+            self.tick(0)
+            self.tick(0)
+            # First release sample remains held and advances the timer.
+            expected = min(32,1+(frames-1)//2)
+            self.assertEqual(self.r.get('SPEED')+256*self.r.bus[S['SPEED']+1],expected*32)
+        self.r.call('initialise_state')
+        self.tick(0)
+        self.tick(0)
+        self.tick(12)
+        self.tick(12)
+        self.assertEqual(self.r.get('POWER'),0)
+        self.tick(3)
+        self.tick(3)
+        self.assertEqual(self.r.get('ANGLE'),0)
+
+    def test_pause_cancels_charge_and_held_fire_never_restarts_after_pause_or_roll(self):
+        self.tick(0)
+        self.tick(0)
+        for _ in range(10):
+            self.tick(32)
+        self.tick(48)
+        self.tick(48)
+        self.assertEqual(self.r.get('PAUSED'),1)
+        self.assertEqual(self.r.get('CHARGING'),0)
+        self.assertEqual(self.r.get('POWER'),0)
+        self.tick(32)
+        self.tick(32)
+        self.tick(48)
+        self.tick(48)
+        self.assertEqual(self.r.get('PAUSED'),0)
+        for _ in range(20):
+            self.tick(32)
+        self.assertEqual(self.r.get('CHARGING'),0)
+        self.assertEqual(self.r.get('SHOTS'),0)
+        self.tick(0)
+        self.tick(0)
+        self.tick(32)
+        self.tick(32)
+        self.tick(0)
+        self.tick(0)
+        self.assertEqual(self.r.get('SHOTS'),1)
+        for _ in range(10):
+            self.tick(32)
+        self.r.put('ROLLING',0)
+        for _ in range(10):
+            self.tick(32)
+        self.assertEqual(self.r.get('CHARGING'),0)
+        self.assertEqual(self.r.get('SHOTS'),1)
+
+    def test_holed_fire_restarts_but_requires_release_before_charge(self):
+        self.tick(0)
+        self.tick(0)
+        self.r.put('HOLED',1)
+        self.tick(32)
+        self.tick(32)
+        self.assertEqual(self.r.get('HOLED'),0)
+        self.assertEqual(self.r.get('FIRE_LOCK'),1)
+        for _ in range(20):
+            self.tick(32)
+        self.assertEqual(self.r.get('CHARGING'),0)
+        self.tick(0)
+        self.tick(0)
+        self.tick(32)
+        self.tick(32)
+        self.assertEqual(self.r.get('CHARGING'),1)
 
     def test_glyph_cell_above_255_and_hud_stays_outside_course(self):
         self.r.bus[0x2000:0x4000] = [0x55]*8192
@@ -327,11 +422,13 @@ class HardwareTests(unittest.TestCase):
         pointer = 0x2000+bitmap_offset(312,192)
         self.assertEqual(self.r.bus[pointer:pointer+8], [24,60,102,126,102,102,102,0])
         self.r.call('draw_static_hud')
-        for power in range(1,33):
+        for power in range(33):
             self.r.put('POWER', power)
             self.r.call('draw_power')
         self.assertEqual(self.r.bus[0x2000:0x2000+22*320], [0x55]*(22*320))
         self.assertEqual(self.r.bus[0x3f40:0x4000], [0x55]*192)
+        self.assertEqual(self.r.bus[0x3b80:0x3cc0], [0x55]*320)
+        self.assertEqual(self.r.bus[0x3f08:0x3f40], [0x55]*48 + [24,60,102,126,102,102,102,0])
 
 
 class CourseValidationTests(unittest.TestCase):
@@ -340,6 +437,7 @@ class CourseValidationTests(unittest.TestCase):
 
     def test_rejects_invalid_geometry(self):
         cases = [
+            [[16,24],[130,24],[130,152],[16,152]],
             [[16,24],[128,25],[128,152],[16,152]],
             [[16,24],[128,24],[128,24],[16,152]],
             [[16,24],[128,24],[100,60],[16,152]],

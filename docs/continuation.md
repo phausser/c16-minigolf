@@ -179,3 +179,26 @@ Attributänderungen; restore_dynamic bleibt unverändert.
 62 frei; Renderer/Palette 287/320, Bitmap-Ende 182/192, PRG 12279 Bytes.
 Physikmaximum 40253 >32000 weiter offen; gespeicherte Replays unverändert.
 Nächster Schritt bleibt Speicherarchitektur. build/vice-pal.png zeigt das Bild.
+
+## Rasterkonturen und Joystick-Aufladung
+
+Alle drei aktuellen Nutzerwünsche umgesetzt: gerade Konturen auf 8×8-Raster,
+Joystick Port1 links/rechts dreht die 128 Richtungen, Feuer halten lädt 1..32
+alle zwei Frames, Loslassen schlägt. P bleibt Pause; A/D/W/S/SPACE entfernt.
+Nur Stärke im HUD, keine Anleitung/Status. POWER idle=0, CHARGING/CHARGE_TICKS
+in $2e/$2f, FIRE_LOCK=$4d; STATE_END jetzt $4e. Pause verwirft Aufladung;
+gehaltenes Feuer während Rollen/Pause/Neustart bis Release gesperrt.
+Rasterbahn x196→200, y84→88, Engstelle16px. Hostvalidator erzwingt Raster
+bei geraden Kanten. Originalbahn tests/fixtures/course-before-cell-grid.json
+hält die alten corner-replays unverändert prüfbar (explizite historische Länge).
+47 Tests bestehen. tests/vice_joystick.py prüft echte VICE-TED-Joystick-Abfrage
+über binären Monitor/I-O-Simulation, 64 Feuerframes, Release und leeres HUD.
+Protokoll benutzt Port0 für physischen Port1, aktiv niedrige Leitungen;
+Testgerät JOYPORT_ID_IO_SIMULATION=37. Build/joystick-smoke.json bestanden.
+make run standardmäßig -joydev1 1 (NumPad), JOYDEV=4 für erstes Hostgerät.
+Runtime5381 Bytes,197 frei; Renderer287/320; Bitmap-Ende182/192; PRG12279.
+VICE-Smoke Grafik/Eingabe bestanden, Zeitbudget38873>32000 weiterhin offen.
+Neue Szenarien Ecke124,84 / schräg124,83 / flach123,84, Engstelle160,80.
+Profil-Szenarien angepasst. Keine Physikbeschleunigung behaupten, da Kurs und
+HUD geändert. Speicherarchitektur und kompakter ACME-Decoder bleiben nächste
+Arbeit; 18-Geometrien-Schätzung702,505 fehlen plus Decoder/Metadaten.

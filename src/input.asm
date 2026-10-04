@@ -1,67 +1,41 @@
-; C16 matrix: A=(1,2), D=(2,2), W=(1,1), S=(1,5), P=(5,1).
-; Verified against VICE PLUS4/gtk3_sym.vkm. $FD30 drives active-low rows;
-; writing $FF08 latches columns, it does not drive the 6529 row port.
+; Joystick port 1: $FF08 selector $FB, active-low left/right bits 2/3,
+; fire bit 6. Keyboard rows stay released while reading the joystick.
+; P is read separately with both joystick ports deselected.
 scan_keyboard:
-    lda #0
-    sta KEY_CURRENT
-    lda #$fd
-    jsr latch_row
-    sta TEMP
-    and #4
-    bne scan_w
-    lda KEY_CURRENT
-    ora #KEY_LEFT
-    sta KEY_CURRENT
-scan_w:
-    lda TEMP
-    and #2
-    bne scan_s
-    lda KEY_CURRENT
-    ora #KEY_UP
-    sta KEY_CURRENT
-scan_s:
-    lda TEMP
-    and #$20
-    bne scan_d
-    lda KEY_CURRENT
-    ora #KEY_DOWN
-    sta KEY_CURRENT
-scan_d:
+    lda #$ff
+    sta KEYBOARD_ROW
     lda #$fb
-    jsr latch_row
-    and #4
-    bne scan_p
-    lda KEY_CURRENT
-    ora #KEY_RIGHT
+    sta TED_KEYBOARD
+    lda TED_KEYBOARD
+    eor #$ff
+    sta TEMP
+    and #12
+    lsr
+    lsr
     sta KEY_CURRENT
-scan_p:
+    lda TEMP
+    and #$40
+    lsr
+    ora KEY_CURRENT
+    sta KEY_CURRENT
     lda #$df
-    jsr latch_row
+    sta KEYBOARD_ROW
+    lda #$ff
+    sta TED_KEYBOARD
+    lda TED_KEYBOARD
     and #2
-    bne scan_done
-    lda KEY_CURRENT
-    ora #KEY_PAUSE
-    sta KEY_CURRENT
-scan_done:
-    lda #$7f
-    jsr latch_row
-    and #$10
     bne scan_release_rows
     lda KEY_CURRENT
-    ora #KEY_SHOT
+    ora #KEY_PAUSE
     sta KEY_CURRENT
 scan_release_rows:
     lda #$ff
     sta KEYBOARD_ROW
-    rts
-latch_row:
-    sta KEYBOARD_ROW
     sta TED_KEYBOARD
-    lda TED_KEYBOARD
     rts
 
-; Two equal samples accept a transition. Movement repeats after 15 frames,
-; then every 3 frames. P is edge-triggered and never repeats.
+; Two equal samples accept a transition. Rotation repeats after 15 frames,
+; then every 3 frames. Fire uses the accepted held state, not key repeat.
 debounce_keyboard:
     lda #0
     sta KEY_ACTIONS
@@ -87,7 +61,7 @@ debounce_stable:
     rts
 debounce_repeat:
     lda KEY_PREVIOUS
-    and #$0f
+    and #3
     beq debounce_done
     dec KEY_REPEAT
     bne debounce_done
@@ -100,39 +74,70 @@ debounce_done:
 apply_controls:
     lda KEY_ACTIONS
     and #KEY_PAUSE
-    beq control_movement
+    beq control_check_blocked
     lda PAUSED
     eor #1
     sta PAUSED
-    lda #2
-    sta HUD_DIRTY
     lda #1
     sta DIRTY
-control_movement:
+    jsr cancel_charge
+control_check_blocked:
     lda PAUSED
-    bne controls_done
-    lda KEY_ACTIONS
+    ora ROLLING
+    beq control_fire
+    jmp cancel_charge
+control_fire:
+    lda KEY_PREVIOUS
     and #KEY_SHOT
-    beq control_check_rolling
-    lda HOLED
-    beq control_shoot
-    jsr reset_ball
-    jmp controls_dirty
-control_shoot:
-    lda ROLLING
-    bne controls_done
+    bne control_held
+    lda #0
+    sta FIRE_LOCK
+    lda CHARGING
+    beq control_direction
+    lda #0
+    sta CHARGING
     jsr start_shot
-    jmp controls_dirty
-control_check_rolling:
-    lda ROLLING
+    lda #0
+    sta POWER
+    lda #1
+    sta HUD_DIRTY
+    sta DIRTY
+    rts
+control_held:
+    lda FIRE_LOCK
     bne controls_done
-    ; Opposing directions cancel, instead of accumulating at the limits.
+    lda HOLED
+    beq control_charge
+    jsr reset_ball
+    rts
+control_charge:
+    lda CHARGING
+    bne control_charge_tick
+    lda #1
+    sta CHARGING
+    sta POWER
+    lda #2
+    sta CHARGE_TICKS
+    bne controls_hud_dirty
+control_charge_tick:
+    lda POWER
+    cmp #32
+    beq control_direction
+    dec CHARGE_TICKS
+    bne control_direction
+    lda #2
+    sta CHARGE_TICKS
+    inc POWER
+controls_hud_dirty:
+    lda #1
+    sta HUD_DIRTY
+control_direction:
     lda KEY_ACTIONS
     and #3
     cmp #KEY_LEFT
     beq control_left
     cmp #KEY_RIGHT
-    bne control_power
+    bne controls_done
     inc ANGLE
     jmp control_wrap
 control_left:
@@ -143,28 +148,17 @@ control_wrap:
     sta ANGLE
     lda #1
     sta DIRTY
-control_power:
-    lda KEY_ACTIONS
-    and #12
-    cmp #KEY_UP
-    beq control_up
-    cmp #KEY_DOWN
-    bne controls_done
-    lda POWER
-    cmp #1
+controls_done:
+    rts
+
+cancel_charge:
+    lda #1
+    sta FIRE_LOCK
+    lda CHARGING
     beq controls_done
-    dec POWER
-    jmp controls_hud_dirty
-control_up:
-    lda POWER
-    cmp #32
-    beq controls_done
-    inc POWER
-controls_hud_dirty:
+    lda #0
+    sta CHARGING
+    sta POWER
     lda #1
     sta HUD_DIRTY
-controls_dirty:
-    lda #1
-    sta DIRTY
-controls_done:
     rts

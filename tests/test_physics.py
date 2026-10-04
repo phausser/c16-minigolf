@@ -340,16 +340,30 @@ class MovementTests(unittest.TestCase):
         import json
         from pathlib import Path
         fixture = json.loads((Path(__file__).parent/'fixtures/corner-replays.json').read_text())
+        from generate_assets import DIRECTIONS, orientation
+        geometry = json.loads((Path(__file__).parent/'fixtures/course-before-cell-grid.json').read_text())
+        # Historical fixture intentionally predates the new grid restriction.
+        encoded = []
+        for ci,contour in enumerate([geometry['outline'], *geometry['obstacles']]):
+            area = sum(a[0]*b[1]-a[1]*b[0] for a,b in zip(contour,contour[1:]+contour[:1]))
+            for i,a in enumerate(contour):
+                b = contour[(i+1)%len(contour)]
+                direction = DIRECTIONS.index(((b[0]>a[0])-(b[0]<a[0]),(b[1]>a[1])-(b[1]<a[1])))
+                normal = (direction + (2 if (area>0)==(ci==0) else -2))%8
+                turn = orientation(contour[i-1],a,b)
+                hidden = turn == 0 or ((turn*area>0)==(ci==0))
+                encoded += [a[0]//2,a[1]//2,b[0]//2,b[1]//2,normal|(128 if hidden else 0)]
         for case in fixture:
             r = Runtime()
             r.call('initialise_state')
+            r.bus[S['course_segments']:S['course_segments']+len(encoded)] = encoded
             position(r, case['x'], case['y'])
             r.put('ANGLE', case['angle'])
             r.put('POWER', 32)
             r.call('start_shot')
             for frame, expected in enumerate(case['states']):
                 r.call('physics_tick')
-                self.assertEqual(r.bus[S['BALL_POS_X']:S['STATE_END']], expected,
+                self.assertEqual(r.bus[S['BALL_POS_X']:S['BALL_POS_X']+len(expected)], expected,
                                  (case['name'], frame))
 
     def test_time_bit_circle_search_matches_discrete_geometric_oracle(self):

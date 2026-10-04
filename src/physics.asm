@@ -5,6 +5,9 @@ reset_ball:
     sta ROLLING
     sta HOLED
     sta SHOTS
+    sta CHARGING
+    sta CHARGE_TICKS
+    sta POWER
     sta VELOCITY_X
     sta VELOCITY_X + 1
     sta VELOCITY_Y
@@ -16,6 +19,7 @@ reset_ball:
     lda #START_Y
     sta BALL_POS_Y + 1
     lda #1
+    sta FIRE_LOCK
     sta DIRTY
     sta HUD_DIRTY
     rts
