@@ -65,3 +65,15 @@ ganzzahlige Referenzen geprüften Rechenfällen. Bericht:
 
 Die Matrix ist kein erschöpfender Worst-Case-Nachweis. Alle 40 Tests
 bestehen; Speicher- und PAL-Laufzeitabnahme bleiben offen.
+
+## Aktueller Stand nach Divisionsoptimierung
+
+SPEC.md und TODO.md liegen auf Wunsch des Nutzers wieder im Projektroot.
+README enthält nur Kurzbeschreibung, Bedienung, Build und Dokumentationslinks.
+`divide_fraction` besitzt jetzt einen 16-Bit-Pfad für Nenner <32768 sowie
+einen kompakteren 24-Bit-Pfad. M_TRIAL, X und Y sind Scratch. 40 Tests und
+448 Benchmarkfälle bestehen. Geschützte HUD-Arithmetik: 308 statt 287 Bytes;
+Runtime weiterhin 5571 Bytes, sieben frei. VICE misst maximal 40581 Ticks
+(zuvor 40900), die 32000-Tick-Abnahme scheitert weiterhin. Messdetails in
+hardware.md. Die Kapazität bleibt eine eingebaute Testbahn, keine zusätzliche.
+Spielfeldmaße bleiben vorerst unverändert; Speicherarchitektur noch offen.

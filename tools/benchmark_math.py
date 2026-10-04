@@ -40,13 +40,14 @@ def benchmark():
             assert actual == a*b//256, ('multiply_fraction', a, b, actual)
             rows.append(dict(routine='multiply_fraction', a=a, b=b, cycles=cycles))
     # 24-bit doubling must not overflow: denominator <= 2**23.
-    for denominator in (1, 255, 256, 724, 1024, 65535, 65536, 200000, 8388608):
+    for denominator in (1, 255, 256, 724, 1024, 32767, 32768, 32769, 65535, 65536, 200000, 8388608):
         for numerator in sorted({0, denominator//4, denominator//2, denominator-1}):
             write(r, 'M_REM', numerator, 3)
             write(r, 'M_DEN', denominator, 3)
             cycles = r.call('divide_fraction')
             actual = read(r, 'M_QUOT', 2)
             assert actual == numerator*256//denominator, (numerator, denominator, actual)
+            assert read(r, 'M_REM', 3) == numerator*256 % denominator
             rows.append(dict(routine='divide_fraction', numerator=numerator,
                              denominator=denominator, cycles=cycles))
     summary = {}

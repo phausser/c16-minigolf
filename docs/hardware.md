@@ -22,7 +22,7 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 | $2140–$3A3F | Sichtbares Spielfeld |
 | $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner, 305 Bytes |
 | $3B80–$3CBF | Bedienhilfe, HUD-Zeile 22 |
-| $3CC0–$3DFF | Unsichtbare HUD-Zeile: weite Mathematik und Komponentennormierung, 287 Bytes |
+| $3CC0–$3DFF | Unsichtbare HUD-Zeile: weite Mathematik und Komponentennormierung, 308 Bytes |
 | $3E00–$3F3F | Stärke/Status, HUD-Zeile 24 |
 | $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 138 Bytes und Diagonal-Guard 42 Bytes |
 
@@ -85,18 +85,18 @@ das Ergebnis zu vergröbern. Zusätzliche Tests vergleichen zufällige
 Streifkontakte mit einer unabhängigen diskreten Geometrie-Referenz.
 Ein spezieller Einheitvektor-Multiplizierer und eine verkürzte exakte
 Geschwindigkeitswurzel sparen weitere Zyklen. Die Hauptschleife synchronisiert an Rasterzeile 205. Gemessener PAL-Abstand:
-35573 Ticks; teuerster Ziel-/HUD-Redraw: 16742 Ticks.
+35564 Ticks; teuerster Ziel-/HUD-Redraw: 16736 Ticks.
 
 | Bewegungsszenario, höchste Stärke | Schlechtester Frame, TED-Ticks |
 |---|---:|
 | Gerade | 6454 |
-| Senkrechte Bande | 9642 |
-| 45°-Bande | 14542 |
-| Radiale Diagonalecke | 27133 |
-| Doppelkontakt in Ecke | 23976 |
+| Senkrechte Bande | 9579 |
+| 45°-Bande | 14106 |
+| Radiale Diagonalecke | 25904 |
+| Doppelkontakt in Ecke | 23232 |
 | Engstelle | 6515 |
-| Schräger Eckanflug | 40900 |
-| Flacher Eckanflug | 36985 |
+| Schräger Eckanflug | 40581 |
+| Flacher Eckanflug | 36825 |
 
 **Die Framebudget-Abnahme scheitert.** Eckentreffer überschreiten ein
 PAL-Bild. Die Physik bleibt
@@ -113,7 +113,7 @@ Kontaktgrenzfälle bleiben offen.
 In der eingeschränkten macOS-Umgebung startet VICE als Make/Python-
 Unterprozess teilweise nicht zuverlässig; der direkte CLI-Aufruf wurde
 geprüft. Vorbereitung, nativer Start und Prüfung sind deshalb getrennt
-aufrufbar; siehe README. Das Host-Startproblem und die tatsächlich gemessene
+aufrufbar; siehe [Entwicklung und Tests](development.md). Das Host-Startproblem und die tatsächlich gemessene
 Framebudget-Überschreitung sind getrennte Befunde.
 
 Offen: vollständige Physikabnahme, 18-Bahnen-Budget, reale Hardware,
@@ -132,7 +132,7 @@ Materialien und Spielmodule sind in diesem Bedarf noch nicht enthalten.
 
 Die neuen Sonderfälle verbessern die Laufzeit auf Kosten des Codeumfangs.
 Weitere einzelne Abkürzungen im Hauptbereich lösen das Gesamtbudget nicht.
-Die konkrete nächste Architekturarbeit steht in TODO.md: geschützte,
+Die konkrete nächste Architekturarbeit steht in [TODO.md](../TODO.md): geschützte,
 garantiert freie Bitmapbereiche für Daten ausweisen, Kursbestand und
 aktuelle Bahn trennen, anschließend allgemeinen Kreis-Sweep und
 Worst-Case-Messmatrix verbessern. Zielreserve: höchstens 32000 TED-Ticks
@@ -174,3 +174,19 @@ auf PAL auf einem NTSC-Gerät als vermeintliche Unterstützung.
 Schritt 1 ist damit abgeschlossen: Sound-/Modusregister sind dokumentiert,
 Build und PAL-Emulatorstart geprüft und die sechs Spieltasten vom Nutzer
 in VICE bestätigt. Dies ist keine Behauptung eines Tests auf echtem C16.
+
+## Divisionsoptimierung (2026-10-04)
+
+`divide_fraction` wählt bei Nennern unter 32768 einen exakten 16-Bit-Pfad.
+Größere Nenner verwenden weiterhin 24 Bit. Beide Pfade subtrahieren
+probeweise und übernehmen den Rest nur bei erfolgreicher Subtraktion.
+Der breite Pfad nutzt zusätzlich `M_TRIAL` als Scratch; X und Y sind zerstört.
+Quotient und Rest sind gegen Integer-Referenzen einschließlich 32767/32768,
+65535/65536 und 2^23 geprüft. Die Routine benötigt 21 zusätzliche Bytes
+in der bereits geschützten HUD-Zeile; im Hauptbereich bleiben sieben frei.
+
+Die erweiterte Benchmarkmatrix umfasst 448 geprüfte Fälle, davon 45 für
+die Division (337–578 CPU-Zyklen). Die ursprüngliche Matrix ohne die neuen
+Grenzfälle maß 287–711 Zyklen: einzelne leichte Fälle werden langsamer,
+der höchste gemessene Wert und die geprüften PAL-Kontaktframes sinken.
+Die Tabelle oben enthält die neue VICE-Messung; die Laufzeitabnahme bleibt offen.

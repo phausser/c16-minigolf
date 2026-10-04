@@ -94,12 +94,13 @@ class ArithmeticTests(unittest.TestCase):
 
     def test_fraction_matches_exact_division(self):
         rng = random.Random(18)
-        for den in [1,2,3,256,511,65536,0x600000]+[rng.randrange(1,0x700000) for _ in range(60)]:
+        for den in [1,2,3,256,511,32767,32768,32769,65535,65536,0x600000,0x800000]+[rng.randrange(1,0x700000) for _ in range(60)]:
             for num in (0, den//2, den-1):
                 put(self.r,'M_DEN',den,3)
                 put(self.r,'M_REM',num,3)
                 self.r.call('divide_fraction')
                 self.assertEqual(unsigned(self.r,'M_QUOT'),num*256//den,(num,den))
+                self.assertEqual(unsigned(self.r,'M_REM',3),num*256 % den,(num,den))
 
     def test_lookup_squares_are_exact_for_all_bounded_inputs(self):
         for value in range(-2048,2049):

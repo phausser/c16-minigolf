@@ -31,7 +31,7 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] Zielen, Stärke, Schlag und Einlochen als vollständigen Ablauf verbinden.
 - [x] Code-, Daten- und Scratchbedarf messen; 18-Bahnen-Budget mit dem echten Testexport hochrechnen (`make budget`: 18 gleich große Exporte als ausdrückliche Annahme).
 - [x] Schlechteste Framezeit mit Anzeige messen, einschließlich Engstellen und Mehrfachkontakten.
-- [ ] Allgemeine schräge Eckentreffer von 40900 auf höchstens 32000 PAL-Ticks optimieren; `make smoke` muss bestehen.
+- [ ] Allgemeine schräge Eckentreffer von 40581 auf höchstens 32000 PAL-Ticks optimieren; `make smoke` muss bestehen.
 - [ ] Verbleibende 7 Runtime-Bytes vergrößern und echtes 18-Bahnen-Budget nachweisen.
 - [x] Start innerhalb des Fangradius und Lochfang unmittelbar nach einem Abpraller gezielt absichern.
 - [x] Wand-Kontakt-Epsilon gegen Rundungsreste von ein bis zwei Festkommaeinheiten prüfen.
@@ -44,7 +44,7 @@ Abnahme: spielbarer Kern erfüllt Speicher- und Zeitbudget mit begründeter Rese
 
 ### Nächste Umsetzung innerhalb von Schritt 2
 
-Zusätzlich vorgemerkt: Multiplikation und Division anhand der tatsächlichen Aufrufer und Wertebereiche vergleichen. Die bisher verwendeten Routinen sind nicht als schnellstmöglich nachgewiesen. Messstand und Fortsetzungskontext: [docs/continuation.md](docs/continuation.md).
+Zusätzlich vorgemerkt: Multiplikation und Division anhand der tatsächlichen Aufrufer und Wertebereiche vergleichen. `make benchmark` prüft jetzt 448 Rechenfälle. Ein exakter 16-Bit-Divisionspfad für kleine Nenner ist umgesetzt; die Routinen sind weiterhin nicht als schnellstmöglich nachgewiesen. Messstand und Fortsetzungskontext: [docs/continuation.md](docs/continuation.md).
 
 1. Speicherarchitektur ändern: mindestens 738 Bytes für die gemessene Kurs-Hochrechnung bereitstellen, zusätzlich Decoder, aktuelle 160-Byte-Bahn und Spielmetadaten einplanen. Garantiert freie Bitmapbereiche als feste Datenbereiche ausweisen und durch Renderer/Clear-Routinen schützen; keine weitere Ansammlung einzelner Sonderfallroutinen im Hauptbereich. Ziel: mindestens 1 KB zusätzlicher nutzbarer Platz, ohne 64 KB oder Multicolor.
 2. Den allgemeinen Kreis-Sweep beschleunigen, insbesondere schräge Anflüge. Messmatrix um variierende Winkel, Positionen und Stärken erweitern; unabhängige Kontaktreferenz und Energieprüfung behalten. Alle geprüften Frames müssen höchstens 32000 TED-Ticks benötigen, mit voller Anzeige. Die schnellere exakte Diagonal-Abkürzung ersetzt diese allgemeine Abnahme nicht.

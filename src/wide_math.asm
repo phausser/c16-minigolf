@@ -64,41 +64,59 @@ multiply_sign:
 multiply_done:
     rts
 
+; Positive fraction: floor(256*remainder/denominator), remainder < denominator.
+; The short path is exact for denominator < 32768; doubling cannot overflow.
+; Wider inputs retain the 24-bit path (denominator <= 2^23).
 divide_fraction:
     lda #0
     sta M_QUOT
     sta M_QUOT + 1
     ldx #8
+    lda M_DEN + 2
+    bne divide_bit
+    lda M_DEN + 1
+    bmi divide_bit
+divide_short_bit:
+    asl M_REM
+    rol M_REM + 1
+    asl M_QUOT
+    sec
+    lda M_REM
+    sbc M_DEN
+    tay
+    lda M_REM + 1
+    sbc M_DEN + 1
+    bcc divide_short_next
+    sta M_REM + 1
+    sty M_REM
+    inc M_QUOT
+divide_short_next:
+    dex
+    bne divide_short_bit
+    rts
+
 divide_bit:
     asl M_REM
     rol M_REM + 1
     rol M_REM + 2
     asl M_QUOT
-    lda M_REM + 2
-    cmp M_DEN + 2
-    bcc divide_next
-    bne divide_subtract
-    lda M_REM + 1
-    cmp M_DEN + 1
-    bcc divide_next
-    bne divide_subtract
-    lda M_REM
-    cmp M_DEN
-    bcc divide_next
-divide_subtract:
+    ; Subtract speculatively; commit only when the full subtraction succeeds.
     sec
     lda M_REM
     sbc M_DEN
-    sta M_REM
+    tay
     lda M_REM + 1
     sbc M_DEN + 1
-    sta M_REM + 1
+    sta M_TRIAL
     lda M_REM + 2
     sbc M_DEN + 2
+    bcc divide_next
     sta M_REM + 2
+    lda M_TRIAL
+    sta M_REM + 1
+    sty M_REM
     inc M_QUOT
 divide_next:
     dex
     bne divide_bit
     rts
-
