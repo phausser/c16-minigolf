@@ -4,31 +4,69 @@ draw_dynamic:
     beq ball_visible
     rts
 ball_visible:
-    lda #0
-    sta POINT_INDEX
-ball_next:
-    ldx POINT_INDEX
-    lda ball_dx,x
-    clc
-    adc BALL_SCREEN_X
+    sec
+    lda BALL_SCREEN_X
+    sbc #2
     sta PIXEL_X
-    lda ball_dx,x
-    bpl ball_dx_positive
-    lda #$ff
-    bne ball_dx_sign
-ball_dx_positive:
-    lda #0
-ball_dx_sign:
-    adc BALL_SCREEN_X + 1
+    lda BALL_SCREEN_X + 1
+    sbc #0
     sta PIXEL_X + 1
-    lda ball_dy,x
-    clc
-    adc BALL_SCREEN_Y
+    lda BALL_SCREEN_Y
+    sec
+    sbc #2
     sta PIXEL_Y
-    jsr plot_dynamic
-    inc POINT_INDEX
-    lda POINT_INDEX
-    cmp #BALL_POINTS
+    lda #0
+    sta ROW_INDEX
+ball_next:
+    lda PIXEL_Y
+    cmp #8
+    bcc ball_row_done
+    cmp #168
+    bcs ball_row_done
+    ldx ROW_INDEX
+    lda ball_row_masks,x
+    sta M_A
+    lda #0
+    sta M_B
+    lda PIXEL_X
+    and #7
+    tax
+    beq ball_mask_ready
+ball_mask_shift:
+    lsr M_A
+    ror M_B
+    dex
+    bne ball_mask_shift
+ball_mask_ready:
+    jsr point_pixel
+    lda M_A
+    sta PIXEL_MASK
+    beq ball_second_byte
+    jsr save_dynamic_byte
+ball_second_byte:
+    lda M_B
+    sta PIXEL_MASK
+    beq ball_row_done
+    lda PIXEL_X + 1
+    cmp #1
+    bne ball_right_visible
+    lda PIXEL_X
+    cmp #56
+    bcs ball_row_done
+ball_right_visible:
+    clc
+    lda BITMAP_PTR
+    adc #8
+    sta BITMAP_PTR
+    bcc ball_right_address
+    inc BITMAP_PTR + 1
+ball_right_address:
+    jsr save_dynamic_byte
+ball_row_done:
+    inc PIXEL_Y
+    inc ROW_INDEX
+    lda ROW_INDEX
+    cmp #5
     bne ball_next
     lda PAUSED
     bne aim_done
@@ -166,20 +204,13 @@ draw_static_hud:
     sta TEXT_ROW
     lda #1
     sta TEXT_COLUMN
-    lda #<hud_title
-    sta TEXT_PTR
-    lda #>hud_title
-    sta TEXT_PTR + 1
-    jsr draw_text
-    inc TEXT_ROW
-    lda #1
-    sta TEXT_COLUMN
     lda #<hud_controls
     sta TEXT_PTR
     lda #>hud_controls
     sta TEXT_PTR + 1
     jsr draw_text
-    inc TEXT_ROW
+    lda #24
+    sta TEXT_ROW
     lda #1
     sta TEXT_COLUMN
     lda #<hud_power
@@ -336,8 +367,6 @@ wall_offsets_x:
 !byte $ff,$ff,0,1,1,1,0,$ff
 wall_offsets_y:
 !byte 0,$ff,$ff,$ff,0,1,1,1
-hud_title:
-!text "C16 MINIGOLF / PHYSIKTEST",0
 hud_controls:
 !text "A/D ZIEL W/S KRAFT SPACE SCHLAG P PAUSE",0
 hud_power:
@@ -353,3 +382,6 @@ hud_holed:
 
 power_glyph:
 !byte 0,0,$7c,$7c,$7c,0,0,0
+
+ball_row_masks:
+!byte $70,$f8,$f8,$f8,$70

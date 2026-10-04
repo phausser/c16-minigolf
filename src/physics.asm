@@ -136,6 +136,17 @@ physics_remainder:
     jmp physics_substep_done
 physics_has_step:
     jsr find_first_contact
+    ; Frame-origin cup broadphase before the post-bounce speed square.
+    lda BOUNDS_X
+    sec
+    sbc #(CUP_X / 2)
+    bpl cup_distance_absolute
+    eor #$ff
+    clc
+    adc #1
+cup_distance_absolute:
+    cmp #4
+    bcs physics_wall
     ; Cup is another swept circle, considered only below catch speed.
     lda CONTACT_CHANGED
     beq physics_scalar_cup_speed
@@ -311,6 +322,51 @@ reflect_check_x:
     bne reflect_general
     jmp reflect_axis_x
 reflect_general:
+    +copy16 NX, M_A
+    +copy16 NY, M_B
+    lda M_A + 1
+    bpl reflect_nx_absolute
+    +negate16 M_A
+reflect_nx_absolute:
+    lda M_B + 1
+    bpl reflect_ny_absolute
+    +negate16 M_B
+reflect_ny_absolute:
+    lda M_A
+    cmp M_B
+    bne reflect_oblique
+    lda M_A + 1
+    cmp M_B + 1
+    bne reflect_oblique
+    ; Exact 45-degree normal: 31/32 of (vx +/- vy), no multiplications.
+    lda NX + 1
+    eor NY + 1
+    sta SAVED_SPEED
+    bmi reflect_diagonal_opposite
+    +add16 VELOCITY_X, VELOCITY_Y, SAVED_DOT
+    jmp reflect_diagonal_loss
+reflect_diagonal_opposite:
+    +sub16 VELOCITY_X, VELOCITY_Y, SAVED_DOT
+reflect_diagonal_loss:
+    +copy16 SAVED_DOT, M_A
+    ldx #5
+reflect_diagonal_shift:
+    lda M_A + 1
+    asl
+    ror M_A + 1
+    ror M_A
+    dex
+    bne reflect_diagonal_shift
+    +sub16 SAVED_DOT, M_A, SAVED_DOT
+    +sub16 VELOCITY_X, SAVED_DOT, VELOCITY_X
+    lda SAVED_SPEED
+    bmi reflect_diagonal_add
+    +sub16 VELOCITY_Y, SAVED_DOT, VELOCITY_Y
+    rts
+reflect_diagonal_add:
+    +add16 VELOCITY_Y, SAVED_DOT, VELOCITY_Y
+    rts
+reflect_oblique:
     +copy16 VELOCITY_X, M_A
     +copy16 NX, M_B
     jsr multiply_unit
@@ -386,10 +442,58 @@ reflect_axis_loss:
 normalize_velocity:
     lda VELOCITY_X
     ora VELOCITY_X + 1
-    beq normalize_vertical
+    bne normalize_has_x
+    jmp normalize_vertical
+normalize_has_x:
     lda VELOCITY_Y
     ora VELOCITY_Y + 1
-    beq normalize_horizontal
+    bne normalize_has_y
+    jmp normalize_horizontal
+normalize_has_y:
+    +copy16 VELOCITY_X, M_A
+    +copy16 VELOCITY_Y, M_B
+    lda M_A + 1
+    bpl normalize_dx_absolute
+    +negate16 M_A
+normalize_dx_absolute:
+    lda M_B + 1
+    bpl normalize_dy_absolute
+    +negate16 M_B
+normalize_dy_absolute:
+    lda M_A
+    cmp M_B
+    bne normalize_oblique
+    lda M_A + 1
+    cmp M_B + 1
+    bne normalize_oblique
+    lda #181
+    sta M_B
+    jsr multiply_fraction
+    asl M_PRODUCT
+    rol M_PRODUCT + 1
+    rol M_PRODUCT + 2
+    +copy16 M_PRODUCT + 1, SPEED
+    ; sqrt(2) ~= 362/256: downward error < 1 Q8.8 unit at legal speed.
+    ldx #VELOCITY_Y
+normalize_diagonal_unit:
+    ldy #0
+    lda 1,x
+    bpl normalize_diagonal_positive
+    lda #75
+    ldy #$ff
+    bne normalize_diagonal_store
+normalize_diagonal_positive:
+    lda #181
+normalize_diagonal_store:
+    sta 6,x
+    tya
+    sta 7,x
+    dex
+    dex
+    cpx #VELOCITY_X
+    beq normalize_diagonal_unit
+    rts
+normalize_oblique:
     +copy16 VELOCITY_X, QX
     +copy16 VELOCITY_Y, QY
     jsr square_q
@@ -433,35 +537,4 @@ normalize_horizontal:
     +negate16 SPEED
     lda #$ff
     sta UNIT_X + 1
-    rts
-
-normalize_component:
-    lda M_A + 1
-    sta M_SIGN
-    bpl normalize_positive
-    +negate16 M_A
-normalize_positive:
-    +copy16 M_A, M_REM
-    +copy16 SPEED, M_DEN
-    lda #0
-    sta M_REM + 2
-    sta M_DEN + 2
-    lda M_REM
-    cmp M_DEN
-    bne normalize_fraction
-    lda M_REM + 1
-    cmp M_DEN + 1
-    bne normalize_fraction
-    lda #0
-    sta M_QUOT
-    lda #1
-    sta M_QUOT + 1
-    bne normalize_sign
-normalize_fraction:
-    jsr divide_fraction
-normalize_sign:
-    lda M_SIGN
-    bpl normalize_return
-    +negate16 M_QUOT
-normalize_return:
     rts

@@ -112,10 +112,15 @@ contact_next:
     sta SEG_OFFSET
     tay
     lda course_segments + 4,y
+    and #7
     sta NORMAL_CODE
     jsr decode_start
     jsr try_line
+    ldy SEG_OFFSET
+    lda course_segments + 4,y
+    bmi contact_vertex_hidden
     jsr try_circle
+contact_vertex_hidden:
     ; Every contour is closed: each segment end is the next segment start.
     ; Test each vertex once, preventing duplicate swept-circle work.
     inc PHYS_INDEX
@@ -207,6 +212,20 @@ line_sub_radius:
     +sub24 GAP, M_A, GAP
     lda GAP + 2
     beq collision_branch_1
+    cmp #$ff
+    bne line_gap_invalid
+    lda GAP + 1
+    cmp #$ff
+    bne line_gap_invalid
+    lda GAP
+    cmp #$fe                  ; absorb at most two Q8.8 rounding units
+    bcc line_gap_invalid
+    lda #0
+    sta GAP
+    sta GAP + 1
+    sta GAP + 2
+    beq collision_branch_1
+line_gap_invalid:
     jmp line_no_contact
 collision_branch_1:
     +copy16 GAP, SAVED_X
@@ -235,6 +254,11 @@ line_fraction:
     lda M_QUOT
 line_time_ready:
     sta TRIAL_T
+    ldx HIT
+    beq line_time_possible
+    cmp BEST_T
+    bcs line_no_contact
+line_time_possible:
     jsr displacement_at_t
     jsr line_projection
     bcs collision_branch_5
@@ -428,6 +452,50 @@ circle_start_outside:
     clc
     rts
 circle_may_approach:
+    jsr circle_diagonal_guard
+    bcc circle_general_sweep
+    ; For qx=qy<0 and sx=sy>0, the first inside integer offset is -362:
+    ; 2*362^2 < 512^2, while 2*363^2 >= 512^2. Solve its discrete crossing
+    ; exactly: ceil((abs(q)-362)*256/step)-1, the last outside time.
+    +copy16 QX, M_REM
+    +negate16 M_REM
+    sec
+    lda M_REM
+    sbc #<362
+    sta M_REM
+    lda M_REM + 1
+    sbc #>362
+    sta M_REM + 1
+    bmi circle_general_sweep
+    ora M_REM
+    beq circle_general_sweep
+    +copy16 STEP_X, M_DEN
+    lda M_REM + 1
+    cmp M_DEN + 1
+    bcc circle_diagonal_fraction
+    bne circle_diagonal_miss
+    lda M_REM
+    cmp M_DEN
+    bcs circle_diagonal_miss
+circle_diagonal_fraction:
+    lda #0
+    sta M_REM + 2
+    sta M_DEN + 2
+    jsr divide_fraction
+    lda M_REM
+    ora M_REM + 1
+    ora M_REM + 2
+    bne circle_diagonal_time
+    dec M_QUOT
+circle_diagonal_time:
+    lda M_QUOT
+    sta TRIAL_T
+    jsr circle_at_trial
+    jmp circle_entry_outside
+circle_diagonal_miss:
+    clc
+    rts
+circle_general_sweep:
     +copy16 QX, M_A
     +copy16 STEP_X, M_B
     jsr swept_axis_near

@@ -48,6 +48,7 @@ def main():
         ('straight',64,112,0), ('vertical-wall',18.5,112,64),
         ('diagonal-wall',292,40,0), ('rounded-corner',124,80,16),
         ('double-corner',18.5,26.5,80), ('neck',160,78,0),
+        ('oblique-corner',124,79,17), ('shallow-corner',123,80,14),
     ]
     for index,(name,x,y,angle) in enumerate(shot_cases):
         commands += [f"until ${s['apply_controls']:04x}",
@@ -78,6 +79,8 @@ def main():
     expected_attrs = bytearray(bytes([7])*1024+bytes([16])*1024)
     expected_attrs[840:880] = bytes(40)
     expected_attrs[1024+840:1024+880] = bytes(40)
+    expected_attrs[920:960] = bytes(40)
+    expected_attrs[1024+920:1024+960] = bytes(40)
     expected_attrs[:40] = bytes(40)
     expected_attrs[1024:1024+40] = bytes(40)
     assert attrs == expected_attrs, 'hires colors/luminance/hidden code row'
@@ -107,13 +110,14 @@ def main():
     for index in range(len(shot_cases)):
         state = Path(f'{prefix}-shot-{index}.bin').read_bytes()
         assert state[19] == 0, (shot_cases[index][0], 'contact limit reached', state)
-    timings = {'pal_frame_ticks':period, 'worst_control_render_ticks':max(frames[:len(events)+128]),
+    budget = min(32000,period*9//10)
+    timings = {'pal_frame_ticks':period, 'frame_budget_ticks':budget, 'worst_control_render_ticks':max(frames[:len(events)+128]),
                'worst_fraction_of_frame':round(max(frames)/period,4),
                'worst_physics_frame_ticks':max(shot_times),
                'shot_cases': {case[0]:max(shot_times[i*7:i*7+7]) for i,case in enumerate(shot_cases)},
-               'frame_budget_passed':max(frames) < period, 'angles_measured':128, 'hardware':'VICE 3.x C16 PAL, 16 KB'}
+               'frame_budget_passed':max(frames) <= budget, 'angles_measured':128, 'hardware':'VICE 3.x C16 PAL, 16 KB'}
     (ROOT/'build/timing.json').write_text(json.dumps(timings,indent=2)+'\n')
-    assert max(frames) < period, f'frame budget exceeded: {max(frames)} >= {period}; measurements saved to build/timing.json'
+    assert max(frames) <= budget, f'frame budget exceeded: {max(frames)} > {budget} (PAL period {period}); measurements saved to build/timing.json'
     print(f'VICE C16 PAL/16 KB: ROM boot, hires, controls, pause and 128 dirty renders passed; '
           f'worst {max(frames)}/{period} ticks ({max(frames)/period:.1%})')
     print(f'Screenshot: {prefix}.png')

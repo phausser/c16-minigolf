@@ -1,30 +1,18 @@
 clear_hud_bitmap:
+    ; Clear visible rows 22 and 24, preserving arithmetic in row 23.
     lda #0
-    sta BITMAP_PTR
-    lda #$3c
-    sta BITMAP_PTR + 1
-    ldy #0
-    ldx #3
-clear_hud_page:
-    lda #0
-    sta (BITMAP_PTR),y
-    iny
-    bne clear_hud_page
-    inc BITMAP_PTR + 1
-    dex
-    bne clear_hud_page
-    ; $3b80-$3bff and $3f00-$3f3f finish the 960-byte HUD window.
     ldx #0
-    lda #0
-clear_hud_edges:
+clear_hud_main:
     sta $3b80,x
+    sta $3e00,x
     inx
-    bpl clear_hud_edges
+    bne clear_hud_main
     ldx #63
-clear_hud_last:
+clear_hud_tail:
+    sta $3c80,x
     sta $3f00,x
     dex
-    bpl clear_hud_last
+    bpl clear_hud_tail
     rts
 
 ; TED's low raster byte wraps again at line 256. Crossing line 205 from
@@ -97,6 +85,7 @@ plot_dynamic:
     cmp #168
     bcs dynamic_outside_playfield
     jsr point_pixel
+save_dynamic_byte:
     ldx DYNAMIC_COUNT
     lda BITMAP_PTR
     sta DYNAMIC_LO,x

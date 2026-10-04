@@ -79,6 +79,19 @@ class ArithmeticTests(unittest.TestCase):
             self.r.call('sqrt_speed')
             self.assertEqual(unsigned(self.r,'M_QUOT'),math.isqrt(value),value)
 
+    def test_diagonal_normalization_error_is_bounded_without_energy_gain(self):
+        for value in range(1,725):
+            for sx,sy in ((1,1),(-1,1),(1,-1),(-1,-1)):
+                put(self.r,'VELOCITY_X',sx*value)
+                put(self.r,'VELOCITY_Y',sy*value)
+                self.r.call('normalize_velocity')
+                exact = math.isqrt(2*value*value)
+                speed = unsigned(self.r,'SPEED')
+                self.assertLessEqual(speed,exact)
+                self.assertLessEqual(exact-speed,1)
+                self.assertEqual(signed(self.r,'UNIT_X'),sx*181)
+                self.assertEqual(signed(self.r,'UNIT_Y'),sy*181)
+
     def test_fraction_matches_exact_division(self):
         rng = random.Random(18)
         for den in [1,2,3,256,511,65536,0x600000]+[rng.randrange(1,0x700000) for _ in range(60)]:
@@ -87,15 +100,6 @@ class ArithmeticTests(unittest.TestCase):
                 put(self.r,'M_REM',num,3)
                 self.r.call('divide_fraction')
                 self.assertEqual(unsigned(self.r,'M_QUOT'),num*256//den,(num,den))
-
-    def test_square_root_matches_integer_reference(self):
-        rng = random.Random(32)
-        values = [0,1,2,3,4,15,16,17,65535,65536,262144,1048576,0xffffffff]
-        values += [rng.randrange(1 << 32) for _ in range(100)]
-        for value in values:
-            put(self.r,'M_PRODUCT',value,4)
-            self.r.call('sqrt_u32')
-            self.assertEqual(unsigned(self.r,'M_QUOT'),math.isqrt(value),value)
 
     def test_lookup_squares_are_exact_for_all_bounded_inputs(self):
         for value in range(-2048,2049):
@@ -189,6 +193,56 @@ class MovementTests(unittest.TestCase):
         self.assertLess(signed(self.r,'VELOCITY_Y'),0)
         self.assertLessEqual(unsigned(self.r,'SPEED'),960)
         self.assertEqual(self.r.get('CONTACT_LIMIT_HITS'),0)
+
+    def test_hidden_vertex_flags_preserve_real_course_physics(self):
+        def replay(hidden_caps,scene):
+            r = Runtime()
+            r.call('initialise_state')
+            if not hidden_caps:
+                for i in range(S['COURSE_SEGMENT_COUNT']):
+                    r.bus[S['course_segments']+i*5+4] &= 7
+            x,y,angle = scene
+            position(r,x,y)
+            r.put('ANGLE',angle)
+            r.put('POWER',32)
+            r.call('start_shot')
+            states = []
+            for _ in range(80):
+                r.call('physics_tick')
+                states.append(bytes(r.bus[S['BALL_POS_X']:S['SHOTS']+1]))
+            return states
+        for scene in ((18.5,26.5,80),(124,79,17),(124,80,16),(160,78,0)):
+            self.assertEqual(replay(True,scene),replay(False,scene),scene)
+
+    def test_radial_diagonal_shortcut_matches_exact_entry_time(self):
+        for q in (-363,-364,-400,-511,-512,-600,-1000):
+            for step in (1,8,64,256,724):
+                position(self.r,100+q/256,100+q/256)
+                put(self.r,'POINT_X',25600,3)
+                put(self.r,'POINT_Y',25600)
+                put(self.r,'STEP_X',step)
+                put(self.r,'STEP_Y',step)
+                self.r.put('BOUNDS_X',int((25600+q)//512))
+                self.r.put('BOUNDS_Y',int((25600+q)//512))
+                self.r.put('HIT',0)
+                self.r.put('STEP_SQUARE_VALID',0)
+                put(self.r,'RADIUS_SQUARED',512*512,4)
+                self.r.call('try_circle')
+                inside = [t for t in range(256) if 2*(q+step*t//256)**2 < 512*512]
+                self.assertEqual(bool(self.r.get('HIT')),bool(inside),(q,step))
+                if inside:
+                    self.assertEqual(self.r.get('BEST_T'),inside[0]-1,(q,step))
+
+    def test_wall_rounding_epsilon_does_not_drop_incoming_contact(self):
+        for deficit in (1,2):
+            self.r.call('initialise_state')
+            isolate_segments(self.r,[((16,24),(16,152),0)])
+            position(self.r,18-deficit/256,80)
+            self.shoot(64,32)
+            self.r.call('physics_tick')
+            self.assertGreater(signed(self.r,'VELOCITY_X'),0)
+            self.assertGreater(point(self.r)[0],18)
+            self.assertEqual(self.r.get('CONTACT_LIMIT_HITS'),0)
 
     def test_45_degree_wall_correct_reflection(self):
         isolate_segments(self.r,[((200,20),(300,120),3)])

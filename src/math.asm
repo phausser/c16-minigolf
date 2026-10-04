@@ -39,113 +39,17 @@
     sta .target + 1
 }
 
-multiply_signed:
-    lda M_A + 1
-    eor M_B + 1
-    sta M_SIGN
-    lda M_A + 1
-    bpl multiply_a_positive
-    +negate16 M_A
-multiply_a_positive:
-    lda M_B + 1
-    bpl multiply_b_positive
-    +negate16 M_B
-multiply_b_positive:
-    +copy16 M_A, M_MULTIPLICAND
-    lda #0
-    sta M_MULTIPLICAND + 2
-    sta M_MULTIPLICAND + 3
-    sta M_PRODUCT
-    sta M_PRODUCT + 1
-    sta M_PRODUCT + 2
-    sta M_PRODUCT + 3
-multiply_bit:
-    lsr M_B + 1
-    ror M_B
-    bcc multiply_skip
-    clc
-    lda M_PRODUCT
-    adc M_MULTIPLICAND
-    sta M_PRODUCT
-    lda M_PRODUCT + 1
-    adc M_MULTIPLICAND + 1
-    sta M_PRODUCT + 1
-    lda M_PRODUCT + 2
-    adc M_MULTIPLICAND + 2
-    sta M_PRODUCT + 2
-    lda M_PRODUCT + 3
-    adc M_MULTIPLICAND + 3
-    sta M_PRODUCT + 3
-multiply_skip:
-    lda M_B
-    ora M_B + 1
-    beq multiply_sign
-    asl M_MULTIPLICAND
-    rol M_MULTIPLICAND + 1
-    rol M_MULTIPLICAND + 2
-    rol M_MULTIPLICAND + 3
-    jmp multiply_bit
-multiply_sign:
-    lda M_SIGN
-    bpl multiply_done
-    sec
-    lda #0
-    sbc M_PRODUCT
-    sta M_PRODUCT
-    lda #0
-    sbc M_PRODUCT + 1
-    sta M_PRODUCT + 1
-    lda #0
-    sbc M_PRODUCT + 2
-    sta M_PRODUCT + 2
-    lda #0
-    sbc M_PRODUCT + 3
-    sta M_PRODUCT + 3
-multiply_done:
-    rts
-
-divide_fraction:
-    lda #0
-    sta M_QUOT
-    sta M_QUOT + 1
-    ldx #8
-divide_bit:
-    asl M_REM
+!macro root_shift {
+    asl M_PRODUCT
+    rol M_PRODUCT + 1
+    rol M_PRODUCT + 2
+    rol M_PRODUCT + 3
+    rol M_REM
     rol M_REM + 1
-    rol M_REM + 2
-    asl M_QUOT
-    lda M_REM + 2
-    cmp M_DEN + 2
-    bcc divide_next
-    bne divide_subtract
-    lda M_REM + 1
-    cmp M_DEN + 1
-    bcc divide_next
-    bne divide_subtract
-    lda M_REM
-    cmp M_DEN
-    bcc divide_next
-divide_subtract:
-    sec
-    lda M_REM
-    sbc M_DEN
-    sta M_REM
-    lda M_REM + 1
-    sbc M_DEN + 1
-    sta M_REM + 1
-    lda M_REM + 2
-    sbc M_DEN + 2
-    sta M_REM + 2
-    inc M_QUOT
-divide_next:
-    dex
-    bne divide_bit
-    rts
-
-; Restoring square root of the nonnegative 32-bit M_PRODUCT. Root is <=
-; 65535; remainder/trial fit 24 bits throughout this implementation.
+}
+; Exact restoring root for bounded speed squares: input < 2^22.
+; The 11-bit root keeps remainder and trial within 16 bits.
 sqrt_speed:
-    ; Velocity squares are <= 2^21: skip five leading zero pairs exactly.
     ldx #10
 sqrt_speed_shift:
     asl M_PRODUCT
@@ -154,46 +58,24 @@ sqrt_speed_shift:
     rol M_PRODUCT + 3
     dex
     bne sqrt_speed_shift
-    lda #11
-    bne sqrt_init
-sqrt_u32:
-    lda #16
-sqrt_init:
-    sta M_COUNT
     lda #0
     sta M_QUOT
     sta M_QUOT + 1
     sta M_REM
     sta M_REM + 1
-    sta M_REM + 2
+    lda #11
+    sta M_COUNT
 sqrt_pair:
-    ldx #2
-sqrt_shift:
-    asl M_PRODUCT
-    rol M_PRODUCT + 1
-    rol M_PRODUCT + 2
-    rol M_PRODUCT + 3
-    rol M_REM
-    rol M_REM + 1
-    rol M_REM + 2
-    dex
-    bne sqrt_shift
+    +root_shift
+    +root_shift
     +copy16 M_QUOT, M_TRIAL
-    lda #0
-    sta M_TRIAL + 2
     asl M_TRIAL
     rol M_TRIAL + 1
-    rol M_TRIAL + 2
     asl M_TRIAL
     rol M_TRIAL + 1
-    rol M_TRIAL + 2
     inc M_TRIAL
     asl M_QUOT
     rol M_QUOT + 1
-    lda M_REM + 2
-    cmp M_TRIAL + 2
-    bcc sqrt_next
-    bne sqrt_subtract
     lda M_REM + 1
     cmp M_TRIAL + 1
     bcc sqrt_next
@@ -202,22 +84,11 @@ sqrt_shift:
     cmp M_TRIAL
     bcc sqrt_next
 sqrt_subtract:
-    sec
-    lda M_REM
-    sbc M_TRIAL
-    sta M_REM
-    lda M_REM + 1
-    sbc M_TRIAL + 1
-    sta M_REM + 1
-    lda M_REM + 2
-    sbc M_TRIAL + 2
-    sta M_REM + 2
+    +sub16 M_REM, M_TRIAL, M_REM
     inc M_QUOT
 sqrt_next:
     dec M_COUNT
-    beq sqrt_finished
-    jmp sqrt_pair
-sqrt_finished:
+    bne sqrt_pair
     rts
 
 ; Sum the two square products. QX/QY are unchanged.
@@ -286,15 +157,12 @@ square_cross:
     lda M_PRODUCT + 2
     adc M_MULTIPLICAND + 1
     sta M_PRODUCT + 2
-    bcc square_cross_no_carry
-    inc M_PRODUCT + 3
-square_cross_no_carry:
     dex
     bne square_cross
 square_finished:
     rts
 
-; floor(M_A * uint8(M_B) / 256), |M_A| <= 1024. Whole-frame displacements
+; floor(M_A * uint8(M_B) / 256), |M_A| <= 2048. Whole-frame displacements
 ; are bounded by maximum strength, so a full 16x16 multiply is wasteful.
 multiply_fraction:
     lda M_A + 1

@@ -19,7 +19,7 @@ def check():
     assert load == 0x1001 and s['loader'] == 4109, 'BASIC SYS entry mismatch'
     assert s['RELOCATOR_BASE'] <= s['relocate'] < s['relocator_end'] <= s['RUNTIME_BASE']
     assert s['runtime_end'] <= s['RUNTIME_LIMIT'] <= s['DYNAMIC_LO']
-    assert s['DYNAMIC_OLD']+32 <= s['SCRATCH_END'] == s['LUMINANCE_BASE']
+    assert s['DYNAMIC_OLD']+s['MAX_DYNAMIC_BYTES'] <= s['SCRATCH_END'] == s['LUMINANCE_BASE']
     assert load+len(prg)-2 == s['load_end'] <= 0x4000
     assert s['payload_image'] >= s['RUNTIME_BASE']+s['relocator_end']-s['RELOCATOR_BASE']
     assert s['payload_end']-s['payload_image'] == s['runtime_end']-s['RUNTIME_BASE']
@@ -31,7 +31,10 @@ def check():
         'renderer_scratch_reserved_bytes': s['SCRATCH_END']-s['DYNAMIC_LO'],
         'attribute_bytes': 2048,
         'hidden_row_renderer_bytes': s['course_renderer_end']-0x3a40,
-        'bitmap_tail_init_bytes': s['load_end']-0x3f40, 'bitmap_reserved_bytes': 8192,
+        'hidden_hud_math_bytes': s['wide_math_end']-0x3cc0,
+        'bitmap_tail_init_bytes': s['circle_diagonal_guard']-0x3f40,
+        'bitmap_tail_guard_bytes': s['load_end']-s['circle_diagonal_guard'],
+        'bitmap_reserved_bytes': 8192,
     }
     (ROOT/'build/memory.json').write_text(json.dumps(report, indent=2)+'\n')
     print(f"Runtime: {report['runtime_bytes']} bytes, {report['runtime_free_bytes']} bytes free before scratch; PRG: {len(prg)} bytes")

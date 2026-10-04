@@ -130,10 +130,11 @@ KEY_SHOT = 32
 
 RELOCATOR_BASE = $0100
 RUNTIME_BASE = $0200
-RUNTIME_LIMIT = $17a0
-DYNAMIC_LO = $17a0           ; three arrays of 32 bytes; restore in reverse
-DYNAMIC_HI = $17c0
-DYNAMIC_OLD = $17e0
+RUNTIME_LIMIT = $17ca
+MAX_DYNAMIC_BYTES = 18
+DYNAMIC_LO = $17ca           ; three arrays of 18 bytes; restore in reverse
+DYNAMIC_HI = $17dc
+DYNAMIC_OLD = $17ee
 SCRATCH_END = $1800
 LUMINANCE_BASE = $1800
 COLOR_BASE = $1c00

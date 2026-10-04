@@ -82,7 +82,12 @@ def generate():
         contour = [course['outline'], *course['obstacles']][ci]
         area = sum(p[0]*q[1]-p[1]*q[0] for p,q in zip(contour,contour[1:]+contour[:1]))
         normal = (direction + (2 if (area > 0) == (ci == 0) else -2)) % 8
-        encoded += [a[0]//2, a[1]//2, b[0]//2, b[1]//2, normal]
+        turn = orientation(contour[contour.index(a)-1], a, b)
+        # At a convex playable corner, the two finite walls always contact
+        # before the vertex circle. Only exposed solid corners need caps.
+        hidden_cap = turn == 0 or ((turn*area > 0) == (ci == 0))
+        encoded += [a[0]//2, a[1]//2, b[0]//2, b[1]//2,
+                    normal | (0x80 if hidden_cap else 0)]
     lines.append(bytes_section('course_segments', encoded))
     rows = [0x2000+y*320 for y in range(25)]
     lines += [bytes_section('bitmap_rows_lo', rows),
@@ -93,13 +98,13 @@ def generate():
     ring = sorted({(round(math.cos(i*math.tau/32)*5), round(math.sin(i*math.tau/32)*5))
                    for i in range(32)})
     lines += [f'BALL_POINTS = {len(ball)}', f'CUP_POINTS = {len(ring)}']
-    for name, points in [('ball',ball),('cup',ring)]:
+    for name, points in [('cup',ring)]:
         lines += [bytes_section(name+'_dx', [p[0] for p in points]),
                   bytes_section(name+'_dy', [p[1] for p in points])]
     output = ROOT / 'build/assets.inc'
     output.parent.mkdir(exist_ok=True)
     output.write_text('\n\n'.join(lines)+'\n')
-    print(f'Assets: {len(segments)} segments / {len(encoded)} bytes; {len(ball)+8}/32 dynamic points')
+    print(f'Assets: {len(segments)} segments / {len(encoded)} bytes; 18/18 dynamic byte slots')
 
 
 if __name__ == '__main__':

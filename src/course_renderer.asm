@@ -66,6 +66,7 @@ course_y_same:
 course_wall_offsets:
     iny
     lda (COURSE_PTR),y
+    and #7
     tax
     lda wall_offsets_x,x
     sta WALL_X_OFFSET
@@ -136,8 +137,8 @@ cup_x_sign:
     bne cup_next
     rts
 
-; A 3x3 stroke at each two-pixel segment step. For this hardware preview
-; wall strokes are centered; final collision contours will define inner edges.
+; A 3x3 stroke at each two-pixel segment step, offset into solid geometry.
+; The contour remains the visible inner edge used by collisions.
 plot_wall:
     lda #0
     sta ROW_INDEX

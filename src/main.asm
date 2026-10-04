@@ -157,9 +157,16 @@ small_square_hi:
 !source "src/course_renderer.asm"
 course_renderer_end:
 !if course_renderer_end > $3b80 { !error "course renderer exceeds hidden bitmap row" }
+; Reusable wide arithmetic occupies a black HUD separator row.
+* = $3cc0
+!source "src/wide_math.asm"
+!source "src/normalize_component.asm"
+wide_math_end:
+!if wide_math_end > $3e00 { !error "wide math exceeds hidden HUD row" }
 ; Startup uses otherwise unused bytes after the 8000 visible bitmap bytes.
 * = $3f40
 !source "src/initialise_video.asm"
+!source "src/circle_diagonal_guard.asm"
 load_end:
 !if runtime_end > RUNTIME_LIMIT { !error "runtime overlaps renderer scratch" }
 !if load_end > BITMAP_END { !error "PRG exceeds physical C16 RAM" }

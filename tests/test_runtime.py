@@ -112,10 +112,11 @@ class HardwareTests(unittest.TestCase):
         self.assertFalse(self.r.cpu.p & self.r.cpu.DECIMAL)
 
     def test_loader_survives_overwritten_sys_and_overlapping_source(self):
+        padding = S['RUNTIME_LIMIT']-S['runtime_end']
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)/'stress.prg'
             subprocess.run(['acme','--cpu','6502','--format','cbm',
-                            '-DRELOCATION_TEST_PADDING=16', '--outfile',str(path),
+                            f'-DRELOCATION_TEST_PADDING={padding}', '--outfile',str(path),
                             'src/main.asm'], cwd=ROOT, check=True, capture_output=True)
             prg = path.read_bytes()
         bus = [0]*65536
@@ -128,27 +129,32 @@ class HardwareTests(unittest.TestCase):
         else:
             self.fail('overlapping relocation never reached start')
         payload = S['payload_image']-0x1001+2
-        expected = prg[payload:payload+S['runtime_end']-S['RUNTIME_BASE']+16]
+        expected = prg[payload:payload+S['runtime_end']-S['RUNTIME_BASE']+padding]
         self.assertGreater(S['RUNTIME_BASE']+len(expected), S['payload_image'])
         self.assertEqual(bus[S['RUNTIME_BASE']:S['RUNTIME_BASE']+len(expected)], list(expected))
 
     def test_video_registers_attributes_and_clear(self):
         renderer = self.r.bus[0x3a40:0x3b80]
+        wide = self.r.bus[0x3cc0:0x3e00]
         startup = self.r.bus[0x3f40:0x4000]
         lookup = self.r.bus[S['lookup_image']:S['lookup_image']+320]
         self.r.bus[0x1800:0x4000] = [255]*(0x4000-0x1800)
         self.r.bus[0x3a40:0x3b80] = renderer
+        self.r.bus[0x3cc0:0x3e00] = wide
         self.r.bus[0x3f40:0x4000] = startup
         self.r.bus[S['lookup_image']:S['lookup_image']+320] = lookup
         self.r.call('initialise_video')
         luma, colors = [7]*1024,[16]*1024
         luma[840:880] = colors[840:880] = [0]*40
         luma[:40] = colors[:40] = [0]*40
+        luma[920:960] = colors[920:960] = [0]*40
         self.assertEqual(self.r.bus[0x1800:0x1c00], luma)
         self.assertEqual(self.r.bus[0x1c00:0x2000], colors)
         self.assertEqual(self.r.bus[0x2000:0x2140],lookup)
         self.assertEqual(self.r.bus[0x2140:0x3a40], [0]*6400)
-        self.assertEqual(self.r.bus[0x3b80:0x3f40], [0]*960)
+        self.assertEqual(self.r.bus[0x3b80:0x3cc0], [0]*320)
+        self.assertEqual(self.r.bus[0x3e00:0x3f40], [0]*320)
+        self.assertEqual(self.r.bus[0x3cc0:0x3e00],wide)
         self.assertEqual(self.r.bus[0x3a40:0x3b80],renderer)
         self.assertEqual(self.r.bus[0x3f40:0x4000],startup)
         self.assertEqual(self.r.bus[0xff06], 0x0b)
@@ -190,7 +196,27 @@ class HardwareTests(unittest.TestCase):
             y = cy+round(math.sin(i*math.tau/32)*5)
             expected[bitmap_offset(x,y)] |= 128 >> (x%8)
         self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
-        self.assertEqual(bytes(self.r.bus[0x3b80:0x3f40]), expected[7040:])
+        self.assertEqual(bytes(self.r.bus[0x3b80:0x3cc0]), expected[7040:7360])
+        self.assertEqual(bytes(self.r.bus[0x3e00:0x3f40]), expected[7680:])
+
+    def test_byte_ball_renderer_matches_every_pixel_alignment(self):
+        for x in [*range(18,26),254,255,256,257,317,318,319]:
+            for y in (10,26,166):
+                self.r.bus[0x2000:0x3f40] = [0]*8000
+                self.r.bus[S['BALL_POS_X']:S['BALL_POS_X']+3] = [0,x&255,x>>8]
+                self.r.bus[S['BALL_POS_Y']:S['BALL_POS_Y']+2] = [0,y]
+                self.r.put('DYNAMIC_COUNT',0)
+                self.r.put('PAUSED',1)
+                self.r.call('draw_dynamic')
+                expected = bytearray(8000)
+                for dy in range(-2,3):
+                    for dx in range(-2,3):
+                        if dx*dx+dy*dy <= 5 and 0 <= x+dx < 320 and 8 <= y+dy < 168:
+                            expected[bitmap_offset(x+dx,y+dy)] |= 128 >> ((x+dx)%8)
+                self.assertEqual(bytes(self.r.bus[0x2000:0x3f40]),expected,(x,y))
+                self.assertLessEqual(self.r.get('DYNAMIC_COUNT'),10)
+                self.r.call('restore_dynamic')
+                self.assertEqual(self.r.bus[0x2000:0x3f40],[0]*8000)
 
     def test_all_aim_directions_restore_background_exactly(self):
         pattern = [(i*73+19)%256 for i in range(8000)]
@@ -198,13 +224,13 @@ class HardwareTests(unittest.TestCase):
         for angle in range(128):
             self.r.put('ANGLE', angle)
             self.r.call('draw_dynamic')
-            self.assertEqual(self.r.get('DYNAMIC_COUNT'), 29)
+            self.assertEqual(self.r.get('DYNAMIC_COUNT'), 18)
             self.assertNotEqual(self.r.bus[0x2000:0x3f40], pattern)
             self.r.call('restore_dynamic')
             self.assertEqual(self.r.bus[0x2000:0x3f40], pattern, angle)
         self.r.put('PAUSED', 1)
         self.r.call('draw_dynamic')
-        self.assertEqual(self.r.get('DYNAMIC_COUNT'), 21)
+        self.assertEqual(self.r.get('DYNAMIC_COUNT'), 10)
         self.r.call('restore_dynamic')
         self.assertEqual(self.r.bus[0x2000:0x3f40], pattern)
 

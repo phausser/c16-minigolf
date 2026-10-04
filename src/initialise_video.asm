@@ -64,6 +64,8 @@ video_hide_code:
     sta COLOR_BASE,x
     sta LUMINANCE_BASE + 21*40,x
     sta COLOR_BASE + 21*40,x
+    sta LUMINANCE_BASE + 23*40,x
+    sta COLOR_BASE + 23*40,x
     dex
     bpl video_hide_code
     jmp clear_hud_bitmap
