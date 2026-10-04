@@ -115,7 +115,7 @@ class HardwareTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)/'stress.prg'
             subprocess.run(['acme','--cpu','6502','--format','cbm',
-                            '-DRELOCATION_TEST_PADDING=128', '--outfile',str(path),
+                            '-DRELOCATION_TEST_PADDING=16', '--outfile',str(path),
                             'src/main.asm'], cwd=ROOT, check=True, capture_output=True)
             prg = path.read_bytes()
         bus = [0]*65536
@@ -128,7 +128,7 @@ class HardwareTests(unittest.TestCase):
         else:
             self.fail('overlapping relocation never reached start')
         payload = S['payload_image']-0x1001+2
-        expected = prg[payload:payload+S['runtime_end']-S['RUNTIME_BASE']+128]
+        expected = prg[payload:payload+S['runtime_end']-S['RUNTIME_BASE']+16]
         self.assertGreater(S['RUNTIME_BASE']+len(expected), S['payload_image'])
         self.assertEqual(bus[S['RUNTIME_BASE']:S['RUNTIME_BASE']+len(expected)], list(expected))
 

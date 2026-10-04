@@ -91,13 +91,13 @@ shot_speed:
     jmp velocity_from_unit
 
 velocity_from_unit:
-    +copy16 UNIT_X, M_A
-    +copy16 SPEED, M_B
-    jsr multiply_signed
+    +copy16 SPEED, M_A
+    +copy16 UNIT_X, M_B
+    jsr multiply_unit
     +copy16 M_PRODUCT + 1, VELOCITY_X
-    +copy16 UNIT_Y, M_A
-    +copy16 SPEED, M_B
-    jsr multiply_signed
+    +copy16 SPEED, M_A
+    +copy16 UNIT_Y, M_B
+    jsr multiply_unit
     +copy16 M_PRODUCT + 1, VELOCITY_Y
     rts
 
@@ -115,11 +115,6 @@ physics_branch_2:
     jsr collect_candidates
     ; A continuous finite-segment/circle sweep covers the whole frame path.
     ; Contacts split time, not pixels; no endpoint sampling or tunneling.
-    lda #0
-    sta SUBSTEP_SHIFT
-    lda #1
-    sta SUBSTEPS_LEFT
-substeps_ready:
     lda #1
     sta DIRTY
     lda #0
@@ -137,14 +132,33 @@ physics_remainder:
     ora STEP_X + 1
     ora STEP_Y
     ora STEP_Y + 1
-    beq physics_substep_done
+    bne physics_has_step
+    jmp physics_substep_done
+physics_has_step:
     jsr find_first_contact
     ; Cup is another swept circle, considered only below catch speed.
+    lda CONTACT_CHANGED
+    beq physics_scalar_cup_speed
+    +copy16 VELOCITY_X, QX
+    +copy16 VELOCITY_Y, QY
+    jsr square_q
+    lda M_PRODUCT + 2
+    ora M_PRODUCT + 3
+    bne physics_wall
+    lda M_PRODUCT + 1
+    cmp #$90                 ; (0.75 * 256)^2 = $9000
+    bcc physics_cup_ready
+    bne physics_wall
+    lda M_PRODUCT
+    bne physics_wall
+    beq physics_cup_ready
+physics_scalar_cup_speed:
     lda SPEED + 1
     bne physics_wall
     lda SPEED
     cmp #193
     bcs physics_wall
+physics_cup_ready:
     jsr test_cup
     lda FRAME_CUP
     beq physics_wall
@@ -181,9 +195,6 @@ physics_time_unchanged:
 physics_contact_limit:
     inc CONTACT_LIMIT_HITS
 physics_substep_done:
-    dec SUBSTEPS_LEFT
-    beq physics_steps_finished
-    jmp physics_substep
 physics_steps_finished:
     lda CONTACT_CHANGED
     beq physics_no_normalization
@@ -236,33 +247,17 @@ finish_hole:
     rts
 
 make_step:
-    +copy16 VELOCITY_X, BASE_STEP_X
-    +copy16 VELOCITY_Y, BASE_STEP_Y
-    ldx SUBSTEP_SHIFT
-    beq step_divided
-step_shift:
-    lda BASE_STEP_X + 1
-    asl                     ; sign into carry for arithmetic shift
-    ror BASE_STEP_X + 1
-    ror BASE_STEP_X
-    lda BASE_STEP_Y + 1
-    asl
-    ror BASE_STEP_Y + 1
-    ror BASE_STEP_Y
-    dex
-    bne step_shift
-step_divided:
     lda REMAINING_TIME + 1
     beq step_residual
-    +copy16 BASE_STEP_X, STEP_X
-    +copy16 BASE_STEP_Y, STEP_Y
+    +copy16 VELOCITY_X, STEP_X
+    +copy16 VELOCITY_Y, STEP_Y
     rts
 step_residual:
-    +copy16 BASE_STEP_X, M_A
+    +copy16 VELOCITY_X, M_A
     +copy16 REMAINING_TIME, M_B
     jsr multiply_fraction
     +copy16 M_PRODUCT + 1, STEP_X
-    +copy16 BASE_STEP_Y, M_A
+    +copy16 VELOCITY_Y, M_A
     +copy16 REMAINING_TIME, M_B
     jsr multiply_fraction
     +copy16 M_PRODUCT + 1, STEP_Y
@@ -318,11 +313,11 @@ reflect_check_x:
 reflect_general:
     +copy16 VELOCITY_X, M_A
     +copy16 NX, M_B
-    jsr multiply_signed
+    jsr multiply_unit
     +copy32 M_PRODUCT, STEP_SQUARED
     +copy16 VELOCITY_Y, M_A
     +copy16 NY, M_B
-    jsr multiply_signed
+    jsr multiply_unit
     clc
     lda M_PRODUCT
     adc STEP_SQUARED
@@ -347,11 +342,11 @@ reflect_loss:
     +sub16 SAVED_DOT, M_A, SAVED_DOT
     +copy16 SAVED_DOT, M_A
     +copy16 NX, M_B
-    jsr multiply_signed
+    jsr multiply_unit
     +sub16 VELOCITY_X, M_PRODUCT + 1, VELOCITY_X
     +copy16 SAVED_DOT, M_A
     +copy16 NY, M_B
-    jsr multiply_signed
+    jsr multiply_unit
     +sub16 VELOCITY_Y, M_PRODUCT + 1, VELOCITY_Y
     rts
 reflect_axis_y:
@@ -398,7 +393,7 @@ normalize_velocity:
     +copy16 VELOCITY_X, QX
     +copy16 VELOCITY_Y, QY
     jsr square_q
-    jsr sqrt_u32
+    jsr sqrt_speed
     +copy16 M_QUOT, SPEED
     lda SPEED
     ora SPEED + 1

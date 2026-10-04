@@ -144,15 +144,28 @@ divide_next:
 
 ; Restoring square root of the nonnegative 32-bit M_PRODUCT. Root is <=
 ; 65535; remainder/trial fit 24 bits throughout this implementation.
+sqrt_speed:
+    ; Velocity squares are <= 2^21: skip five leading zero pairs exactly.
+    ldx #10
+sqrt_speed_shift:
+    asl M_PRODUCT
+    rol M_PRODUCT + 1
+    rol M_PRODUCT + 2
+    rol M_PRODUCT + 3
+    dex
+    bne sqrt_speed_shift
+    lda #11
+    bne sqrt_init
 sqrt_u32:
+    lda #16
+sqrt_init:
+    sta M_COUNT
     lda #0
     sta M_QUOT
     sta M_QUOT + 1
     sta M_REM
     sta M_REM + 1
     sta M_REM + 2
-    lda #16
-    sta M_COUNT
 sqrt_pair:
     ldx #2
 sqrt_shift:
@@ -335,4 +348,36 @@ fraction_sign:
 fraction_exact:
     +negate16 M_PRODUCT + 1
 fraction_return:
+    rts
+
+; Exact signed product when B is a Q1.8 unit component (|B| <= 256).
+; Reuse the 8-bit fractional multiplier, including its low product byte.
+multiply_unit:
+    lda M_B + 1
+    bpl unit_positive
+    +negate16 M_A
+    +negate16 M_B
+unit_positive:
+    lda M_B + 1
+    beq unit_fraction
+    +copy16 M_A, M_PRODUCT + 1
+    lda #0
+    sta M_PRODUCT
+    jmp unit_extend
+unit_fraction:
+    jsr multiply_fraction
+    lda M_SIGN
+    bpl unit_extend
+    sec
+    lda #0
+    sbc M_PRODUCT
+    sta M_PRODUCT
+unit_extend:
+    lda M_PRODUCT + 2
+    asl
+    lda #0
+    bcc unit_extended
+    lda #$ff
+unit_extended:
+    sta M_PRODUCT + 3
     rts

@@ -129,11 +129,6 @@ decode_start:
     tax
     lda course_segments,y
     jmp decode_point
-decode_end:
-    ldy SEG_OFFSET
-    lda course_segments + 3,y
-    tax
-    lda course_segments + 2,y
 decode_point:
     asl
     sta POINT_X + 1
@@ -418,6 +413,16 @@ circle_y_absolute:
 collision_branch_8:
     +copy16 QX, SAVED_X
     +copy16 QY, SAVED_Y
+    lda RADIUS_SQUARED + 2
+    cmp #9
+    bne circle_start_outside
+    jsr square_q
+    jsr compare_circle_radius
+    bcc circle_start_outside
+    lda #0
+    sta TRIAL_T
+    jmp record_contact
+circle_start_outside:
     jsr circle_motion_away
     bcc circle_may_approach
     clc
@@ -512,27 +517,57 @@ circle_prefix_ready:
     bcs collision_branch_10
     jmp circle_no_contact
 collision_branch_10:
+    ; Binary time-bit search. Maintain exact Q8.16 positions, so testing a
+    ; new bit requires additions, not two fractional multiplies. Restrict
+    ; trials to the monotone entry branch before the closest-point time.
     lda #0
     sta BISECT_LO
-circle_bisect:
-    lda BISECT_HI
-    sec
-    sbc BISECT_LO
-    cmp #2
-    bcc circle_entry
-    lsr
-    clc
-    adc BISECT_LO
+    sta CIRCLE_OUT
+    sta CIRCLE_OUT + 3
+    sta CIRCLE_DELTA
+    sta CIRCLE_DELTA + 3
+    +copy16 SAVED_X, CIRCLE_OUT + 1
+    +copy16 SAVED_Y, CIRCLE_OUT + 4
+    +copy16 STEP_X, CIRCLE_DELTA + 1
+    +copy16 STEP_Y, CIRCLE_DELTA + 4
+    lda #128
+    sta CIRCLE_BIT
+circle_bit_search:
+    ; STEP<<8 is halved once per bit, giving exact STEP*128 ... STEP*1.
+    ldx #3
+circle_delta_half:
+    lda CIRCLE_DELTA + 2,x
+    asl
+    ror CIRCLE_DELTA + 2,x
+    ror CIRCLE_DELTA + 1,x
+    ror CIRCLE_DELTA,x
+    dex
+    dex
+    dex
+    bpl circle_delta_half
+    lda BISECT_LO
+    ora CIRCLE_BIT
+    cmp BISECT_HI
+    bcs circle_next_bit
     sta TRIAL_T
-    jsr circle_at_trial
-    bcc circle_outside
-    lda TRIAL_T
-    sta BISECT_HI
-    jmp circle_bisect
-circle_outside:
+    +add24 CIRCLE_OUT, CIRCLE_DELTA, CIRCLE_TRIAL
+    +add24 CIRCLE_OUT + 3, CIRCLE_DELTA + 3, CIRCLE_TRIAL + 3
+    +copy16 CIRCLE_TRIAL + 1, QX
+    +copy16 CIRCLE_TRIAL + 4, QY
+    jsr square_q
+    jsr compare_circle_radius
+    bcs circle_next_bit
     lda TRIAL_T
     sta BISECT_LO
-    jmp circle_bisect
+    ldx #5
+circle_save_outside:
+    lda CIRCLE_TRIAL,x
+    sta CIRCLE_OUT,x
+    dex
+    bpl circle_save_outside
+circle_next_bit:
+    lsr CIRCLE_BIT
+    bne circle_bit_search
 circle_entry:
     lda BISECT_LO
     sta TRIAL_T

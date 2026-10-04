@@ -14,8 +14,8 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 
 | Bereich | Verwendung |
 |---|---|
-| $0200–$1686 | Laufzeitcode und Daten: 5255 Bytes |
-| $1687–$179F | 281 freie Bytes |
+| $0200–$175B | Laufzeitcode und Daten: 5468 Bytes |
+| $175C–$179F | 68 freie Bytes |
 | $17A0–$17FF | 96 Bytes Hintergrundrestaurierung |
 | $1800–$1FFF | TED-Luminanz und Farbe |
 | $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
@@ -65,32 +65,39 @@ Der automatisierte Emulator-Smoke-Test injiziert weiterhin logische Ereignisse.
 
 ## Physikprüfung und Laufzeit
 
-26 Tests des echten assemblierten 6502-Codes bestehen: Loader, Grafik,
+31 Tests des echten assemblierten 6502-Codes bestehen: Loader, Grafik,
 Eingabe, Hintergrund, exakte Arithmetik, 128 Richtungen, Reichweiten und
 Stillstand, Achsen-/Diagonalbanden, radiale Endpunkte, Streifkontakte,
 Lochfang und deterministische längere Testbahn-Replays. Das ersetzt noch
 keine vollständige unabhängige Geometrie-Referenz oder Physikfreigabe.
 
 VICE bestätigt ROM-Start, TED-Konfiguration, Hintergrund und Steuerung.
-Die Hauptschleife synchronisiert an Rasterzeile 205. Gemessener PAL-Abstand:
-35563 Ticks; teuerster Ziel-/HUD-Redraw: 22859 Ticks.
+Der Kreis-Sweep sucht Kontaktzeitbits mit exakten 24-Bit-Positionen
+(Q8.16). Additionen ersetzen die wiederholten Bruchmultiplikationen, ohne
+das Ergebnis zu vergröbern. Zusätzliche Tests vergleichen zufällige
+Streifkontakte mit einer unabhängigen diskreten Geometrie-Referenz.
+Ein spezieller Einheitvektor-Multiplizierer und eine verkürzte exakte
+Geschwindigkeitswurzel sparen weitere Zyklen. Die Hauptschleife synchronisiert an Rasterzeile 205. Gemessener PAL-Abstand:
+35563 Ticks; teuerster Ziel-/HUD-Redraw: 22961 Ticks.
 
 | Bewegungsszenario, höchste Stärke | Schlechtester Frame, TED-Ticks |
 |---|---:|
-| Gerade | 12210 |
-| Senkrechte Bande | 19269 |
-| 45°-Bande | 34107 |
-| Gerundete Ecke | 66906 |
-| Doppelkontakt in Ecke | 46354 |
-| Engstelle | 12787 |
+| Gerade | 10183 |
+| Senkrechte Bande | 16179 |
+| 45°-Bande | 27255 |
+| Gerundete Ecke | 51436 |
+| Doppelkontakt in Ecke | 45043 |
+| Engstelle | 10434 |
 
 **Die Framebudget-Abnahme scheitert.** Eckentreffer überschreiten ein
-PAL-Bild; die 45°-Bande hat zu wenig Reserve. Die Physik bleibt
+PAL-Bild. Die Physik bleibt
 reproduzierbar, läuft bei diesen Spitzen aber langsamer als die beabsichtigte
 50-Hz-Zeitbasis. `make smoke` meldet dies als Fehler und schreibt auch bei
 Überschreitung `build/timing.json`. Die Grenze wird nicht gelockert. Vor
 Bahnproduktion und Effekten müssen diese Spitzen sowie der RAM-Verbrauch
-reduziert werden. Einloch-/Kontaktgrenzfälle bleiben in TODO.md offen.
+reduziert werden. Die geprüften Einlochgrenzfälle umfassen jetzt den Start innerhalb des
+Fangradius und die reduzierte Geschwindigkeit unmittelbar nach einem
+Abpraller. Kontakt-Epsilon und weitere Kontaktgrenzfälle bleiben offen.
 
 In der eingeschränkten macOS-Umgebung startet VICE als Make/Python-
 Unterprozess teilweise nicht zuverlässig; der direkte CLI-Aufruf wurde

@@ -161,14 +161,14 @@ Normalenindex. Wandstriche liegen außerhalb der geometrischen Innenkante.
 
 Kontaktzeiten haben acht Nachkommabits; bei maximaler Geschwindigkeit
 entspricht eine Zeiteinheit höchstens 1/64 Pixel Weg. Kreis-Endpunkte
-verwenden eine Prüfung des nächsten Wegpunkts und anschließende Bisektion
-des Eintritts, damit auch Streifkontakte mit beiden Wegenden außerhalb
+verwenden eine Prüfung des nächsten Wegpunkts und anschließende Suche der Kontaktzeitbits
+mit exakten 24-Bit-Positionen (Q8.16), damit auch Streifkontakte mit beiden Wegenden außerhalb
 erkannt werden. Geradensegment-Projektionen rechnen mit 1/64-Pixel-Präzision.
 Gleichzeitige Kontakte werden nach stabiler Segmentreihenfolge aufgelöst.
 Die Kontaktgrenze zählt Überschreitungen und verwirft die Restbewegung.
 
 Der Prototyp erfüllt noch nicht sämtliche Abnahmekriterien: offene
 Kontaktgrenzfälle, 50-Hz-Worst-Case und Platz für alle 18 Bahnen stehen in
-TODO.md. Der umfangreiche Physikkern benötigt derzeit 5255 Runtime-Bytes;
-281 bleiben im Hauptbereich frei. Exakte Speicher- und Laufzeitmessungen
+TODO.md. Der umfangreiche Physikkern benötigt derzeit 5468 Runtime-Bytes;
+68 bleiben im Hauptbereich frei. Exakte Speicher- und Laufzeitmessungen
 stehen in docs/hardware.md. Das 50-Hz-Ziel bleibt bestehen.

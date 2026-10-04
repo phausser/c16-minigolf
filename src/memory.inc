@@ -60,8 +60,6 @@ STATE_END = $4d
 BALL_SCREEN_X = $50          ; rounded integer word
 BALL_SCREEN_Y = $52
 PHYS_INDEX = $53
-SUBSTEP_SHIFT = $54
-SUBSTEPS_LEFT = $55
 CONTACTS_LEFT = $56
 HIT = $57
 BEST_T = $58
@@ -77,13 +75,15 @@ WALL_X_OFFSET = $61
 WALL_Y_OFFSET = $62
 STEP_SQUARE_VALID = $63
 CONTACT_CHANGED = $64
+CIRCLE_DELTA = $65       ; two signed 24-bit STEP * time-bit values
+CIRCLE_TRIAL = $c9       ; two signed 24-bit relative coordinates, Q8.16
+CIRCLE_OUT = $cf         ; six bytes, last definitely outside point
+CIRCLE_BIT = $d5
 
 ; Dedicated 32-byte zero-page candidate list, separate from math scratch.
 CANDIDATES = $d8
 STEP_X = $70              ; signed Q8.8 residual displacement
 STEP_Y = $72
-BASE_STEP_X = $74
-BASE_STEP_Y = $76
 REMAINING_TIME = $78       ; Q0.8, 256 = complete frame
 POINT_X = $7a             ; 24-bit Q16.8 static contact endpoint
 POINT_Y = $7d             ; 16-bit Q8.8

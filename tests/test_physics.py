@@ -59,6 +59,26 @@ class ArithmeticTests(unittest.TestCase):
             self.r.call('multiply_signed')
             self.assertEqual(signed(self.r,'M_PRODUCT',4), a*b, (a,b))
 
+    def test_optimized_unit_multiply_is_bit_exact(self):
+        rng = random.Random(7360)
+        pairs = [(a,b) for a in (-2048,-1024,-1,0,1,1024,2048)
+                 for b in (-256,-181,-1,0,1,181,256)]
+        pairs += [(rng.randrange(-2048,2049),rng.randrange(-256,257)) for _ in range(200)]
+        for a,b in pairs:
+            put(self.r,'M_A',a)
+            put(self.r,'M_B',b)
+            self.r.call('multiply_unit')
+            self.assertEqual(signed(self.r,'M_PRODUCT',4),a*b,(a,b))
+
+    def test_optimized_speed_root_is_exact(self):
+        rng = random.Random(264)
+        values = [0,1,65536,1048576,2097152,4194303]
+        values += [rng.randrange(4194304) for _ in range(200)]
+        for value in values:
+            put(self.r,'M_PRODUCT',value,4)
+            self.r.call('sqrt_speed')
+            self.assertEqual(unsigned(self.r,'M_QUOT'),math.isqrt(value),value)
+
     def test_fraction_matches_exact_division(self):
         rng = random.Random(18)
         for den in [1,2,3,256,511,65536,0x600000]+[rng.randrange(1,0x700000) for _ in range(60)]:
@@ -168,7 +188,6 @@ class MovementTests(unittest.TestCase):
         self.assertEqual(signed(self.r,'VELOCITY_X'),0)
         self.assertLess(signed(self.r,'VELOCITY_Y'),0)
         self.assertLessEqual(unsigned(self.r,'SPEED'),960)
-        self.assertEqual(self.r.get('SUBSTEP_SHIFT'),0)
         self.assertEqual(self.r.get('CONTACT_LIMIT_HITS'),0)
 
     def test_45_degree_wall_correct_reflection(self):
@@ -209,6 +228,51 @@ class MovementTests(unittest.TestCase):
         y = point(self.r)[1]
         expected = (.5-math.sqrt(4-(y-100)**2))
         self.assertLessEqual(abs(t-expected),.02,(t,expected))
+
+    def test_slow_ball_already_inside_cup_is_caught_moving_away(self):
+        isolate_segments(self.r,[])
+        position(self.r,S['CUP_X']+2.5,S['CUP_Y'])
+        self.shoot(0,2)
+        self.r.call('physics_tick')
+        self.assertEqual(self.r.get('HOLED'),1)
+        self.assertEqual(point(self.r),(S['CUP_X'],S['CUP_Y']))
+
+    def test_cup_uses_reduced_velocity_immediately_after_bounce(self):
+        isolate_segments(self.r,[((274,80),(274,140),4)])
+        position(self.r,271.5,112)
+        self.shoot(0,7)
+        put(self.r,'SPEED',200)
+        self.r.call('physics_tick')
+        self.assertEqual(self.r.get('HOLED'),1)
+        self.assertEqual(self.r.get('CONTACT_LIMIT_HITS'),0)
+
+    def test_time_bit_circle_search_matches_discrete_geometric_oracle(self):
+        rng = random.Random(512)
+        hits = 0
+        for _ in range(200):
+            qx,qy = rng.randrange(-1400,1401),rng.randrange(-1400,1401)
+            sx,sy = rng.randrange(-900,901),rng.randrange(-900,901)
+            if qx*qx+qy*qy < 512*512 or qx*sx+qy*sy >= 0:
+                continue
+            inside = [t for t in range(256)
+                      if (qx+sx*t//256)**2+(qy+sy*t//256)**2 < 512*512]
+            if not inside:
+                continue
+            position(self.r,100+qx/256,100+qy/256)
+            put(self.r,'POINT_X',100*256,3)
+            put(self.r,'POINT_Y',100*256)
+            put(self.r,'STEP_X',sx)
+            put(self.r,'STEP_Y',sy)
+            self.r.put('BOUNDS_X',int((100*256+qx)//512))
+            self.r.put('BOUNDS_Y',int((100*256+qy)//512))
+            self.r.put('HIT',0)
+            self.r.put('STEP_SQUARE_VALID',0)
+            put(self.r,'RADIUS_SQUARED',512*512,4)
+            self.r.call('try_circle')
+            self.assertEqual(self.r.get('HIT'),1,(qx,qy,sx,sy))
+            self.assertLessEqual(abs(self.r.get('BEST_T')-(inside[0]-1)),1)
+            hits += 1
+        self.assertGreater(hits,10)
 
     def test_slow_cup_catches_and_fast_ball_passes(self):
         isolate_segments(self.r,[])
