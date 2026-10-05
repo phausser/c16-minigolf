@@ -178,10 +178,7 @@ aim_next:
     cmp #64
     bcs aim_skip_pixel
 aim_x_on_screen:
-    lda PIXEL_Y
-    cmp #168
-    bcs aim_skip_pixel
-    jsr plot_dynamic
+    jsr plot_dynamic          ; clips y to the playfield itself
 aim_skip_pixel:
     lda POINT_INDEX
     cmp #8

@@ -121,6 +121,7 @@ Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kante
 ## 5. Vollständiges Spiel
 
 - [ ] Titel, kompakte Bedienhilfe und Rundenstart ergänzen.
+- [ ] Eigener Zeichensatz (zurückgestellt; ROM-Schrift genügt vorerst, eigene Glyphen ~8 Bytes je Zeichen).
 - [ ] HUD mit Loch, Par, Schlägen, Stärke und Gesamtstand fertigstellen (Bahn links, Punkte rechts und pixelweiser Ladebalken in der Mitte umgesetzt; Par und Gesamtstand fehlen).
 - [ ] Training mit freier Lochwahl implementieren.
 - [ ] Lochbilanz und bestätigten Übergang zum nächsten Loch implementieren.
