@@ -72,17 +72,8 @@ start:
     sta TED_SOUND
     lda #$ff
     sta TED_IRQ_STATUS
-    jsr initialise_state
     jsr initialise_video
-    jsr draw_course
-    jsr draw_static_hud
-    jsr draw_dynamic
-    jsr draw_power
-    lda #0
-    sta DIRTY
-    sta HUD_DIRTY
-    lda #$3b                  ; bitmap, display on, 25 rows, y-scroll 3
-    sta TED_CONTROL1
+    jsr start_hole
 main_loop:
     jsr wait_for_frame
 frame_begin:
@@ -125,15 +116,57 @@ frame_done:
     sta FRAME_END_RASTER
     jmp main_loop
 
+; Draw hole HOLE from scratch with the display off. The main loop then
+; draws ball, aim and HUD (reset_ball marks them dirty).
+start_hole:
+    lda #$0b
+    sta TED_CONTROL1
+    jsr clear_playfield
+    jsr initialise_state
+    jsr draw_course
+    lda #$3b                  ; bitmap, display on, 25 rows, y-scroll 3
+    sta TED_CONTROL1
+    rts
+
+; Fire after holing: add the score, then the next hole, the summary after
+; the last one, and from the summary a new round.
+next_hole:
+    lda HOLE
+    cmp #COURSE_COUNT
+    bcs new_round
+    clc
+    lda TOTAL
+    adc SHOTS
+    sta TOTAL
+    inc HOLE
+    lda HOLE
+    cmp #COURSE_COUNT
+    bcc start_hole
+    lda #1
+    sta FIRE_LOCK
+    jmp draw_summary
+new_round:
+    lda #0
+    sta HOLE
+    sta TOTAL
+    beq start_hole
+
+; Clears per-hole state (HOLE and TOTAL lie beyond it), unpacks HOLE.
+; The accepted keys survive, so fire held into a new hole still needs a
+; release before it charges.
 initialise_state:
+    lda KEY_PREVIOUS
+    pha
     lda #0
     ldx #STATE_END - STATE_BEGIN - 1
 clear_state:
     sta STATE_BEGIN,x
     dex
     bpl clear_state
-    ; X = $ff after the loop; the only course so far is index 0.
-    inx
+    pla
+    sta KEY_PREVIOUS
+    sta KEY_CANDIDATE
+    ldx HOLE
     jsr decode_course
     jmp reset_ball
 
@@ -144,7 +177,11 @@ clear_state:
 !source "src/physics.asm"
 !source "src/collision.asm"
 !source "src/course_decoder.asm"
+!ifdef TEST_BUILD {
+!source "build/assets-test.inc"
+} else {
 !source "build/assets.inc"
+}
 ; Test-only stress image: verify the safe copier even after the destination
 ; grows over the original SYS loader and part of its source image.
 !ifdef RELOCATION_TEST_PADDING { !fill RELOCATION_TEST_PADDING, $a5 }
@@ -169,12 +206,20 @@ small_square_hi:
 course_renderer_end:
 !source "src/wide_math.asm"
 wide_math_end:
+!ifdef TEST_BUILD { !source "build/hidden-data-test.inc" } else { !source "build/hidden-data.inc" }
 hidden_rows_end:
 !if hidden_rows_end > $3e00 { !error "hidden code exceeds rows 21-23" }
+; Course data in the black-on-black cells of HUD row 24.
+!ifdef TEST_BUILD {
+!source "build/hud-data-test.inc"
+} else {
+!source "build/hud-data.inc"
+}
 ; Startup uses otherwise unused bytes after the 8000 visible bitmap bytes.
 * = $3f40
 !source "src/initialise_video.asm"
 !source "src/circle_diagonal_guard.asm"
+!ifdef TEST_BUILD { !source "build/tail-data-test.inc" } else { !source "build/tail-data.inc" }
 load_end:
 !if runtime_end > RUNTIME_LIMIT { !error "runtime overlaps attributes" }
 !if load_end > BITMAP_END { !error "PRG exceeds physical C16 RAM" }

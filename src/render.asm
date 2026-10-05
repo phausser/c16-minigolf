@@ -252,17 +252,14 @@ aim_shift_y:
     bne aim_shift_y
     rts
 
-draw_static_hud:
-    lda #24
-    sta TEXT_ROW
+; Whole status row: "BAHN n" left, "PUNKTE n" right aligned.
+draw_status:
     lda #0
     sta TEXT_COLUMN
     lda #<hud_hole
     ldx #>hud_hole
     jsr draw_text_at
-draw_status:
-    lda #5
-    sta TEXT_COLUMN
+    inc TEXT_COLUMN
     ldx HOLE
     inx
     txa
@@ -283,6 +280,39 @@ status_shots:
     cpx #'0'
     beq number_single_digit
     bne number_pair
+; Round summary: total par left ("PAR nn "), "SUMME nnn" right.
+draw_summary:
+    lda #0
+    sta TEXT_COLUMN
+    lda #<hud_par_text
+    ldx #>hud_par_text
+    jsr draw_text_at
+    lda #31
+    sta TEXT_COLUMN
+    lda #<hud_total
+    ldx #>hud_total
+    jsr draw_text_at
+    lda TOTAL
+    ldy #'0'
+total_hundreds:
+    cmp #100
+    bcc total_tens
+    sbc #100
+    iny
+    bne total_hundreds
+total_tens:
+    pha
+    tya
+    cmp #'0'
+    bne total_digit
+    lda #' '
+total_digit:
+    jsr draw_glyph
+    inc TEXT_COLUMN
+    pla
+    jsr number_digits         ; a round has at least 18 strokes
+    jmp number_pair
+
 ; A = 0..99, left aligned in two cells from TEXT_COLUMN.
 draw_number:
     jsr number_digits
@@ -428,6 +458,8 @@ hud_hole:
 !text "BAHN",0
 hud_shots:
 !text " PUNKTE ",0
+hud_total:
+!text "SUMME ",0
 BAR_COLUMN = 15
 BAR_CELLS = 10
 HUD_BAR = $3e00 + BAR_COLUMN * 8

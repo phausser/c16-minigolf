@@ -90,6 +90,8 @@ def render(course, s):
              for row in range(y1//8, y2//8) for col in range(x1//8, x2//8)}
     hud = attribute(s['HUD_FOREGROUND_COLOR'], s['HUD_BACKGROUND_COLOR'])
     luminance, color = [hud[0]]*1024, [hud[1]]*1024
+    for col in [*range(7, 15), *range(25, 31)]:   # course data: black on black
+        luminance[960+col] = color[960+col] = 0
     for row in range(24):
         for col in range(40):
             checker = s['CHECKER_COLOR_ODD'] if (row+col) % 2 else s['CHECKER_COLOR_EVEN']

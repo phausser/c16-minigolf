@@ -55,7 +55,7 @@ def render(index, course):
     r.call('initialise_video')
     r.call('draw_course')
     r.put('HOLE', index)
-    r.call('draw_static_hud')
+    r.call('draw_status')
     dx = course['cup'][0]-course['start'][0]
     dy = course['cup'][1]-course['start'][1]
     r.put('ANGLE', round(math.atan2(dy, dx)/math.tau*128) % 128)

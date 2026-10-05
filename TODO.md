@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-05: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 56 automatisierte Tests bestehen (48 am assemblierten Kern, acht für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31113 von 32000 Ticks (Testbahn ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis das Speicherbudget für 18 Bahnen nachgewiesen ist. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-05: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 59 automatisierte Tests bestehen (51 am assemblierten Kern, acht für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31088 von 32000 Ticks (Test-Build mit Testbahn, ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis das Speicherbudget für 18 Bahnen nachgewiesen ist. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -32,7 +32,7 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] Code-, Daten- und Scratchbedarf messen; 18-Bahnen-Budget mit dem echten Testexport hochrechnen (`make budget`: 18 gleich große Exporte als ausdrückliche Annahme).
 - [x] Schlechteste Framezeit mit Anzeige messen, einschließlich Engstellen und Mehrfachkontakten.
 - [x] Allgemeine schräge Eckentreffer von 38873 auf höchstens 32000 PAL-Ticks optimieren; `make smoke` besteht mit 30173 Ticks, inklusive der vier teuersten Winkel eines 128-Winkel-Sweeps (neue Abprallphysik vom Nutzer in VICE als natürlich bestätigt).
-- [ ] Speicher erweitern (Stand: 357 Runtime-Bytes frei, Decoder und aktuelle Bahn resident; Format 3 mit 28 Bytes je Testbahn, 17 weitere brauchen 510 Bytes, Metadaten und Spielablauf fehlen noch) und echtes 18-Bahnen-Budget nachweisen.
+- [ ] Speicher erweitern (Stand: alle 18 Entwürfe und der Spielablauf sind im Spiel-Build; 14 Bytes frei im Hauptbereich, Bahndaten zusätzlich in HUD-Zeile, versteckten Zeilen und Bitmap-Ende; Entwürfe noch nicht spielgetestet) und echtes 18-Bahnen-Budget nachweisen.
 - [x] Start innerhalb des Fangradius und Lochfang unmittelbar nach einem Abpraller gezielt absichern.
 - [x] Wand-Kontakt-Epsilon gegen Rundungsreste von ein bis zwei Festkommaeinheiten prüfen.
 - [ ] Gleichzeitige Kontakte und schrägere Endpunktfälle vollständig absichern.
@@ -125,9 +125,9 @@ Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kante
 - [ ] Eigener Zeichensatz (zurückgestellt; ROM-Schrift genügt vorerst, eigene Glyphen ~8 Bytes je Zeichen).
 - [ ] HUD mit Loch, Par, Schlägen, Stärke und Gesamtstand fertigstellen (Bahn links, Punkte rechts und pixelweiser Ladebalken in der Mitte umgesetzt; Par und Gesamtstand fehlen).
 - [ ] Training mit freier Lochwahl implementieren.
-- [ ] Lochbilanz und bestätigten Übergang zum nächsten Loch implementieren.
-- [ ] Schlaglimit mit 13er-Wertung und Abbruchmarkierung implementieren.
-- [ ] 18 Ergebnisse, Endwertung und bestätigten Rundenneustart implementieren.
+- [x] Lochbilanz und bestätigten Übergang zum nächsten Loch implementieren (Ergebnis in der Statuszeile, Feuer führt weiter).
+- [x] Schlaglimit mit 13er-Wertung implementieren (Ball verschwindet, PUNKTE 13).
+- [x] Endwertung (PAR links, SUMME rechts) und bestätigten Rundenneustart implementieren; Einzelergebnisse aus Speichergründen nicht gespeichert.
 - [x] Joystick Port 1 integriert und im VICE-Port getestet; Tastatur nur noch P. Feuerdauer steuert Stärke.
 - [ ] Grafiküberlappungen, Pausieren und gehaltene Tasten an Zustandsübergängen prüfen.
 

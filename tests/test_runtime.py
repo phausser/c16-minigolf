@@ -19,7 +19,7 @@ from generate_assets import validate
 from course_reference import render
 
 S = symbols()
-PRG = (ROOT/'build/minigolf.prg').read_bytes()
+PRG = (ROOT/'build/minigolf-test.prg').read_bytes()
 COURSE = json.loads((ROOT/'assets/test-course.json').read_text())
 
 
@@ -54,7 +54,9 @@ class KeyboardBus(list):
 
 
 class Runtime:
-    def __init__(self):
+    def __init__(self, build='minigolf-test'):
+        self.S = S if build == 'minigolf-test' else symbols(build)
+        prg = PRG if build == 'minigolf-test' else (ROOT/f'build/{build}.prg').read_bytes()
         self.bus = KeyboardBus()
         executable = Path(shutil.which('xplus4') or '/usr/bin/xplus4').resolve()
         candidates = [Path(os.environ.get('C16_KERNAL', '/nonexistent')),
@@ -69,13 +71,13 @@ class Runtime:
             raise ValueError(f'C16 KERNAL muss 16384 Bytes haben: {rom_path}')
         self.bus[0xc000:0x10000] = rom
         self.cpu = MPU(memory=self.bus)
-        load = int.from_bytes(PRG[:2], 'little')
-        self.bus[load:load+len(PRG)-2] = PRG[2:]
-        self.cpu.pc = S['loader']
-        self.run_until(S['start'])
+        load = int.from_bytes(prg[:2], 'little')
+        self.bus[load:load+len(prg)-2] = prg[2:]
+        self.cpu.pc = self.S['loader']
+        self.run_until(self.S['start'])
         # Supply the startup-installed lookup row for isolated routine tests.
         # The actual copy/blanking path is checked separately and in VICE.
-        self.bus[0x2000:0x2140] = self.bus[S['lookup_image']:S['lookup_image']+320]
+        self.bus[0x2000:0x2140] = self.bus[self.S['lookup_image']:self.S['lookup_image']+320]
 
     def run_until(self, address, limit=3000000):
         for _ in range(limit):
@@ -87,20 +89,20 @@ class Runtime:
     def call(self, label):
         self.cpu.sp = 255
         self.cpu.stPushWord(0xefff)
-        self.cpu.pc = S[label]
+        self.cpu.pc = self.S[label]
         begin = self.cpu.processorCycles
         self.run_until(0xf000)
         return self.cpu.processorCycles-begin
 
     def get(self, name):
-        return self.bus[S[name]]
+        return self.bus[self.S[name]]
 
     def put(self, name, value):
-        self.bus[S[name]] = value & 255
+        self.bus[self.S[name]] = value & 255
 
     def word(self, name, value):
         self.put(name, value)
-        self.bus[S[name]+1] = value >> 8
+        self.bus[self.S[name]+1] = value >> 8
 
 
 def bitmap_offset(x, y):
@@ -124,7 +126,7 @@ class HardwareTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)/'stress.prg'
             subprocess.run(['acme','--cpu','6502','--format','cbm',
-                            f'-DRELOCATION_TEST_PADDING={padding}', '--outfile',str(path),
+                            '-DTEST_BUILD=1', f'-DRELOCATION_TEST_PADDING={padding}', '--outfile',str(path),
                             'src/main.asm'], cwd=ROOT, check=True, capture_output=True)
             prg = path.read_bytes()
         bus = [0]*65536
@@ -150,13 +152,16 @@ class HardwareTests(unittest.TestCase):
         self.r.bus[0x3f40:0x4000] = startup
         self.r.bus[S['lookup_image']:S['lookup_image']+320] = lookup
         self.r.call('initialise_video')
-        # HUD palette everywhere; draw_course colors rows 0..23 later.
+        # HUD palette everywhere; draw_course colors rows 0..23 later. The
+        # loaded course data in HUD cells 7..14 and 25..30 is black on black.
         luma, colors = [7]*1024,[16]*1024
+        for col in [*range(7,15), *range(25,31)]:
+            luma[960+col] = colors[960+col] = 0
         self.assertEqual(self.r.bus[0x1800:0x1c00], luma)
         self.assertEqual(self.r.bus[0x1c00:0x2000], colors)
         self.assertEqual(self.r.bus[0x2000:0x2140],lookup)
         self.assertEqual(self.r.bus[0x2140:0x3a40], [0]*6400)
-        self.assertEqual(self.r.bus[0x3e00:0x3f40], [0]*320)
+        self.assertEqual(self.r.bus[0x3e00:0x3f40], [255]*320)  # not cleared
         self.assertEqual(self.r.bus[0x3a40:0x3e00],hidden)
         self.assertEqual(self.r.bus[0x3f40:0x4000],startup)
         self.assertEqual(self.r.bus[0xff06], 0x0b)
@@ -181,7 +186,10 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.bus[0x1800:0x1800+960], luminance[:960])
         self.assertEqual(self.r.bus[0x1c00:0x1c00+960], color[:960])
         self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
-        self.assertEqual(bytes(self.r.bus[0x3e00:0x3f40]), expected[7680:])
+        # Row 24 keeps the loaded course data in its black-on-black cells.
+        hud = [*range(0,7), *range(15,25), *range(31,40)]
+        self.assertEqual([self.r.bus[0x3e00+c*8:0x3e08+c*8] for c in hud],
+                         [list(expected[7680+c*8:7688+c*8]) for c in hud])
 
     def test_frame_and_outer_edges_for_all_diagonal_directions(self):
         from course_codec import encode
@@ -471,14 +479,28 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.get('CHARGING'),0)
         self.assertEqual(self.r.get('SHOTS'),1)
 
-    def test_holed_fire_restarts_but_requires_release_before_charge(self):
+    def test_holed_fire_scores_then_summary_then_new_round(self):
+        self.r.call('initialise_video')
         self.tick(0)
         self.tick(0)
         self.r.put('HOLED',1)
+        self.r.put('SHOTS',3)
         self.tick(32)
         self.tick(32)
-        self.assertEqual(self.r.get('HOLED'),0)
-        self.assertEqual(self.r.get('FIRE_LOCK'),1)
+        # The test build has one course: its score leads to the summary.
+        self.assertEqual(self.r.get('HOLE'), S['COURSE_COUNT'])
+        self.assertEqual(self.r.get('TOTAL'), 3)
+        self.assertEqual(self.r.get('HOLED'), 1)
+        self.assertEqual(self.r.get('FIRE_LOCK'), 1)
+        for _ in range(20):
+            self.tick(32)
+        self.assertEqual(self.r.get('HOLE'), S['COURSE_COUNT'])
+        self.tick(0)
+        self.tick(0)
+        self.tick(32)
+        self.tick(32)
+        self.assertEqual((self.r.get('HOLE'), self.r.get('TOTAL'), self.r.get('HOLED')), (0, 0, 0))
+        self.assertEqual(self.r.get('FIRE_LOCK'), 1)
         for _ in range(20):
             self.tick(32)
         self.assertEqual(self.r.get('CHARGING'),0)
@@ -487,6 +509,41 @@ class HardwareTests(unittest.TestCase):
         self.tick(32)
         self.tick(32)
         self.assertEqual(self.r.get('CHARGING'),1)
+
+    def test_twelfth_stroke_without_holing_counts_thirteen(self):
+        for shots, holed, expected in ((11, 0, (11, 0)), (12, 0, (13, 13)), (12, 1, (12, 1))):
+            self.r.put('SHOTS', shots)
+            self.r.put('HOLED', holed)
+            self.r.call('stop_ball')
+            self.assertEqual((self.r.get('SHOTS'), self.r.get('HOLED')), expected)
+
+    def test_summary_shows_total_par_left_and_strokes_right(self):
+        self.r.call('initialise_video')
+        def text(column, count):
+            return [bytes(self.r.bus[0x3e00+c*8:0x3e00+c*8+8]) for c in range(column, column+count)]
+        def glyph(char):
+            code = ord(char) & 63
+            return bytes(self.r.bus[0xd000+code*8:0xd000+code*8+8])
+        par = json.loads((ROOT/'assets/test-course.json').read_text()).get('par', 0)
+        for total, right in ((61, 'SUMME  61'), (123, 'SUMME 123')):
+            self.r.put('TOTAL', total)
+            self.r.call('draw_summary')
+            self.assertEqual(text(0, 7), [glyph(c) for c in f'PAR {par:<3}'])
+            self.assertEqual(text(31, 9), [glyph(c) for c in right])
+
+    def test_game_build_plays_the_18_drafts_in_order(self):
+        from course_codec import encode
+        game = Runtime('minigolf')
+        self.assertEqual(game.S['COURSE_COUNT'], 18)
+        for hole, path in enumerate(sorted((ROOT/'assets/courses').glob('*.json'))):
+            course = json.loads(path.read_text())
+            address = game.bus[game.S['course_table_lo']+hole]+256*game.bus[game.S['course_table_hi']+hole]
+            data = encode(course)
+            self.assertEqual(game.bus[address:address+len(data)], list(data), hole)
+            game.put('HOLE', hole)
+            game.call('initialise_state')
+            self.assertEqual(game.get('COURSE_START_Y'), course['start'][1], hole)
+            self.assertEqual(game.get('COURSE_CUP_Y'), course['cup'][1], hole)
 
     def test_decoder_matches_host_reference_segments(self):
         from generate_assets import expanded_segments
@@ -531,7 +588,7 @@ class HardwareTests(unittest.TestCase):
             step()
             lowest[0] = min(lowest[0], self.r.cpu.sp)
         self.r.cpu.step = tracked_step
-        for label in ('initialise_video','draw_course','draw_static_hud',
+        for label in ('initialise_video','draw_course','draw_status',
                       'draw_dynamic','draw_power'):
             self.r.call(label)
         frame = ('scan_keyboard','debounce_keyboard','apply_controls',
@@ -550,7 +607,7 @@ class HardwareTests(unittest.TestCase):
 
     def test_power_bar_grows_pixel_by_pixel(self):
         self.r.call('initialise_video')
-        self.r.call('draw_static_hud')
+        self.r.call('draw_status')
         base = 0x3e00+S['BAR_COLUMN']*8
         for power in (0,1,2,3,7,32,31,16,0,32,0,5,6,5,32):
             self.r.put('POWER', power)
@@ -573,7 +630,7 @@ class HardwareTests(unittest.TestCase):
                                          (8,9,'BAHN 9 ',' PUNKTE 9')):
             self.r.put('HOLE', hole)
             self.r.put('SHOTS', shots)
-            self.r.call('draw_static_hud')
+            self.r.call('draw_status')
             self.assertEqual(text(0,7), [glyph(c) for c in left])
             self.assertEqual(text(31,9), [glyph(c) for c in right])
 
@@ -586,7 +643,7 @@ class HardwareTests(unittest.TestCase):
         pointer = 0x2000+bitmap_offset(312,192)
         self.assertEqual(self.r.bus[pointer:pointer+8], [24,60,102,126,102,102,102,0])
         self.r.put('SHOTS', 13)               # widest count: no blank cell
-        self.r.call('draw_static_hud')
+        self.r.call('draw_status')
         for power in range(33):
             self.r.put('POWER', power)
             self.r.call('draw_power')

@@ -6,15 +6,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def symbols():
+# Tests, smoke runs and profiles use the test-course build.
+TEST_BUILD = 'minigolf-test'
+
+
+def symbols(name=TEST_BUILD):
     return {n: int(v,16) for n,v in re.findall(
         r'^\s*(\w+)\s*=\s*\$([0-9a-fA-F]+)',
-        (ROOT/'build/minigolf.sym').read_text(), re.M)}
+        (ROOT/f'build/{name}.sym').read_text(), re.M)}
 
 
-def check():
-    s = symbols()
-    prg = (ROOT/'build/minigolf.prg').read_bytes()
+def check(name='minigolf'):
+    s = symbols(name)
+    prg = (ROOT/f'build/{name}.prg').read_bytes()
     load = int.from_bytes(prg[:2], 'little')
     assert load == 0x1001 and s['loader'] == 4109, 'BASIC SYS entry mismatch'
     assert s['RELOCATOR_BASE'] <= s['relocate'] < s['relocator_end'] <= s['RUNTIME_BASE']
@@ -36,12 +40,15 @@ def check():
         'hidden_rows_code_bytes': s['hidden_rows_end']-0x3a40,
         'hidden_rows_free_bytes': 0x3e00-s['hidden_rows_end'],
         'bitmap_tail_init_bytes': s['circle_diagonal_guard']-0x3f40,
-        'bitmap_tail_guard_bytes': s['load_end']-s['circle_diagonal_guard'],
+        'bitmap_tail_guard_and_data_bytes': s['load_end']-s['circle_diagonal_guard'],
+        'bitmap_tail_free_bytes': 0x4000-s['load_end'],
         'bitmap_reserved_bytes': 8192,
     }
-    (ROOT/'build/memory.json').write_text(json.dumps(report, indent=2)+'\n')
-    print(f"Runtime: {report['runtime_bytes']} bytes, {report['runtime_free_bytes']} bytes free before attributes; PRG: {len(prg)} bytes")
+    suffix = '' if name == 'minigolf' else '-test'
+    (ROOT/f'build/memory{suffix}.json').write_text(json.dumps(report, indent=2)+'\n')
+    print(f"{name} runtime: {report['runtime_bytes']} bytes, {report['runtime_free_bytes']} bytes free before attributes; PRG: {len(prg)} bytes")
 
 
 if __name__ == '__main__':
-    check()
+    import sys
+    check(*sys.argv[1:])

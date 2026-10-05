@@ -258,6 +258,16 @@ stop_ball:
     sta VELOCITY_Y
     sta VELOCITY_Y + 1
     sta ROLLING
+    ; After 12 strokes without holing, the hole counts 13 and ends.
+    lda SHOTS
+    cmp #12
+    bcc stop_status
+    lda HOLED
+    bne stop_status
+    lda #13
+    sta SHOTS
+    sta HOLED
+stop_status:
     lda #2
     sta HUD_DIRTY
     rts

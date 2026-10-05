@@ -108,8 +108,7 @@ control_held:
     bne controls_done
     lda HOLED
     beq control_charge
-    jsr reset_ball
-    rts
+    jmp next_hole
 control_charge:
     lda CHARGING
     bne control_charge_tick

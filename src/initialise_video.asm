@@ -42,6 +42,24 @@ video_install_lookup_tail:
     sta BITMAP_BASE + 256,y
     dey
     bpl video_install_lookup_tail
+    ; HUD cells 7..14 and 25..30 hold loaded course data: black on black.
+    lda #0
+    ldx #7
+video_hud_data:
+    sta LUMINANCE_BASE + 960 + 7,x
+    sta COLOR_BASE + 960 + 7,x
+    cpx #6
+    bcs video_hud_data_next
+    sta LUMINANCE_BASE + 960 + 25,x
+    sta COLOR_BASE + 960 + 25,x
+video_hud_data_next:
+    dex
+    bpl video_hud_data
+    lda #24
+    sta TEXT_ROW
+; Rows 1..20 plus the hidden-code gap below are cleared from $2140 up to
+; $3a3f; rows 0, 21..24 keep lookup data, code and the loaded HUD row.
+clear_playfield:
     lda #$40
     sta BITMAP_PTR
     lda #$21
@@ -56,6 +74,4 @@ video_clear_page:
     inc BITMAP_PTR + 1
     dex
     bne video_clear_page
-    ; Rows 0 and 21..23 get equal checker colors in draw_course; the
-    ; display stays off until then.
-    jmp clear_hud_bitmap
+    rts

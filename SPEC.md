@@ -36,11 +36,12 @@ keine ungewollte Aufladung durch eine bereits gehaltene Taste.
 - Kurzes Drücken bewegt einen Schritt; Halten wiederholt nach einer Verzögerung. Keine automatisch pendelnde Stärkeanzeige.
 - Ein Schlag ist nur bei ruhendem Ball möglich. Nach einem Schlag verschwindet die Richtungsmarke; die Stärkeanzeige steht wieder auf 0.
 - Richtung und Stärke bleiben vollständig frei wählbar; empfohlenes Par verlangt kein pixelgenaues Rätsel.
-- Nach Einlochen wird das Ergebnis kurz angezeigt; Bestätigung führt weiter.
-- Nach 12 Schlägen ohne Einlochen wird das Loch mit 13 Schlägen gewertet und als abgebrochen markiert. Kein endloser Stillstand.
-- Neustart der ganzen Runde nur über eine eigene bestätigte Menüaktion.
+- Nach Einlochen verschwindet der Ball, „PUNKTE“ zeigt das Ergebnis; Feuer führt zur nächsten Bahn (vorher loslassen).
+- Nach 12 Schlägen ohne Einlochen wird das Loch mit 13 Schlägen gewertet: der Ball verschwindet, „PUNKTE 13“. Kein endloser Stillstand.
+- Nach Bahn 18 zeigt die Statuszeile links „PAR nn“ (Gesamtpar) und rechts „SUMME nnn“; Feuer beginnt eine neue Runde. Weitere Ergebnisbilder entfallen aus Speichergründen.
+- Neustart der ganzen Runde nur über diese bestätigte Endanzeige.
 
-18-Loch-Runde und Trainingsmodus mit frei wählbarem Loch. Die Runde speichert 18 Ergebnisse im RAM; Endbild zeigt alle Schläge, Gesamtsumme und Abweichung vom Gesamtpar. Kein persistenter Highscore im ersten Release.
+18-Loch-Runde; die Runde speichert die Gesamtsumme. Trainingsmodus und Einzelergebnisse nur, falls der Speicher es nach der Bahnabnahme zulässt. Kein persistenter Highscore im ersten Release.
 
 ## Physik: präzise, konsistent, testbar
 
@@ -132,7 +133,7 @@ Bahnquelle in menschenlesbarem Datenformat: Name, Par, Abschlag, Loch, Außenkon
 | $0000–$01FF | 512 | Zero Page und Hardwarestack; reservierte CPU-Port-Adressen respektieren. |
 | $0200–$17FF | 5632 | Startstub, Code, Tabellen, alle gepackten Bahnen, Zustand und Scratch. |
 | $1800–$1FFF | 2048 | TED-Attribute, feste Farb-/Luminanzwerte. |
-| $2000–$3FFF | 8192 | Bitmap; 8000 sichtbare Bytes, Rest zunächst reserviert. |
+| $2000–$3FFF | 8192 | Bitmap; Zeile 0 Rechentabellen, Zeilen 21–23 Code und Bahndaten (schwarz auf schwarz), Zeile 24 Status mit Bahndaten in den Zellen 7–14 und 25–30 (schwarz auf schwarz), Bytes ab $3F40 Startcode und Daten. |
 
 Arbeitsbudget innerhalb der 5632 Bytes: 3500 Code/Stub, 1400 gepackte Bahnen/Texte, 300 Tabellen, 432 Zustand/entpackte aktuelle Bahn/Scratch. Das ist eine harte Arbeitshypothese, keine bereits bewiesene Passform. ACME-Symbole, Assemblierzeit-Grenzprüfungen und Größenbericht müssen jeden Bereich nachweisen. Kein Heap; Scratch wird zwischen ausschließlich nacheinander aktiven Routinen geteilt. Das Programm darf beim Laden den BASIC-Arbeitsbereich überschreiben, kehrt anschließend nicht zu BASIC zurück.
 

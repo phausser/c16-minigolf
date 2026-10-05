@@ -1,18 +1,3 @@
-clear_hud_bitmap:
-    ; Clear visible HUD row 24; rows 21-23 hold hidden code.
-    lda #0
-    ldx #0
-clear_hud_main:
-    sta $3e00,x
-    inx
-    bne clear_hud_main
-    ldx #63
-clear_hud_tail:
-    sta $3f00,x
-    dex
-    bpl clear_hud_tail
-    rts
-
 ; TED's low raster byte wraps again at line 256. Crossing line 205 from
 ; below still occurs exactly once per PAL frame. A frame's drawing has to
 ; finish before the next crossing; VICE smoke measures this independently.
