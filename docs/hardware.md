@@ -378,23 +378,23 @@ Ergebnis: Runtime 4979 Bytes, 653 frei; schlechtester Frame 30173/32000.
 
 ## Rahmen, Schrägen und grünes Schachbrett (2026-10-05)
 
-initialise_course_colors (src/course_renderer.asm, versteckte Zeilen)
-klassifiziert nach dem Füllen jede Zelle der Zeilen 1–20 aus ihren acht
-Bitmapbytes: Fläche (alle 0), innere Schräge (gemischt), fest (alle 1).
-Die Klassen liegen vorübergehend in der Farbmatrix (Anzeige aus). Jede
-innere Schräge kopiert ihr Muster in die Nachbarzelle zur festen Seite,
-waagerecht und senkrecht: das ist die äußere Rahmenschräge (Grün auf
-Schwarz). Erkannt wird die feste Seite am rechten Pixel der Mittelzeile
-und am mittleren Pixel der obersten Zeile. Feste Zellen mit einer Flächen-
-zelle in der 8er-Nachbarschaft werden schwarzer Rahmen, die übrigen grünes
-Schachbrett. Eine Tabelle (Klasse × Parität) liefert die Attribute für die
-Zeilen 0–23; die versteckten Zeilen bekommen gleiche Vorder- und
-Hintergrundfarbe. Palette: Fläche $61, Rahmen/Markierungen $00, Schachbrett
-$35/$45. Der Ball hat drei Zeilenformen ($70, $f8, $b8 mit Glanzpunkt).
+draw_course (versteckte Zeilen): Die Spielfläche startet leer. Die Even/Odd-
+Füllung setzt die Flächenpixel; classify_course_cells merkt Zellen mit Fläche
+(Klassen vorübergehend in der Farbmatrix, Anzeige aus). dilate_course
+(Runtime) dehnt die gesetzten Pixel in place um 4 Pixel aus: waagerecht pro
+Pixelzeile mit 16-Bit-Schiebefenstern aus den Originalnachbarn, senkrecht in
+einem Abwärts- und einem Aufwärtsdurchgang mit vier Originalbytes Gedächtnis.
+Volle und leere Bytes ohne Nachbarn werden übersprungen. Eine zweite,
+identische XOR-Füllung löscht die Fläche wieder; übrig bleibt der Rahmen
+(4 px gerade, 8 px waagerecht an Schrägen, rechtwinklige Ecken). Attribute
+aus Klasse × Schachbrettparität: Fläche $61 mit schwarzer Tinte, übrige
+Spielfeldzellen Schwarz auf Grün $35/$45, Zeilen 0 und 21–23 Grün auf Grün.
+Ball mit Zeilenformen $70, $f8, $b8 (Glanzpunkt).
 
-tests/course_reference.py ist ein unabhängiges Pixelmodell für Bitmap und
-Attribute. Es wird für die Testbahn, für Schrägen in allen vier Richtungen,
-für einspringende Schrägen und im VICE-Smoke-Test verwendet. Das
-Eingabemodul liegt wieder in der Runtime; emit_segment ist in die
-versteckten Zeilen umgezogen. Runtime 5176 Bytes, 456 frei; versteckte Zeilen
-907/960. VICE: schlechtester Frame 30367/32000 Ticks.
+Aufbau eines Lochs (py65): Füllung 2 × 488k, Klassen 106k, Ausdehnung
+~1,27 Mio., Farben 66k Zyklen, zusammen ~2,4 Mio. (≈1,4 s bei
+abgeschalteter Anzeige). tests/course_reference.py ist ein unabhängiges
+Pixelmodell (9×9-Nachbarschaft) für Testbahn, Schrägen in allen vier
+Richtungen, einspringende Schrägen und den VICE-Smoke-Test. Bahn-Decoder
+liegt jetzt vollständig in den versteckten Zeilen (925/960), Runtime 5288
+Bytes, 344 frei. VICE: schlechtester Frame 30371/32000 Ticks.

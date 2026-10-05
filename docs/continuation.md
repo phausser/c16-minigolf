@@ -283,3 +283,8 @@ Glanzpunkt oben links, grünes Schachbrett überall außerhalb (auch in den
 versteckten Zeilen). Details in docs/hardware.md. Kosten: ca. 200 Bytes;
 Runtime 456 frei. Für 17 weitere Testbahn-Größen fehlen damit ~190 Bytes
 plus Metadaten.
+
+Rahmen auf Nutzerwunsch geändert: 4 px an geraden Kanten, Schrägen 8 px
+waagerecht (Ausdehnung der Fläche um 4 px im Quadrat, zweite XOR-Füllung).
+Aufbau eines Lochs ≈1,4 s. Runtime 344 frei; für 17 weitere Testbahn-Größen
+fehlen ~300 Bytes plus Metadaten.

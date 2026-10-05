@@ -48,7 +48,7 @@ video_install_lookup_tail:
     sta BITMAP_PTR + 1
     ldx #25
     ldy #0
-    lda #$ff                 ; black solid; parity fill opens gray floor
+    lda #0                   ; clear playfield; draw_course fills the floor
 video_clear_page:
     sta (BITMAP_PTR),y
     iny

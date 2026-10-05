@@ -155,7 +155,7 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.bus[0x1800:0x1c00], luma)
         self.assertEqual(self.r.bus[0x1c00:0x2000], colors)
         self.assertEqual(self.r.bus[0x2000:0x2140],lookup)
-        self.assertEqual(self.r.bus[0x2140:0x3a40], [255]*6400)
+        self.assertEqual(self.r.bus[0x2140:0x3a40], [0]*6400)
         self.assertEqual(self.r.bus[0x3e00:0x3f40], [0]*320)
         self.assertEqual(self.r.bus[0x3a40:0x3e00],hidden)
         self.assertEqual(self.r.bus[0x3f40:0x4000],startup)

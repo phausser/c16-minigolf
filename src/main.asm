@@ -135,7 +135,7 @@ clear_state:
 !source "src/render.asm"
 !source "src/physics.asm"
 !source "src/collision.asm"
-!source "src/course_decoder.asm"
+!source "src/course_dilate.asm"
 !source "build/assets.inc"
 ; Test-only stress image: verify the safe copier even after the destination
 ; grows over the original SYS loader and part of its source image.
@@ -161,7 +161,7 @@ small_square_hi:
 course_renderer_end:
 !source "src/wide_math.asm"
 wide_math_end:
-!source "src/course_emit.asm"
+!source "src/course_decoder.asm"
 hidden_rows_end:
 !if hidden_rows_end > $3e00 { !error "hidden code exceeds rows 21-23" }
 ; Startup uses otherwise unused bytes after the 8000 visible bitmap bytes.
