@@ -10,16 +10,16 @@ Planungsannahmen: PAL als erstes Ziel, ein Spieler, C16-kompatibler Joystick an 
 
 ## Darstellung und Atmosphäre
 
-- TED Standard-Hi-Res-Bitmap, 320 × 200 Pixel, fester Bildschirm ohne Scrollen.
+- TED-Textmodus, 40 × 25 Zellen zu 8 × 8 Pixeln (320 × 200, kein Multicolor), Zeichensatz mit 128 Zeichen im RAM, fester Bildschirm ohne Scrollen. Globaler Hintergrund schwarz, je Zelle eine Vordergrundfarbe: jede Zelle zeigt höchstens eine Farbe plus Schwarz. Neue Bahnelemente müssen diese Regel einhalten. Entschieden am 2026-10-05 statt Hi-Res-Bitmap, um rund 5,5 KB RAM freizumachen; das Bild ist pixelgleich zum früheren Bitmap-Stand.
 - Spielfeldbereich: x = 8…311, y = 8…167. Statusbereich: y = 176…199; dazwischen Abstand.
-- Spielbare Flächen glatt hellgrau (Luminanz 6). Schwarzer Rahmen: an geraden Kanten 6 Pixel (optisch gleich stark wie die Schräge, 8/√2 ≈ 5,7) (die von der Fläche am weitesten entfernte Pixelzeile bzw. -spalte der Rahmenzelle bleibt grün), Außenecken rechtwinklig. An 45°-Schrägen liegt die äußere Kante genau eine Zelle weiter außen und ist glatt (8 Pixel waagerecht, ≈5,7 quer); so hat jede Zelle höchstens zwei Farben. Hindernisse erhalten dieselben Bänder; schmale Hindernisse behalten einen grünen Spalt. Alles übrige, auch die versteckten Zeilen 0 und 21–23 (gleiche Vorder- und Hintergrundfarbe), zeigt ein grünes Schachbrett: jede Zelle mittelgrün, Nachbarzellen eine Luminanzstufe verschieden. Wasserflächen sind ganze Bodenzellen ohne Rahmen im blauen Schachbrett (schwarze Vordergrundfarbe, damit Ball und Zielmarke sichtbar bleiben); Wände neben Wasser behalten ihren Rahmen. Ball und Zielmarke schwarz; das Loch ist eine gefüllte, runde schwarze Scheibe mit 7 Pixel Durchmesser. HUD weiß auf Schwarz.
+- Spielbare Flächen glatt hellgrau (Luminanz 6). Schwarzer Rahmen: an geraden Kanten 6 Pixel (optisch gleich stark wie die Schräge, 8/√2 ≈ 5,7) (die von der Fläche am weitesten entfernte Pixelzeile bzw. -spalte der Rahmenzelle bleibt grün), Außenecken rechtwinklig. An 45°-Schrägen liegt die äußere Kante genau eine Zelle weiter außen und ist glatt (8 Pixel waagerecht, ≈5,7 quer); so hat jede Zelle höchstens zwei Farben. Hindernisse erhalten dieselben Bänder; schmale Hindernisse behalten einen grünen Spalt. Alles übrige, auch die Zeilen 0 und 21–23 (volles Zeichen), zeigt ein grünes Schachbrett: jede Zelle mittelgrün, Nachbarzellen eine Luminanzstufe verschieden. Wasserflächen sind ganze Bodenzellen ohne Rahmen im blauen Schachbrett (Ball und Zielmarke löschen Pixel und erscheinen schwarz); Wände neben Wasser behalten ihren Rahmen. Ball und Zielmarke schwarz; das Loch ist eine gefüllte, runde schwarze Scheibe mit 7 Pixel Durchmesser. HUD weiß auf Schwarz.
 - Ball: kompakte 5 × 5-Pixel-Marke mit einem freien Glanzpunkt oben links, physikalischer Radius 2 Pixel. Loch: gefüllte schwarze Scheibe, 7 Pixel Durchmesser.
 - Die Grenze zwischen Grau und Schwarz entspricht der physikalischen Kollisionskante. Alle Eckpunkte liegen auf dem 8×8-Zellraster; gerade Kanten folgen Zellgrenzen, 45°-Kanten schneiden Zellen genau diagonal.
 - Laufrichtung vor dem Schlag als kurze gepunktete Linie: sieben Punkte im Abstand von 4 Pixeln im Fenster 8–35 Pixel vor der Ballmitte. Die Punkte wandern alle vier Bilder um einen Pixel nach außen; der äußerste verschwindet und erscheint innen wieder. Keine vollständige Flugbahnvorhersage.
 - HUD (Zeile 24, unter dem Rasen): links „BAHN n“ ab Spalte 0, rechtsbündig „PUNKTE n“ (Schläge auf dieser Bahn, aktualisiert beim Stillstand), mittig (Spalten 15–24) ein Ladebalken über zehn Zellen: in Ruhe eine 1 Pixel hohe Linie in Glyphenzeile 3; beim Aufladen werden die ersten 5·Stärke/2 Pixel (80 bei voller Stärke) 5 Pixel hoch (Zeilen 1–5). Keine Anleitung oder Statuswörter darunter. Weitere Wertungen auf separaten Ergebnisbildern; Spieltext ohne Umlaute.
 - Gleichmäßig gefärbte Flächen ohne Schatten oder Pixelmuster; das Schachbrett entsteht zellweise über Farben. Keine Perspektive und keine Hardware-Sprites.
 
-Statische Bahn einmal zeichnen. Ball, Zielmarke und kleine Effekte als Softwaregrafik mit gesichertem Hintergrund aktualisieren. Überlappende Elemente werden in fester Reihenfolge restauriert und neu gezeichnet. Keine vollständige Bitmap-Kopie im RAM, kein Vollbild-Neuzeichnen pro Frame und kein flackerndes XOR als Standardlösung.
+Statische Bahn einmal je Bahnwechsel bei abgeschaltetem Bild zeichnen: dreizeiliger Pixelpuffer, jede fertige Zelle wird als Zeichen abgelegt (höchstens 64 verschiedene Bahnzeichen; bei Überlauf roter Rahmen, der Test bricht ab). Ball und Zielpunkte belegen bis zu zwölf dynamische Zeichen: das statische Zeichen der Zelle wird kopiert und die Pixel gelöscht; Wiederherstellen setzt die statischen Zeichencodes zurück. Kein Vollbild-Neuzeichnen pro Frame und kein flackerndes XOR als Standardlösung.
 
 ## Spielablauf und Eingabe
 
@@ -131,13 +131,16 @@ Bahnquelle in menschenlesbarem Datenformat: Name, Par, Abschlag, Loch, Außenkon
 | Bereich | Bytes | Verwendung |
 |---|---:|---|
 | $0000–$01FF | 512 | Zero Page und Hardwarestack; reservierte CPU-Port-Adressen respektieren. |
-| $0200–$17FF | 5632 | Startstub, Code, Tabellen, alle gepackten Bahnen, Zustand und Scratch. |
-| $1800–$1FFF | 2048 | TED-Attribute; die je 24 Bytes nach den 1000-Byte-Matrizen halten Bahndaten ($1BFF bleibt als Klassifizierungsrand „versteckt“). |
-| $2000–$3FFF | 8192 | Bitmap; Zeile 0 Rechentabellen, Zeilen 21–23 Code und Bahndaten (schwarz auf schwarz), Zeile 24 Status mit Bahndaten in den Zellen 7–14 und 25–30 (schwarz auf schwarz), Bytes ab $3F40 Startcode und Daten. |
+| $0200–$2FFE | 11775 | Code, Tabellen, alle gepackten Bahnen, Zustand. |
+| $2FFF | 1 | Klassifizierungsrand „versteckt“ (Zelle −1), zur Laufzeit geschrieben. |
+| $3000–$33FF | 1024 | TED-Attribute (Vordergrundfarbe je Zelle; beim Zeichnen Zellklassen). |
+| $3400–$37FF | 1024 | Zeichencodes. |
+| $3800–$3BFF | 1024 | Zeichensatz: ROM-Schrift, Ladebalken, dynamische und Bahnzeichen. |
+| $3C00–$3FFF | 1024 | Pixelpuffer des Bahnzeichners (3 Zellzeilen), sonst frei. |
 
-Arbeitsbudget innerhalb der 5632 Bytes: 3500 Code/Stub, 1400 gepackte Bahnen/Texte, 300 Tabellen, 432 Zustand/entpackte aktuelle Bahn/Scratch. Das ist eine harte Arbeitshypothese, keine bereits bewiesene Passform. ACME-Symbole, Assemblierzeit-Grenzprüfungen und Größenbericht müssen jeden Bereich nachweisen. Kein Heap; Scratch wird zwischen ausschließlich nacheinander aktiven Routinen geteilt. Das Programm darf beim Laden den BASIC-Arbeitsbereich überschreiben, kehrt anschließend nicht zu BASIC zurück.
+Stand 2026-10-05: Laufzeitbereich 8248 Bytes belegt, 3527 Bytes frei vor den Attributen. ACME-Symbole, Assemblierzeit-Grenzprüfungen und Größenbericht müssen jeden Bereich nachweisen. Kein Heap; Scratch wird zwischen ausschließlich nacheinander aktiven Routinen geteilt. Das Programm darf beim Laden den BASIC-Arbeitsbereich überschreiben, kehrt anschließend nicht zu BASIC zurück.
 
-Hi-Res benötigt einen großen Anteil der 16 KB. Deshalb wird vor der Produktion aller Bahnen ein vollständiger Vertikalschnitt mit echtem Physikkern und Größenmessung gebaut. Falls das Budget scheitert: Daten und Text komprimieren, Routinen vereinfachen und Effekte kürzen. Keine stille Umstellung auf 64 KB, Multicolor oder schwächere Eckphysik. Ein notwendiger Architekturwechsel wird ausdrücklich neu entschieden.
+Falls das Budget scheitert: Daten und Text komprimieren, Routinen vereinfachen und Effekte kürzen. Keine stille Umstellung auf 64 KB, Multicolor oder schwächere Eckphysik. Ein notwendiger Architekturwechsel wird ausdrücklich neu entschieden.
 
 ### Zeitbudget
 
@@ -151,7 +154,7 @@ Tests: deterministische Wiedergaben im tatsächlichen 6502-Kern, unabhängige ho
 
 ## Technische Quellen und offene Nachweise
 
-Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf), insbesondere Standard-Hi-Res, Bitmap-Organisation, Register und Timing. Der Hi-Res-Modus hat 320 × 200 Pixel und einen 8-KB-ausgerichteten Bitmap-Bereich. Registerwerte, Attributadressierung, RAM-Ladeverhalten und PAL/NTSC-Erkennung sind vor Implementierung am Datenblatt und im Emulator zu verifizieren. Gemessene Register- und Laufzeitnachweise stehen in docs/hardware.md; offene Freigaben sind in TODO.md ausgewiesen.
+Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf), insbesondere Textmodus, Zeichensatz- und Bildschirmadressierung, Register und Timing. Der Bildschirmblock (Attribute, dann Zeichencodes) ist 2-KB-, der Zeichensatz 1-KB-ausgerichtet. Registerwerte, Attributadressierung, RAM-Ladeverhalten und PAL/NTSC-Erkennung sind vor Implementierung am Datenblatt und im Emulator zu verifizieren. Gemessene Register- und Laufzeitnachweise stehen in docs/hardware.md; offene Freigaben sind in TODO.md ausgewiesen.
 
 Keine Rückfrage ist zum Start nötig. Die oben genannten Annahmen legen einen konkreten ersten Release fest; Steuerung und physikalische Konstanten werden nach dem spielbaren Prototyp fein abgestimmt.
 

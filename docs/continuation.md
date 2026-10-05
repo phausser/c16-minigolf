@@ -320,3 +320,16 @@ Nächster Schritt laut Nutzer: Umstieg auf den Textmodus nach
 SPEC) und 2 (Referenzbilder sichern, Text→Pixel-Helfer) beginnen.
 Bildschirm verkleinern (Zeile 20) bleibt die letzte Option und ist damit
 vorerst vom Tisch. Eigener Zeichensatz ist zurückgestellt.
+
+## Stand 2026-10-05 nachts: Textmodus umgesetzt
+
+Textmodus nach [textmode-plan.md](textmode-plan.md) ist fertig und gepusht:
+Schritte 1–8 erledigt, alle 18 Bahnen pixelgleich zur Referenz, 61 Tests,
+VICE-Smoke 31107/32000 Ticks. Laufzeitbereich 8248 Bytes, 3527 frei.
+Ballzeichnung nach dem Umbau zunächst zu langsam (36143 Ticks), behoben durch
+Maskentabelle und Zeichensuche nur beim Zellwechsel. Sound: Effekte 51/38/53
+aus c16-sound-fx, Hörprüfung durch den Nutzer steht aus.
+
+Offen: Bahnwechsel 1,6–3,1 Mio. Zyklen statt früher ≈1,03 Mio. (Füllung je
+Zellzeile über alle Kanten, lineare Mustersuche); freien Speicher verteilen
+(Plan, Schritt 9).

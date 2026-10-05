@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-05: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 60 automatisierte Tests bestehen (52 am assemblierten Kern, acht für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31269 von 32000 Ticks (Test-Build mit Testbahn, ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis das Speicherbudget für 18 Bahnen nachgewiesen ist. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-05: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 61 automatisierte Tests bestehen. VICE bestätigt ROM-Start, Textmodus, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31107 von 32000 Ticks (Test-Build mit Testbahn, ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis das Speicherbudget für 18 Bahnen nachgewiesen ist. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -67,20 +67,21 @@ Laufzeitabnahme bestanden: 30173 ≤ 32000 PAL-Ticks
 auf der veränderten Testbahn. Historische Physik-Replays verwenden ihre
 ursprüngliche Geometrie in fixtures/course-before-cell-grid.json.
 
-### Nächster großer Schritt: Textmodus (geplant 2026-10-05)
+### Textmodus (umgesetzt 2026-10-05)
 
-Plan: [docs/textmode-plan.md](docs/textmode-plan.md). Machbarkeit gemessen
-(`tools/textmode_census.py`): keine Zelle braucht zwei Farben ohne Schwarz,
-höchstens 25 statische Zeichen je Bahn. Erwarteter Gewinn ~5,5 KB RAM.
+Plan und Ergebnis: [docs/textmode-plan.md](docs/textmode-plan.md).
 
-- [ ] Entscheidung in der SPEC festhalten.
-- [ ] Referenzbilder aller Bahnen sichern; Test-Helfer Text → Pixel.
-- [ ] Speicherumbau ohne versteckte Bitmap-Bereiche.
-- [ ] Statischer Renderer auf Zeichen, mit Zeichenbudget.
-- [ ] HUD auf Zeichen.
-- [ ] Ball und Zielpunkte über dynamische Zeichen.
-- [ ] VICE-Smoke, Joystick-Test, Zeitbudget, Screenshot.
-- [ ] Editor/Generator: Zeichenzahl je Bahn.
+- [x] Entscheidung in der SPEC festhalten.
+- [x] Test-Helfer Text → Pixel; alle Bahnen pixelgleich zur Referenz.
+- [x] Speicherumbau ohne versteckte Bitmap-Bereiche: 3527 Bytes frei.
+- [x] Statischer Renderer auf Zeichen, mit Zeichenbudget (höchstens 25 von 64).
+- [x] HUD auf Zeichen.
+- [x] Ball und Zielpunkte über dynamische Zeichen.
+- [x] VICE-Smoke und Zeitbudget: 31107 ≤ 32000 Ticks.
+- [x] Editor: Zeichenzahl je Bahn.
+- [x] README-Screenshot neu erzeugen.
+- [ ] Freien Speicher verteilen (Plan, Schritt 9).
+- [ ] Bahnwechsel dauert im Kern 1,6–3,1 Mio. Zyklen (Bahn 17 am längsten); bei abgeschaltetem Bild also grob 1–2 s. Bei Bedarf beschleunigen (Hash statt linearer Mustersuche, Füllung nicht je Zellzeile neu).
 
 ### Nächste Umsetzung innerhalb von Schritt 2
 

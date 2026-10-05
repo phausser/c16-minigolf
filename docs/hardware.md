@@ -1,11 +1,12 @@
 # C16-Prototyp: Nachweise und Grenzen
 
-Stand: 2026-10-04. ACME 0.97, VICE 3.10, C16/PAL mit 16 KB,
-KERNAL 318004-05 und BASIC 318006-01.
+Stand: 2026-10-05 (Textmodus). ACME 0.97, VICE 3.10, C16/PAL mit 16 KB,
+KERNAL 318004-05 und BASIC 318006-01. Abschnitte weiter unten mit älterem
+Datum beschreiben teils noch den früheren Hi-Res-Bitmap-Stand.
 
 ## Speicher und Start
 
-PRG: 12279 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
+PRG: 8331 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
 Ein temporärer Kopierer läuft im unteren Stackbereich ab $0100 und kopiert
 überlappungssicher den Laufzeitkörper nach $0200. Währenddessen erfolgt
 kein Unterprogrammaufruf; der Stackpointer wird danach auf $FF gesetzt.
@@ -15,59 +16,55 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 | Bereich | Verwendung |
 |---|---|
 | $0100–$019F | Entpackte aktuelle Bahn, bis 32 Segmente (beim Start vorher Kopierer) |
-| $01A0–$01D5 | 54 Bytes Hintergrundrestaurierung |
+| $01A0–$01C3 | Dynamische Zellen: Bildschirmadresse und alter Zeichencode, je 12 |
 | $01D6–$01FF | Stack, 42 Bytes reserviert; gemessene Tiefe 12 Bytes |
-| $0200–$168F | Laufzeitcode, Bahn-Decoder und gepackte Bahnen: 5264 Bytes |
-| $1690–$17FF | 368 freie Bytes |
-| $1800–$1FFF | TED-Luminanz und Farbe |
-| $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
-| $2140–$3A3F | Sichtbares Spielfeld |
-| $3A40–$3DFF | Unsichtbare Zeilen 21–23: Bahnzeichner mit Zellformung und Farben, weite Mathematik; 876 Bytes, 84 frei |
-| $3E00–$3F3F | Stärke, HUD-Zeile 24 |
-| $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 115 Bytes und Diagonal-Guard 42 Bytes |
+| $0200–$2237 | Laufzeitcode, Tabellen, Decoder und alle 18 gepackten Bahnen: 8248 Bytes |
+| $2238–$2FFE | 3527 freie Bytes |
+| $2FFF | Klassifizierungsrand (Zelle −1), zur Laufzeit geschrieben |
+| $3000–$33FF | Attribute: Vordergrundfarbe je Zelle; beim Zeichnen Zellklassen |
+| $3400–$37FF | Zeichencodes |
+| $3800–$3BFF | Zeichensatz: ROM-Schrift (Codes 1–21, 32, 48–57), Balken 22–30, dynamisch 33–44, Bahnzeichen ab 64 |
+| $3C00–$3FFF | Pixelpuffer des Bahnzeichners (3 × 320 Bytes), sonst frei |
 
-Die vier versteckten Bitmap-Zeilen (0, 21–23) haben identische Vorder- und
-Hintergrundfarbe (grünes Schachbrett). Zeichner und Clear-Routinen schützen diese Bereiche.
-Der Loader transportiert die oberen Tabellen zunächst ab $3000; die
-Initialisierung installiert sie vor dem Löschen der sichtbaren Bitmap.
 Zero Page enthält Zustand, temporäre Mathematik und die 32-Byte-
 Kandidatenliste. $00/$01 bleiben CPU-I/O. Größenbericht und Assemblierzeit-
-Prüfungen sichern das 16-KB-Limit. Alle 18 Bahnen passen noch nicht
-nachweislich hinein; weitere Speicheroptimierung ist Voraussetzung.
+Prüfungen sichern das 16-KB-Limit (`tools/check_build.py`).
 
 ## TED, Darstellung und Eingabe
 
 Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf).
-$FF06=$3B, $FF07=$08, $FF12=$08, $FF14=$18 schalten 320×200-Hi-Res,
-PAL/40 Spalten, RAM-Bitmap $2000 und Attribute $1800/$1C00 ein.
-Im HUD ergeben Luminanz/Farbe $07/$10 Weiß auf Schwarz. Spielfeld siehe
-Abschnitt „Rahmen, Schrägen und grünes Schachbrett (2026-10-05)“.
+$FF06=$1B (Text, Bild an, 25 Zeilen), $FF07=$08 (PAL, 40 Spalten, kein
+Multicolor, Reverse aus), $FF12 Bit 2 = 0 (Zeichensatz aus RAM),
+$FF13 Bits 2–7 = $38 (Zeichensatz $3800), $FF14 Bits 3–7 = $30
+(Bildschirmblock $3000: Attribute, ab $3400 Zeichencodes), $FF15 = 0
+(globaler Hintergrund schwarz). Attributbyte: Farbe Bits 0–3, Luminanz
+Bits 4–6, Blinken Bit 7 = 0. VICE prüft diese Register mit passenden Masken.
 Palette in src/palette.inc; keine Muster, keine Schatten, kein Multicolor.
-IRQ-Quellen sind deaktiviert. VICE prüft die Register mit passenden Masken.
+IRQ-Quellen sind deaktiviert.
 
-Bitmap-Adresse: $2000 + floor(y/8)×320 + floor(x/8)×8 + (y mod 8).
-Die Tests prüfen alle 200 Zeilen, insbesondere x=255/256/319. Text liest
-den eingebauten ROM-Zeichensatz direkt, ohne ROM-Routinen aufzurufen.
+Jede Zelle zeigt eine Vordergrundfarbe plus Schwarz. Die Tests setzen
+Bildschirm, Zeichensatz und Attribute wieder zum früheren 320×200-Bild mit
+getrennten Farbmatrizen zusammen (`legacy_picture` in
+tests/course_reference.py) und vergleichen pixelgleich mit der unabhängigen
+Referenz; alle 18 Bahnen und die Testbahn bestehen.
 
-Die Testbahn liegt gepackt (Format 2, tools/course_codec.py) in 36 Bytes vor.
-decode_course entpackt 17 Kontursegmente zu 85 Bytes einschließlich
-Normalenindex und Endpunkt-Flag; Start und Loch stehen in der Zero Page.
-Der Zeichner leitet die Füllkanten direkt aus den nicht waagerechten
-Segmenten ab. Ein byteweiser Even/Odd-Scanline-Füller öffnet die glatte Fläche
-in einer schwarzen Bitmap, mit halboffenen y-Intervallen. Renderer und
-Kollision nutzen dieselbe Innenkante. Die Flächenfarbe ist
-gleichmäßig; Zellschatten wurden auf Nutzerwunsch wieder entfernt. Der Generator prüft Grenzen, Segmentlimit,
-Nullsegmente, zulässige Winkel und Konturschnittpunkte. Ballfreiheit und
-Erreichbarkeit sind noch keine vollständigen Validator-Nachweise.
+Der Bahnzeichner arbeitet bei abgeschaltetem Bild mit demselben Algorithmus
+wie früher (Even/Odd-Scanline-Füllung, Klassifizierung, Rahmenbänder,
+Außenschrägen), aber in einem Puffer von drei Zellzeilen. Jede fertige Zelle
+wird invertiert und gegen die bisherigen Bahnzeichen gesucht (linear,
+höchstens 64; Überlauf färbt den Rahmen rot). Gemessen im 6502-Kern
+(2026-10-05): 11–25 Zeichen je Bahn, 1,6–3,1 Mio. Zyklen je Bahnwechsel
+(Bahn 17 am längsten).
 
-Die 21-Pixel-Ballform wird mit fünf Zeilenmasken gezeichnet. Höchstens
-zehn Bitmap-Bytes und acht Zielpunkte sichern Adresse und ursprünglichen
-Bytewert. Rückwärtsrestaurierung erhält überlappende Ball-/Ziel-/Wandbytes.
-Alle acht horizontalen Pixel-Ausrichtungen, x=255/256 und die rechte
-Bildkante sind gegen ein unabhängiges Pixelbild geprüft. Die Form und
-Subpixel-Rundung sind identisch zur vorherigen Darstellung. Bedienhilfe und
-Titelzeile entfallen; Zeile 22 ist jetzt versteckter Codebereich. Die Stärke
-steht allein in Zeile 24.
+Ball und Zielpunkte: Für jede berührte Zelle wird das statische Zeichen in
+eines von zwölf dynamischen Zeichen kopiert, dann werden Pixel gelöscht.
+Der Ball nimmt seine invertierten Zeilenmasken für alle acht Ausrichtungen
+aus einer Tabelle und sucht das dynamische Zeichen nur beim Zellwechsel.
+Rollender Ball schlimmstenfalls 1842 Zyklen (Bitmap-Stand 1830).
+Wiederherstellen schreibt die gemerkten statischen Codes zurück. Alle acht
+Ausrichtungen, x=255/256 und die rechte Kante sind pixelgenau geprüft.
+HUD-Text nutzt die beim Start aus dem ROM ($D000) kopierten Zeichen, der
+Ladebalken neun feste Zeichen (Breite 0–8 Pixel).
 
 Tastaturmatrix: A=(1,2), D=(2,2), W=(1,1), S=(1,5), P=(5,1),
 SPACE=(7,4). $FD30 wählt aktive niedrige Zeilen, $FF08 liest Spalten.
