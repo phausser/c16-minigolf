@@ -9,7 +9,7 @@ JOYDEV ?=
 PRG := build/minigolf.prg
 SOURCES := $(wildcard src/*.asm src/*.inc)
 
-.PHONY: all run test smoke budget benchmark profile check clean
+.PHONY: all run test smoke budget benchmark profile preview check clean
 all: $(PRG)
 
 build:
@@ -41,6 +41,9 @@ benchmark: $(PRG)
 
 profile: $(PRG)
 	$(TEST_PYTHON) tools/profile_sweep.py
+
+preview: $(PRG)
+	$(TEST_PYTHON) tools/preview_courses.py
 
 check: test smoke
 

@@ -133,6 +133,15 @@ def budget():
           'decoder and current-course buffer are already resident; metadata excluded.')
     if missing > free:
         print(f'18-course RAM gate OPEN: geometry needs {missing-free} additional bytes, plus game metadata.')
+    drafts = sorted((ROOT/'assets/courses').glob('*.json'))
+    if drafts:
+        sizes = [len(encode(json.loads(path.read_text()))) for path in drafts]
+        need = sum(sizes)+2*len(sizes)
+        report.update(draft_courses=len(sizes), draft_packed_bytes=sum(sizes),
+                      draft_bytes_with_pointers=need, draft_largest=max(sizes))
+        (ROOT/'build/course-budget.json').write_text(json.dumps(report,indent=2)+'\n')
+        print(f'Drafts: {len(sizes)} courses, {sum(sizes)} packed bytes (max {max(sizes)}), '
+              f'{need} with pointers; runtime free {free}, the test course ({len(data)+2}) would be replaced.')
 
 
 if __name__ == '__main__':
