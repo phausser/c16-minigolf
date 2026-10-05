@@ -89,3 +89,20 @@ Prüft Links/Rechts, 64 Feuerframes, Loslassen sowie leere Anleitung/Status und
 gefüllten Balken. Bericht: `build/joystick-smoke.json`. Protokoll und Ressourcen:
 [offizieller VICE-Monitor](https://vice-emu.sourceforge.io/vice_13.html).
 Reale C16-Hardware und ein Host-USB-Joystick sind noch nicht geprüft.
+
+## Bahnen bearbeiten
+
+`make editor` öffnet `tools/course-editor.html` im Browser. Mit Chrome oder
+Edge über „Ordner öffnen“ `assets/courses` wählen; „Speichern“ schreibt die
+JSON-Datei direkt zurück. Andere Browser: „Datei laden…“ und „Herunterladen“.
+
+Werkzeuge: Bearbeiten (Ecken ziehen, Entf löscht Ecke oder Wasserfläche unter
+der Maus), Kontur und Hindernis (Ecken anklicken, Klick auf den ersten Punkt
+oder Enter schließt), Wasser (Zellrechteck ziehen), Abschlag und Loch.
+Strg+Z macht rückgängig. Der Editor prüft dieselben Regeln wie
+`tools/generate_assets.py` und zeigt die gepackte Größe (Format 4); beides
+ist gegen den Python-Encoder für alle Bahnen geprüft.
+
+Danach `make` (bricht ab, wenn Bahnen ungültig sind oder der Speicher nicht
+reicht), `make preview` für die Übersicht und `make play HOLE=n`, um die
+Runde auf Bahn n zu beginnen.

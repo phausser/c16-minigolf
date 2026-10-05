@@ -103,7 +103,8 @@ Abnahme: sämtliche Physikkriterien aus SPEC erfüllt; dokumentierte Grenzfälle
 ## 4. Bahnwerkzeuge und 18-Loch-Kurs
 
 - [ ] Menschenlesbare Bahnquellen, Generator und kompakte Exporte anlegen (Entwürfe 1–18 in assets/courses, 371 Bytes gepackt; noch nicht im Spiel).
-- [ ] Validator für geschlossene Konturen, ungültige Schnittpunkte und Segmentlimit bauen.
+- [x] Validator für geschlossene Konturen, ungültige Schnittpunkte und Segmentlimit bauen.
+- [x] Bahneditor im Browser (`make editor`) mit denselben Regeln und Größenanzeige; `make play HOLE=n` zum Ausprobieren.
 - [ ] Ballradius, Engstellen, gültige Start-/Lochpositionen und Erreichbarkeit prüfen.
 - [x] Vorschau erzeugen, die dieselben exportierten Geometriedaten verwendet (`make preview`, echter 6502-Renderer).
 - [ ] Löcher 1–3: Gerade, L rechts, L links bauen und spielen.

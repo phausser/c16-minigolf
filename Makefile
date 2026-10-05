@@ -13,7 +13,7 @@ SOURCES := $(wildcard src/*.asm src/*.inc)
 COURSES := $(wildcard assets/courses/*.json)
 ACMEFLAGS := --cpu 6502 --format cbm --strict-segments
 
-.PHONY: all run test smoke budget benchmark profile preview screenshot check clean
+.PHONY: all run play editor test smoke budget benchmark profile preview screenshot check clean
 all: $(PRG) $(TEST_PRG)
 
 build:
@@ -35,6 +35,15 @@ $(TEST_PRG): $(SOURCES) build/assets-test.inc
 
 run: $(PRG)
 	$(VICE) -model c16 -pal -ramsize 16 $(if $(strip $(JOYDEV)),-joydev1 $(JOYDEV)) +joystick1autofire -autostartprgmode 1 -autostart-delay 1 -autostart-warp -autostart $(PRG)
+
+# Try one hole: make play HOLE=5 starts the round there (no size check).
+HOLE ?= 1
+play: build/assets.inc
+	$(ACME) $(ACMEFLAGS) -DSTART_HOLE=$(HOLE) --outfile build/minigolf-play.prg src/main.asm
+	$(VICE) -model c16 -pal -ramsize 16 $(if $(strip $(JOYDEV)),-joydev1 $(JOYDEV)) +joystick1autofire -autostartprgmode 1 -autostart-delay 1 -autostart-warp -autostart build/minigolf-play.prg
+
+editor:
+	xdg-open tools/course-editor.html
 
 test: $(TEST_PRG)
 	$(TEST_PYTHON) -m unittest discover -s tests -p 'test_*.py' -v

@@ -73,6 +73,10 @@ start:
     lda #$ff
     sta TED_IRQ_STATUS
     jsr initialise_video
+!ifdef START_HOLE {           ; make play HOLE=n: begin the round at hole n
+    lda #START_HOLE - 1
+    sta HOLE
+}
     jsr start_hole
 main_loop:
     jsr wait_for_frame

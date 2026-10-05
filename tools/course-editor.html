@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C16 Minigolf Bahneditor</title>
+<style>
+  :root {
+    --bg: #1d1f21; --panel: #26292c; --text: #e6e6e6; --muted: #9aa0a6;
+    --accent: #7fb3ff; --ok: #6fcf7f; --bad: #ff7b72; --line: #3a3f44;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 14px/1.4 system-ui, sans-serif; }
+  header { padding: 10px 16px; border-bottom: 1px solid var(--line);
+           display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  header h1 { font-size: 16px; margin: 0 12px 0 0; }
+  main { display: flex; gap: 16px; padding: 16px; flex-wrap: wrap; }
+  .stage { flex: 0 0 auto; }
+  canvas { image-rendering: pixelated; display: block; border: 1px solid var(--line);
+           cursor: crosshair; max-width: 100%; }
+  aside { flex: 1 1 280px; min-width: 260px; display: flex; flex-direction: column; gap: 12px; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; }
+  section h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .05em;
+               color: var(--muted); margin: 0 0 8px; }
+  button, select, input { font: inherit; color: var(--text); background: #33373b;
+                          border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; }
+  button:hover { border-color: var(--accent); }
+  button.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .tools { display: flex; flex-wrap: wrap; gap: 6px; }
+  label { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+  label input[type=text] { flex: 1; }
+  ul { margin: 0; padding-left: 18px; }
+  li.bad { color: var(--bad); }
+  li.ok { color: var(--ok); }
+  .hint { color: var(--muted); font-size: 13px; }
+  .stat { font-variant-numeric: tabular-nums; }
+  kbd { background: #33373b; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>C16 Minigolf · Bahneditor</h1>
+  <button id="openDir" title="assets/courses wählen (Chrome/Edge)">Ordner öffnen</button>
+  <select id="fileList" disabled><option>— keine Bahn geladen —</option></select>
+  <button id="save" disabled>Speichern</button>
+  <button id="newCourse">Neue Bahn</button>
+  <button id="loadFile">Datei laden…</button>
+  <button id="download">Herunterladen</button>
+  <input id="fileInput" type="file" accept=".json,application/json" hidden>
+  <span id="status" class="hint"></span>
+</header>
+<main>
+  <div class="stage"><canvas id="view" width="960" height="600"></canvas></div>
+  <aside>
+    <section>
+      <h2>Werkzeug</h2>
+      <div class="tools" id="tools">
+        <button data-tool="edit" class="active" title="Ecken ziehen; Entf löscht Ecke/Wasser unter der Maus">Bearbeiten (E)</button>
+        <button data-tool="outline" title="Außenkontur neu zeichnen">Kontur (K)</button>
+        <button data-tool="obstacle" title="Hindernis zeichnen">Hindernis (H)</button>
+        <button data-tool="water" title="Rechteck aus Zellen ziehen">Wasser (W)</button>
+        <button data-tool="start" title="Abschlag setzen">Abschlag (A)</button>
+        <button data-tool="cup" title="Loch setzen">Loch (L)</button>
+      </div>
+      <p class="hint" id="toolHint"></p>
+    </section>
+    <section>
+      <h2>Bahn</h2>
+      <label>Name <input id="name" type="text" maxlength="28"></label>
+      <label>Par <input id="par" type="number" min="1" max="9" style="width:4em"></label>
+      <div class="stat" id="stats"></div>
+    </section>
+    <section>
+      <h2>Prüfung</h2>
+      <ul id="checks"></ul>
+    </section>
+    <section class="hint">
+      Eckpunkte rasten auf 8 Pixel, Abschlag und Loch auf 2 Pixel. Kanten nur
+      waagerecht, senkrecht oder 45°. <kbd>Enter</kbd> oder Klick auf den ersten
+      Punkt schließt eine Kontur, <kbd>Esc</kbd> bricht ab, <kbd>Strg</kbd>+<kbd>Z</kbd>
+      macht rückgängig. Danach im Projekt: <code>make</code> und
+      <code>make play HOLE=n</code>.
+    </section>
+  </aside>
+</main>
+<script>
+'use strict';
+// Game geometry: 320x200 bitmap, playfield rows 1..20, vertices on the
+// 8-pixel cell grid inside x 8..304, y 8..160 (tools/generate_assets.py).
+const W = 320, H = 200, SCALE = 3, MAX_SEGMENTS = 32, MAX_WATER = 3;
+const canvas = document.getElementById('view');
+const ctx = canvas.getContext('2d');
+let course = blankCourse();
+let history = [], tool = 'edit', drawing = null, hover = null, drag = null, waterDrag = null;
+let dirHandle = null, fileHandle = null, files = [], dirty = false;
+
+function blankCourse() {
+  return { name: 'NEUE BAHN', par: 3, start: [48, 88], cup: [272, 88],
+           outline: [[24, 32], [296, 32], [296, 144], [24, 144]], obstacles: [], hazards: [] };
+}
+function clone(c) { return JSON.parse(JSON.stringify(c)); }
+function remember() { history.push(clone(course)); if (history.length > 200) history.shift(); dirty = true; }
+function undo() { if (history.length) { course = history.pop(); dirty = true; refresh(); } }
+
+// ---------- geometry (mirrors tools/generate_assets.py) ----------
+const contours = () => [course.outline, ...course.obstacles];
+function area(c) { let a = 0; c.forEach((p, i) => { const q = c[(i + 1) % c.length]; a += p[0] * q[1] - p[1] * q[0]; }); return a; }
+function orientation(a, b, c) { return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]); }
+function intersects(a, b, c, d) {
+  const on = (p, q, r) => Math.min(p[0], q[0]) <= r[0] && r[0] <= Math.max(p[0], q[0]) &&
+                          Math.min(p[1], q[1]) <= r[1] && r[1] <= Math.max(p[1], q[1]);
+  const v = [orientation(a, b, c), orientation(a, b, d), orientation(c, d, a), orientation(c, d, b)];
+  if (v[0] * v[1] < 0 && v[2] * v[3] < 0) return true;
+  return (v[0] === 0 && on(a, b, c)) || (v[1] === 0 && on(a, b, d)) ||
+         (v[2] === 0 && on(c, d, a)) || (v[3] === 0 && on(c, d, b));
+}
+function playable(x, y) {
+  let inside = false;
+  for (const c of contours()) c.forEach((a, i) => {
+    const b = c[(i + 1) % c.length];
+    if ((a[1] <= y && y < b[1]) || (b[1] <= y && y < a[1]))
+      if (a[0] + (y - a[1]) * (b[0] - a[0]) / (b[1] - a[1]) <= x) inside = !inside;
+  });
+  return inside;
+}
+function edgeOk(a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  return (dx || dy) && (!dx || !dy || Math.abs(dx) === Math.abs(dy));
+}
+function waterCells() {
+  const cells = new Set();
+  for (const [x1, y1, x2, y2] of course.hazards || [])
+    for (let r = y1 / 8; r < y2 / 8; r++) for (let c = x1 / 8; c < x2 / 8; c++) cells.add(r * 40 + c);
+  return cells;
+}
+function packedSize() {   // format 4, tools/course_codec.py
+  let n = 5;
+  for (const c of contours()) {
+    n += 3;
+    c.forEach((a, i) => { const b = c[(i + 1) % c.length];
+      const len = Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) / 8; n += Math.max(1, Math.ceil(len / 32)); });
+  }
+  return n + 4 * (course.hazards || []).length;
+}
+
+function validate() {
+  const errors = [], all = contours();
+  let segments = [];
+  all.forEach((c, ci) => {
+    const what = ci ? `Hindernis ${ci}` : 'Kontur';
+    if (c.length < 3) { errors.push(`${what}: mindestens 3 Ecken`); return; }
+    if (!area(c)) errors.push(`${what}: Fläche null`);
+    c.forEach((a, i) => {
+      const b = c[(i + 1) % c.length];
+      if (a[0] % 8 || a[1] % 8) errors.push(`${what}: Ecke ${a} nicht auf dem 8er-Raster`);
+      if (a[0] < 8 || a[0] > 310 || a[1] < 8 || a[1] > 166) errors.push(`${what}: Ecke ${a} außerhalb des Spielfelds`);
+      if (!edgeOk(a, b)) errors.push(`${what}: Kante ${a} → ${b} nicht waagerecht/senkrecht/45°`);
+      segments.push({ a, b, ci, i, n: c.length });
+    });
+  });
+  if (segments.length > MAX_SEGMENTS) errors.push(`${segments.length} Segmente, höchstens ${MAX_SEGMENTS}`);
+  for (let s = 0; s < segments.length; s++) for (let t = s + 1; t < segments.length; t++) {
+    const p = segments[s], q = segments[t];
+    if (p.ci === q.ci && [1, p.n - 1].includes(((p.i - q.i) % p.n + p.n) % p.n)) {
+      if (orientation(p.a, p.b, q.a) === 0 && orientation(p.a, p.b, q.b) === 0 &&
+          (p.b[0] - p.a[0]) * (q.b[0] - q.a[0]) + (p.b[1] - p.a[1]) * (q.b[1] - q.a[1]) < 0)
+        errors.push('benachbarte Kanten überlappen');
+      continue;
+    }
+    if (intersects(p.a, p.b, q.a, q.b)) { errors.push(`Kanten schneiden sich bei ${p.a} → ${p.b}`); s = segments.length; break; }
+  }
+  const hz = course.hazards || [];
+  if (hz.length > MAX_WATER) errors.push(`höchstens ${MAX_WATER} Wasserflächen`);
+  const water = waterCells();
+  if (!errors.length) for (const cell of water) {
+    const r = Math.floor(cell / 40), c = cell % 40;
+    let whole = true;
+    for (let dy = 0; dy < 8 && whole; dy++) for (let dx = 0; dx < 8; dx++)
+      if (!playable(c * 8 + dx, r * 8 + dy)) { whole = false; break; }
+    if (!whole) { errors.push(`Wasser bei Zelle ${c},${r} liegt nicht ganz auf Boden`); break; }
+  }
+  for (const [key, label] of [['start', 'Abschlag'], ['cup', 'Loch']]) {
+    const [x, y] = course[key];
+    if (x % 2 || y % 2 || x < 0 || x >= 320 || y < 0 || y >= 168) errors.push(`${label}: nicht auf dem 2er-Raster im Spielfeld`);
+    else if (!errors.length && !playable(x, y)) errors.push(`${label} liegt nicht auf der Bahn`);
+    if (water.has(Math.floor(y / 8) * 40 + Math.floor(x / 8))) errors.push(`${label} liegt im Wasser`);
+  }
+  return { errors, segments: segments.length };
+}
+
+// ---------- drawing ----------
+function draw() {
+  ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  for (let r = 0; r < 25; r++) for (let c = 0; c < 40; c++) {
+    ctx.fillStyle = r === 24 ? '#000' : (r + c) % 2 ? '#3f9a3f' : '#358535';
+    ctx.fillRect(c * 8, r * 8, 8, 8);
+  }
+  const path = new Path2D();
+  for (const c of contours()) if (c.length) {
+    path.moveTo(c[0][0], c[0][1]); c.slice(1).forEach(p => path.lineTo(p[0], p[1])); path.closePath();
+  }
+  ctx.lineJoin = 'miter'; ctx.lineWidth = 12; ctx.strokeStyle = '#000'; ctx.stroke(path);
+  ctx.fillStyle = '#c8c8c8'; ctx.fill(path, 'evenodd');
+  for (const [x1, y1, x2, y2] of course.hazards || [])
+    for (let y = y1; y < y2; y += 8) for (let x = x1; x < x2; x += 8) {
+      ctx.fillStyle = (x / 8 + y / 8) % 2 ? '#5050d8' : '#4040b8'; ctx.fillRect(x, y, 8, 8);
+    }
+  if (waterDrag) {
+    const [x1, y1, x2, y2] = waterRect(waterDrag.from, waterDrag.to);
+    ctx.fillStyle = 'rgba(80,80,230,.6)'; ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+  }
+  // grid
+  ctx.lineWidth = 1 / SCALE; ctx.strokeStyle = 'rgba(255,255,255,.12)';
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 8) { ctx.moveTo(x, 0); ctx.lineTo(x, 168); }
+  for (let y = 0; y <= 168; y += 8) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+  // cup and ball
+  disc(course.cup, 3.5, '#000');
+  disc(course.start, 2.5, '#000');
+  ctx.fillStyle = '#c8c8c8'; ctx.fillRect(course.start[0] - 1, course.start[1] - 1, 1, 1);
+  // vertices
+  contours().forEach((c, ci) => c.forEach((p, i) => {
+    const hot = hover && hover.ci === ci && hover.i === i;
+    ctx.fillStyle = hot ? '#ffd24a' : ci ? '#ff9f43' : '#7fb3ff';
+    ctx.fillRect(p[0] - 1.5, p[1] - 1.5, 3, 3);
+  }));
+  if (drawing && drawing.points.length) {
+    const pts = drawing.points, last = pts[pts.length - 1], cur = drawing.cursor;
+    ctx.lineWidth = 1; ctx.strokeStyle = '#ffd24a';
+    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]); pts.slice(1).forEach(p => ctx.lineTo(p[0], p[1])); ctx.stroke();
+    if (cur) { ctx.strokeStyle = edgeOk(last, cur) ? '#ffd24a' : '#ff4040';
+      ctx.beginPath(); ctx.moveTo(last[0], last[1]); ctx.lineTo(cur[0], cur[1]); ctx.stroke(); }
+    pts.forEach(p => { ctx.fillStyle = '#ffd24a'; ctx.fillRect(p[0] - 1.5, p[1] - 1.5, 3, 3); });
+  }
+  // HUD preview
+  ctx.fillStyle = '#fff'; ctx.font = '8px monospace'; ctx.textBaseline = 'top';
+  ctx.fillText((course.name || '').slice(0, 28), 2, 193);
+}
+function disc(p, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(p[0] + .5, p[1] + .5, r, 0, Math.PI * 2); ctx.fill(); }
+
+function refresh() {
+  draw();
+  const { errors, segments } = validate();
+  document.getElementById('checks').innerHTML = errors.length
+    ? errors.slice(0, 12).map(e => `<li class="bad">${e}</li>`).join('')
+    : '<li class="ok">Bahn gültig</li>';
+  document.getElementById('stats').innerHTML =
+    `Segmente: ${segments}/${MAX_SEGMENTS}<br>Wasserflächen: ${(course.hazards || []).length}/${MAX_WATER}<br>` +
+    `Gepackt: <b>${packedSize()} Bytes</b> (+2 Zeiger)` +
+    (files.length ? `<br>Alle Bahnen im Ordner: ${totalSize()} Bytes` : '');
+  const name = document.getElementById('name'), par = document.getElementById('par');
+  if (document.activeElement !== name) name.value = course.name || '';
+  if (document.activeElement !== par) par.value = course.par || '';
+  document.getElementById('save').disabled = !fileHandle;
+  setStatus(dirty ? 'ungespeichert' : '');
+}
+function setStatus(text) { document.getElementById('status').textContent = text; }
+
+// ---------- input ----------
+const snap = (v, g) => Math.round(v / g) * g;
+function mouse(e) {
+  const r = canvas.getBoundingClientRect();
+  return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height];
+}
+function gridPoint(m) { return [Math.min(304, Math.max(8, snap(m[0], 8))), Math.min(160, Math.max(8, snap(m[1], 8)))]; }
+function nearestVertex(m) {
+  let best = null;
+  contours().forEach((c, ci) => c.forEach((p, i) => {
+    const d = Math.hypot(p[0] - m[0], p[1] - m[1]);
+    if (d < 5 && (!best || d < best.d)) best = { ci, i, d };
+  }));
+  return best;
+}
+function waterAt(m) {
+  return (course.hazards || []).findIndex(([x1, y1, x2, y2]) => m[0] >= x1 && m[0] < x2 && m[1] >= y1 && m[1] < y2);
+}
+function waterRect(a, b) {
+  const x1 = Math.floor(Math.min(a[0], b[0]) / 8) * 8, y1 = Math.floor(Math.min(a[1], b[1]) / 8) * 8;
+  const x2 = Math.floor(Math.max(a[0], b[0]) / 8) * 8 + 8, y2 = Math.floor(Math.max(a[1], b[1]) / 8) * 8 + 8;
+  return [x1, Math.max(8, y1), x2, Math.min(168, y2)];
+}
+function contourAt(ci) { return ci === 0 ? course.outline : course.obstacles[ci - 1]; }
+
+const hints = {
+  edit: 'Ecken ziehen. Entf löscht die Ecke oder Wasserfläche unter der Maus; ein Hindernis mit weniger als 3 Ecken verschwindet.',
+  outline: 'Ecken nacheinander anklicken; Klick auf den ersten Punkt oder Enter schließt. Ersetzt die Außenkontur.',
+  obstacle: 'Ecken anklicken wie bei der Kontur; ergibt ein neues Hindernis innerhalb der Bahn.',
+  water: 'Rechteck über ganze Bodenzellen ziehen. Entf im Bearbeiten-Modus löscht es.',
+  start: 'Klick setzt den Abschlag (2-Pixel-Raster).',
+  cup: 'Klick setzt das Loch (2-Pixel-Raster).',
+};
+function setTool(t) {
+  tool = t; drawing = null; waterDrag = null;
+  document.querySelectorAll('#tools button').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+  document.getElementById('toolHint').textContent = hints[t];
+  refresh();
+}
+function closeDrawing() {
+  if (!drawing || drawing.points.length < 3) return;
+  remember();
+  if (drawing.kind === 'outline') course.outline = drawing.points;
+  else course.obstacles.push(drawing.points);
+  drawing = null; setTool('edit');
+}
+
+canvas.addEventListener('mousedown', e => {
+  const m = mouse(e);
+  if (tool === 'edit') {
+    const v = nearestVertex(m);
+    if (v) { remember(); drag = v; }
+  } else if (tool === 'outline' || tool === 'obstacle') {
+    const p = gridPoint(m);
+    if (!drawing) drawing = { kind: tool, points: [p], cursor: p };
+    else if (p[0] === drawing.points[0][0] && p[1] === drawing.points[0][1]) closeDrawing();
+    else if (edgeOk(drawing.points[drawing.points.length - 1], p)) drawing.points.push(p);
+  } else if (tool === 'water') {
+    waterDrag = { from: m, to: m };
+  } else if (tool === 'start' || tool === 'cup') {
+    remember(); course[tool] = [snap(m[0], 2), Math.min(166, snap(m[1], 2))];
+  }
+  refresh();
+});
+canvas.addEventListener('mousemove', e => {
+  const m = mouse(e);
+  if (drag) { contourAt(drag.ci)[drag.i] = gridPoint(m); refresh(); return; }
+  if (drawing) { drawing.cursor = gridPoint(m); draw(); return; }
+  if (waterDrag) { waterDrag.to = m; draw(); return; }
+  const v = tool === 'edit' ? nearestVertex(m) : null;
+  hover = v ? { ...v, m } : { m };
+  draw();
+});
+window.addEventListener('mouseup', () => {
+  if (drag) { drag = null; refresh(); }
+  if (waterDrag) {
+    remember(); course.hazards = course.hazards || [];
+    course.hazards.push(waterRect(waterDrag.from, waterDrag.to)); waterDrag = null; refresh();
+  }
+});
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); return; }
+  if (e.key === 'Escape') { drawing = null; waterDrag = null; refresh(); return; }
+  if (e.key === 'Enter') { closeDrawing(); return; }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && hover && hover.m) {
+    if (hover.ci !== undefined) {
+      remember();
+      const c = contourAt(hover.ci); c.splice(hover.i, 1);
+      if (hover.ci > 0 && c.length < 3) course.obstacles.splice(hover.ci - 1, 1);
+      hover = null;
+    } else {
+      const w = waterAt(hover.m);
+      if (w >= 0) { remember(); course.hazards.splice(w, 1); }
+    }
+    refresh(); return;
+  }
+  const keys = { e: 'edit', k: 'outline', h: 'obstacle', w: 'water', a: 'start', l: 'cup' };
+  if (keys[e.key.toLowerCase()] && !e.ctrlKey && !e.metaKey) setTool(keys[e.key.toLowerCase()]);
+});
+document.getElementById('tools').addEventListener('click', e => { if (e.target.dataset.tool) setTool(e.target.dataset.tool); });
+document.getElementById('name').addEventListener('input', e => {
+  remember(); course.name = e.target.value.toUpperCase().replace(/[^A-Z0-9 '!?.,-]/g, ''); e.target.value = course.name; refresh();
+});
+document.getElementById('par').addEventListener('input', e => { remember(); course.par = Number(e.target.value) || 0; refresh(); });
+
+// ---------- files ----------
+function serialise() {
+  const out = { name: course.name, par: course.par, start: course.start, cup: course.cup,
+                outline: course.outline, obstacles: course.obstacles };
+  if ((course.hazards || []).length) out.hazards = course.hazards;
+  return JSON.stringify(out) + '\n';
+}
+function load(text) {
+  const c = JSON.parse(text);
+  course = { obstacles: [], hazards: [], ...c }; history = []; dirty = false; refresh();
+}
+function totalSize() {
+  return files.reduce((n, f) => n + (f.handle === fileHandle ? packedSize() : f.size), 0);
+}
+function sizeOf(text) {
+  const saved = course; course = { obstacles: [], hazards: [], ...JSON.parse(text) };
+  const n = packedSize(); course = saved; return n;
+}
+document.getElementById('openDir').addEventListener('click', async () => {
+  if (!window.showDirectoryPicker) { alert('Ordnerzugriff braucht Chrome oder Edge. Sonst „Datei laden“ und „Herunterladen“ verwenden.'); return; }
+  dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+  files = [];
+  for await (const [name, handle] of dirHandle.entries())
+    if (handle.kind === 'file' && name.endsWith('.json')) {
+      const text = await (await handle.getFile()).text();
+      files.push({ name, handle, size: sizeOf(text), title: JSON.parse(text).name || '' });
+    }
+  files.sort((a, b) => a.name.localeCompare(b.name));
+  const list = document.getElementById('fileList');
+  list.innerHTML = files.map((f, i) => `<option value="${i}">${f.name} · ${f.title}</option>`).join('');
+  list.disabled = !files.length;
+  if (files.length) openFile(0);
+});
+async function openFile(i) {
+  if (dirty && !confirm('Ungespeicherte Änderungen verwerfen?')) return;
+  fileHandle = files[i].handle;
+  load(await (await fileHandle.getFile()).text());
+  document.getElementById('fileList').value = i;
+}
+document.getElementById('fileList').addEventListener('change', e => openFile(Number(e.target.value)));
+document.getElementById('save').addEventListener('click', async () => {
+  const { errors } = validate();
+  if (errors.length && !confirm('Die Bahn hat Fehler und würde den Build abbrechen. Trotzdem speichern?')) return;
+  const writable = await fileHandle.createWritable();
+  await writable.write(serialise()); await writable.close();
+  const f = files.find(f => f.handle === fileHandle); if (f) { f.size = packedSize(); f.title = course.name; }
+  dirty = false; refresh(); setStatus('gespeichert');
+});
+document.getElementById('newCourse').addEventListener('click', async () => {
+  if (dirty && !confirm('Ungespeicherte Änderungen verwerfen?')) return;
+  course = blankCourse(); history = []; fileHandle = null;
+  if (dirHandle) {
+    const name = `${String(files.length + 1).padStart(2, '0')}.json`;
+    fileHandle = await dirHandle.getFileHandle(name, { create: true });
+    files.push({ name, handle: fileHandle, size: packedSize(), title: course.name });
+    const list = document.getElementById('fileList');
+    list.insertAdjacentHTML('beforeend', `<option value="${files.length - 1}">${name} · neu</option>`);
+    list.value = files.length - 1; list.disabled = false;
+  }
+  dirty = true; refresh();
+});
+document.getElementById('loadFile').addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', async e => {
+  const f = e.target.files[0]; if (!f) return;
+  fileHandle = null; load(await f.text()); setStatus(`${f.name} geladen (Speichern über „Herunterladen“)`);
+});
+document.getElementById('download').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([serialise()], { type: 'application/json' }));
+  a.download = (files.find(f => f.handle === fileHandle) || {}).name || 'bahn.json';
+  a.click();
+});
+window.addEventListener('beforeunload', e => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+setTool('edit');
+</script>
+</body>
+</html>
