@@ -138,58 +138,241 @@ cup_x_sign:
     bne cup_next
     rts
 
-; Choose the palette from static geometry before drawing cup/ball/aim.
-; Scan only rows 1..20; lookup, renderer and HUD code stay hidden and intact.
+; Cell classes, kept in the color matrix while the display is off.
+CLASS_FLOOR = 0                 ; only floor pixels
+CLASS_EDGE = 1                  ; inner 45-degree edge: floor and solid
+CLASS_SOLID = 2                 ; far from the course: green checker
+CLASS_FRAME = 3                 ; solid cell touching floor: black frame
+CLASS_OUTER = 4                 ; outer 45-degree frame edge: black/green
+; COURSE_PTR addresses the class of cell i - 41: neighbours of i are at
+; Y = 0,1,2 / 40,(41),42 / 80,81,82.
+CLASS_SELF = 41
+
+; Colors depend on the static geometry and are set before cup/ball/aim.
+; Rows 0 and 21..23 hide data with equal colors, here the green checker.
 initialise_course_colors:
+    lda #CLASS_SOLID
+    ldx #240
+course_class_clear:
+    sta COLOR_BASE - 1,x
+    sta COLOR_BASE + 239,x
+    sta COLOR_BASE + 479,x
+    sta COLOR_BASE + 719,x
+    dex
+    bne course_class_clear
+    ; Floor, inner edge or solid from the 8 bitmap bytes of rows 1..20.
+    jsr course_cells_begin
+course_classify:
+    ldy #7
+    lda (BITMAP_PTR),y
+    sta TEMP                  ; AND of all bytes
+    sta GLYPH                 ; OR of all bytes
+course_classify_byte:
+    dey
+    bmi course_classify_ready
+    lda (BITMAP_PTR),y
+    tax
+    ora GLYPH
+    sta GLYPH
+    txa
+    and TEMP
+    sta TEMP
+    jmp course_classify_byte
+course_classify_ready:
+    ldx #CLASS_FLOOR
+    lda GLYPH
+    beq course_classify_store
+    inx
+    lda TEMP
+    cmp #$ff
+    bne course_classify_store
+    inx
+course_classify_store:
+    txa
+    ldy #CLASS_SELF
+    sta (COURSE_PTR),y
+    jsr course_cells_next
+    bne course_classify
+    ; Inner edges put the same pattern one cell further out, horizontally
+    ; and vertically, as the outer frame edge. Solid cells next to floor
+    ; become frame.
+    jsr course_cells_begin
+course_shape:
+    ldy #CLASS_SELF
+    lda (COURSE_PTR),y
+    cmp #CLASS_EDGE
+    bne course_shape_solid
+    ldy #4                    ; middle row: rightmost pixel solid?
+    lda (BITMAP_PTR),y
+    lsr
+    ldy #CLASS_SELF + 1
+    lda #8
+    ldx #0
+    bcs course_shape_horizontal
+    ldy #CLASS_SELF - 1
+    lda #<-8
+    ldx #>-8
+course_shape_horizontal:
+    jsr course_outer_cell
+    ldy #0                    ; top row: centre pixel solid?
+    lda (BITMAP_PTR),y
+    and #$08
+    beq course_shape_down
+    ldy #CLASS_SELF - 40
+    lda #<-320
+    ldx #>-320
+    bne course_shape_vertical
+course_shape_down:
+    ldy #CLASS_SELF + 40
+    lda #<320
+    ldx #>320
+course_shape_vertical:
+    jsr course_outer_cell
+    jmp course_shape_next
+course_shape_solid:
+    cmp #CLASS_SOLID
+    bne course_shape_next
+    ldx #7
+course_shape_neighbour:
+    ldy course_neighbours,x
+    lda (COURSE_PTR),y
+    beq course_shape_frame    ; CLASS_FLOOR
+    dex
+    bpl course_shape_neighbour
+    bmi course_shape_next
+course_shape_frame:
+    lda #CLASS_FRAME
+    ldy #CLASS_SELF
+    sta (COURSE_PTR),y
+course_shape_next:
+    jsr course_cells_next
+    bne course_shape
+    ; Attributes for rows 0..23 from class and checker parity.
+    lda #<COLOR_BASE
+    sta COURSE_PTR
+    sta COPY_SOURCE
+    lda #>COLOR_BASE
+    sta COURSE_PTR + 1
+    lda #>LUMINANCE_BASE
+    sta COPY_SOURCE + 1
+    ldy #0
+    sty ROW_INDEX             ; checker parity
+    lda #40
+    sta TEXT_COLUMN
+course_attribute:
+    lda (COURSE_PTR),y
+    asl
+    ora ROW_INDEX
+    tax
+    lda course_luminance,x
+    sta (COPY_SOURCE),y
+    lda course_color,x
+    sta (COURSE_PTR),y
+    lda ROW_INDEX
+    eor #1
+    dec TEXT_COLUMN
+    bne course_attribute_parity
+    eor #1                    ; 40 cells per row: next row starts flipped
+    ldx #40
+    stx TEXT_COLUMN
+course_attribute_parity:
+    sta ROW_INDEX
+    inc COPY_SOURCE
+    inc COURSE_PTR
+    bne course_attribute_ready
+    inc COPY_SOURCE + 1
+    inc COURSE_PTR + 1
+course_attribute_ready:
+    lda COURSE_PTR
+    cmp #<(COLOR_BASE + 960)
+    bne course_attribute
+    lda COURSE_PTR + 1
+    cmp #>(COLOR_BASE + 960)
+    bne course_attribute
+    rts
+
+; Y = class offset of the target, A/X = bitmap distance to it. Converts a
+; solid or frame cell into an outer edge with this edge cell's pattern.
+course_outer_cell:
+    sta COPY_TARGET
+    stx COPY_TARGET + 1
+    lda (COURSE_PTR),y
+    cmp #CLASS_SOLID
+    bcc course_outer_done
+    cmp #CLASS_OUTER
+    bcs course_outer_done
+    lda #CLASS_OUTER
+    sta (COURSE_PTR),y
+    clc
+    lda BITMAP_PTR
+    adc COPY_TARGET
+    sta COPY_TARGET
+    lda BITMAP_PTR + 1
+    adc COPY_TARGET + 1
+    sta COPY_TARGET + 1
+    ldy #7
+course_outer_copy:
+    lda (BITMAP_PTR),y
+    sta (COPY_TARGET),y
+    dey
+    bpl course_outer_copy
+course_outer_done:
+    rts
+
+; Walk cells 40..839 (rows 1..20): BITMAP_PTR = cell bitmap,
+; COURSE_PTR = class of cell - 41. Z clear while cells remain.
+course_cells_begin:
     lda #<$2140
     sta BITMAP_PTR
     lda #>$2140
     sta BITMAP_PTR + 1
-    lda #<(LUMINANCE_BASE + 40)
+    lda #<(COLOR_BASE + 40 - CLASS_SELF)
     sta COURSE_PTR
-    lda #>(LUMINANCE_BASE + 40)
+    lda #>(COLOR_BASE + 40 - CLASS_SELF)
     sta COURSE_PTR + 1
-course_color_cell:
-    lda #0
-    ldy #7
-course_color_scan:
-    ora (BITMAP_PTR),y
-    dey
-    bpl course_color_scan
-    cmp #0                  ; DEY changed flags; test the accumulated bitmap
-    bne course_color_boundary
-    lda #(COURSE_SURFACE_COLOR & $70) + ((COURSE_INK_COLOR & $70) >> 4)
-    ldx #((COURSE_INK_COLOR & $0f) << 4) + (COURSE_SURFACE_COLOR & $0f)
-    jmp course_color_store
-course_color_boundary:
-    lda #(COURSE_SURFACE_COLOR & $70) + ((COURSE_SOLID_COLOR & $70) >> 4)
-    ldx #((COURSE_SOLID_COLOR & $0f) << 4) + (COURSE_SURFACE_COLOR & $0f)
-course_color_store:
-    ldy #0
-    sta (COURSE_PTR),y
-    lda COURSE_PTR + 1
-    clc
-    adc #4
-    sta COPY_TARGET + 1
-    lda COURSE_PTR
-    sta COPY_TARGET
-    txa
-    sta (COPY_TARGET),y
+    rts
+course_cells_next:
     clc
     lda BITMAP_PTR
     adc #8
     sta BITMAP_PTR
-    bcc course_color_next
+    bcc course_cells_bitmap
     inc BITMAP_PTR + 1
-course_color_next:
+course_cells_bitmap:
     inc COURSE_PTR
-    bne course_color_end
+    bne course_cells_class
     inc COURSE_PTR + 1
-course_color_end:
+course_cells_class:
     lda BITMAP_PTR + 1
     cmp #>$3a40
-    bne course_color_cell
+    bne course_cells_more
     lda BITMAP_PTR
     cmp #<$3a40
-    bne course_color_cell
+course_cells_more:
     rts
+
+course_neighbours:
+!byte 0,1,2,40,42,80,81,82
+; Index = class * 2 + checker parity.
+course_luminance:
+    +attribute_luminance COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_luminance COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_luminance COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_luminance COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_luminance CHECKER_COLOR_EVEN, CHECKER_COLOR_EVEN
+    +attribute_luminance CHECKER_COLOR_ODD, CHECKER_COLOR_ODD
+    +attribute_luminance COURSE_FRAME_COLOR, COURSE_FRAME_COLOR
+    +attribute_luminance COURSE_FRAME_COLOR, COURSE_FRAME_COLOR
+    +attribute_luminance CHECKER_COLOR_EVEN, COURSE_FRAME_COLOR
+    +attribute_luminance CHECKER_COLOR_ODD, COURSE_FRAME_COLOR
+course_color:
+    +attribute_color COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_color COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_color COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_color COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_color CHECKER_COLOR_EVEN, CHECKER_COLOR_EVEN
+    +attribute_color CHECKER_COLOR_ODD, CHECKER_COLOR_ODD
+    +attribute_color COURSE_FRAME_COLOR, COURSE_FRAME_COLOR
+    +attribute_color COURSE_FRAME_COLOR, COURSE_FRAME_COLOR
+    +attribute_color CHECKER_COLOR_EVEN, COURSE_FRAME_COLOR
+    +attribute_color CHECKER_COLOR_ODD, COURSE_FRAME_COLOR

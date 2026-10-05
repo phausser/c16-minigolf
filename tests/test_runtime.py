@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'tools'))
 from check_build import symbols
 from generate_assets import validate
+from course_reference import render
 
 S = symbols()
 PRG = (ROOT/'build/minigolf.prg').read_bytes()
@@ -149,9 +150,8 @@ class HardwareTests(unittest.TestCase):
         self.r.bus[0x3f40:0x4000] = startup
         self.r.bus[S['lookup_image']:S['lookup_image']+320] = lookup
         self.r.call('initialise_video')
+        # HUD palette everywhere; draw_course colors rows 0..23 later.
         luma, colors = [7]*1024,[16]*1024
-        luma[840:960] = colors[840:960] = [0]*120
-        luma[:40] = colors[:40] = [0]*40
         self.assertEqual(self.r.bus[0x1800:0x1c00], luma)
         self.assertEqual(self.r.bus[0x1c00:0x2000], colors)
         self.assertEqual(self.r.bus[0x2000:0x2140],lookup)
@@ -177,39 +177,37 @@ class HardwareTests(unittest.TestCase):
     def test_rendered_course_matches_independent_pixels(self):
         self.r.call('initialise_video')
         self.r.call('draw_course')
-        expected = bytearray(8000)
-        contours = [COURSE['outline'], *COURSE['obstacles']]
-        # Independent point-in-polygon reference, not the scanline export.
-        def playable(x, y):
-            inside = False
-            for contour in contours:
-                for a,b in zip(contour, contour[1:]+contour[:1]):
-                    if (a[1] <= y < b[1]) or (b[1] <= y < a[1]):
-                        crossing = a[0]+(y-a[1])*(b[0]-a[0])/(b[1]-a[1])
-                        if crossing <= x:
-                            inside = not inside
-            return inside
-        for y in range(8,168):
-            for x in range(320):
-                if not playable(x,y):
-                    expected[bitmap_offset(x,y)] |= 128 >> (x%8)
-        # Independently classify whole floor cells and cells with solid pixels.
-        for row in range(1,21):
-            for col in range(40):
-                whole = all(playable(x,y) for y in range(row*8,row*8+8)
-                            for x in range(col*8,col*8+8))
-                ink = S['COURSE_INK_COLOR'] if whole else S['COURSE_SOLID_COLOR']
-                self.assertEqual(self.r.bus[0x1800+row*40+col],
-                                 (S['COURSE_SURFACE_COLOR'] & 0x70) + ((ink & 0x70) >> 4))
-                self.assertEqual(self.r.bus[0x1c00+row*40+col],
-                                 ((ink & 15) << 4) + (S['COURSE_SURFACE_COLOR'] & 15))
-        cx,cy = COURSE['cup']
-        for i in range(32):
-            x = cx+round(math.cos(i*math.tau/32)*5)
-            y = cy+round(math.sin(i*math.tau/32)*5)
-            expected[bitmap_offset(x,y)] |= 128 >> (x%8)
+        expected, luminance, color = render(COURSE, S)
+        self.assertEqual(self.r.bus[0x1800:0x1800+960], luminance[:960])
+        self.assertEqual(self.r.bus[0x1c00:0x1c00+960], color[:960])
         self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
         self.assertEqual(bytes(self.r.bus[0x3e00:0x3f40]), expected[7680:])
+
+    def test_frame_and_outer_edges_for_all_diagonal_directions(self):
+        from course_codec import encode
+        courses = [
+            # Convex cuts in all four corners and a diamond obstacle.
+            {'start':[40,80],'cup':[200,96],'obstacles':[[[120,64],[152,96],[120,128],[88,96]]],
+             'outline':[[40,24],[280,24],[304,48],[304,128],[280,152],[40,152],[16,128],[16,48]]},
+            # Concave diagonals: playable bays reaching into the solid area.
+            {'start':[40,80],'cup':[200,96],'obstacles':[],
+             'outline':[[16,24],[120,24],[144,48],[168,24],[304,24],[304,152],
+                        [168,152],[144,128],[120,152],[16,152]]},
+        ]
+        address = 0x8000             # outside the 16 KB RAM; test bus only
+        self.r.bus[S['course_table_lo']] = address & 255
+        self.r.bus[S['course_table_hi']] = address >> 8
+        for course in courses:
+            data = encode(course)
+            self.r.call('initialise_video')
+            self.r.bus[address:address+len(data)] = list(data)
+            self.r.cpu.x = 0
+            self.r.call('decode_course')
+            self.r.call('draw_course')
+            expected, luminance, color = render(course, S)
+            self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
+            self.assertEqual(self.r.bus[0x1800:0x1800+960], luminance[:960])
+            self.assertEqual(self.r.bus[0x1c00:0x1c00+960], color[:960])
 
     def test_markers_restore_floor_and_boundary_cells_without_recoloring(self):
         self.r.call('initialise_video')
@@ -240,6 +238,9 @@ class HardwareTests(unittest.TestCase):
                 expected = bytearray(8000)
                 for dy in range(-2,3):
                     for dx in range(-2,3):
+                        # 5x5 disc minus the highlight pixel at the top left.
+                        if (dx,dy) == (-1,-1):
+                            continue
                         if dx*dx+dy*dy <= 5 and 0 <= x+dx < 320 and 8 <= y+dy < 168:
                             expected[bitmap_offset(x+dx,y+dy)] |= 128 >> ((x+dx)%8)
                 self.assertEqual(bytes(self.r.bus[0x2000:0x3f40]),expected,(x,y))
@@ -431,7 +432,7 @@ class HardwareTests(unittest.TestCase):
              'outline':[[16,24],[64,24],[96,56],[136,56],[136,24],[304,24],
                         [304,152],[200,152],[168,120],[128,120],[96,152],[16,152]]},
         ]
-        address = 0x3000             # spare bitmap bytes in this isolated test
+        address = 0x8000             # outside the 16 KB RAM; test bus only
         self.r.bus[S['course_table_lo']] = address & 255
         self.r.bus[S['course_table_hi']] = address >> 8
         for course in courses:

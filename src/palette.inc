@@ -1,13 +1,23 @@
 ; TED colors: (LUMINANCE << 4) + HUE. Luminance 0..7, hue 0..15.
-; Hue 0 is black, hue 1 is neutral gray/white.
+; Hue 0 is black, hue 1 is neutral gray/white, hue 5 is green.
 ; Hi-res stores luminance and hue in separate foreground/background nibbles.
-COURSE_SURFACE_COLOR = (5 << 4) + 1 ; uniform gray floor
-COURSE_INK_COLOR = (7 << 4) + 1 ; white markers in whole floor cells
-COURSE_SOLID_COLOR = (0 << 4) + 0 ; black geometry and markers in boundary cells
+COURSE_SURFACE_COLOR = (6 << 4) + 1 ; light gray floor
+COURSE_MARKER_COLOR = (0 << 4) + 0 ; ball, aim marks, cup ring and inner edges
+COURSE_FRAME_COLOR = (0 << 4) + 0  ; one-cell frame around the course
+CHECKER_COLOR_EVEN = (3 << 4) + 5  ; non-playable area, (column + row) even
+CHECKER_COLOR_ODD = (4 << 4) + 5   ; neighbouring cells, one luminance step
 HUD_FOREGROUND_COLOR = (7 << 4) + 1
 HUD_BACKGROUND_COLOR = (0 << 4) + 0
 BORDER_COLOR = (0 << 4) + 0
 
-!if COURSE_INK_COLOR = COURSE_SOLID_COLOR {
-    !error "ink and solid colors must remain distinguishable"
+!if COURSE_MARKER_COLOR = COURSE_SURFACE_COLOR {
+    !error "markers must remain visible on the floor"
+}
+
+; Hi-res attribute bytes for foreground/background color pairs.
+!macro attribute_luminance .foreground, .background {
+    !byte (.background & $70) + ((.foreground & $70) >> 4)
+}
+!macro attribute_color .foreground, .background {
+    !byte ((.foreground & $0f) << 4) + (.background & $0f)
 }

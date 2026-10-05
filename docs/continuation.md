@@ -274,3 +274,12 @@ Speicher (Metadaten) und Kontakt-Grenzfälle.
 
 Übersicht aller Optimierungen mit Messwerten: docs/hardware.md, Abschnitt
 „Speicherarchitektur und Laufzeitoptimierung (2026-10-05)“.
+
+## Neue Optik (2026-10-05)
+
+Auf Nutzerwunsch: schwarzer Ein-Zellen-Rahmen, Schrägen innen und außen
+(außen Schwarz/Grün), hellgraue Fläche (Luminanz 6), schwarzer Ball mit
+Glanzpunkt oben links, grünes Schachbrett überall außerhalb (auch in den
+versteckten Zeilen). Details in docs/hardware.md. Kosten: ca. 200 Bytes;
+Runtime 456 frei. Für 17 weitere Testbahn-Größen fehlen damit ~190 Bytes
+plus Metadaten.

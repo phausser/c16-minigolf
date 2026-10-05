@@ -107,8 +107,10 @@ def main():
     assert st['POWER'] == 32 and st['SHOTS'] == 0,st
     # Filled HUD must be visible; rows 21-23 keep hidden black/black code.
     bitmap = m.memory(0x3b80,0x3f3f)
-    hidden = m.memory(0x1800+21*40,0x1800+24*40-1)+m.memory(0x1c00+21*40,0x1c00+24*40-1)
-    assert not any(hidden),'hidden code rows are visible'
+    # Hidden data stays invisible while foreground equals background.
+    luma = m.memory(0x1800+21*40,0x1800+24*40-1)
+    hues = m.memory(0x1c00+21*40,0x1c00+24*40-1)
+    assert all(v >> 4 == v & 15 for v in list(luma)+list(hues)),'hidden code rows are visible'
     assert any(bitmap[0x3e78-0x3b80:0x3ef8-0x3b80]),'charge bar not filled'
     assert not any(bitmap[0x3f08-0x3b80:]),'status text remains'
     m.joystick(0)

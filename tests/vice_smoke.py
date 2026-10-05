@@ -12,6 +12,8 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'tools'))
 from check_build import symbols
+sys.path.insert(0, str(ROOT/"tests"))
+from course_reference import render
 
 
 def main():
@@ -81,30 +83,10 @@ def main():
     text = log.read_text(encoding='latin1')
     assert 'ERROR' not in text and 'not a valid checkpoint' not in text, log
     attrs = Path(f'{prefix}-attributes.bin').read_bytes()
-    expected_attrs = bytearray(bytes([7])*1024+bytes([16])*1024)
-    expected_attrs[840:960] = bytes(120)
-    expected_attrs[1024+840:1024+960] = bytes(120)
-    expected_attrs[:40] = bytes(40)
-    expected_attrs[1024:1024+40] = bytes(40)
     course = json.loads((ROOT/'assets/test-course.json').read_text())
-    contours = [course['outline'], *course['obstacles']]
-    def playable(x,y):
-        inside = False
-        for contour in contours:
-            for a,b in zip(contour,contour[1:]+contour[:1]):
-                if (a[1] <= y < b[1]) or (b[1] <= y < a[1]):
-                    if a[0]+(y-a[1])*(b[0]-a[0])/(b[1]-a[1]) <= x:
-                        inside = not inside
-        return inside
-    for row in range(1,21):
-        for col in range(40):
-            whole = all(playable(x,y) for y in range(row*8,row*8+8)
-                        for x in range(col*8,col*8+8))
-            ink = s['COURSE_INK_COLOR'] if whole else s['COURSE_SOLID_COLOR']
-            index = row*40+col
-            expected_attrs[index] = (s['COURSE_SURFACE_COLOR'] & 0x70) + ((ink & 0x70) >> 4)
-            expected_attrs[1024+index] = ((ink & 15) << 4) + (s['COURSE_SURFACE_COLOR'] & 15)
-    assert attrs == expected_attrs, 'hires colors/luminance/hidden code row'
+    _, luminance, color = render(course, s)
+    expected_attrs = bytes(luminance+color)
+    assert attrs == expected_attrs, 'hires colors/luminance/checker/frame'
     video = Path(f'{prefix}-video.bin').read_bytes()
     assert video[0] & 0x7f == 0x3b, 'bitmap/display/25-row configuration'
     assert video[1] & 0x7f == 8, 'PAL hires 40-column configuration'

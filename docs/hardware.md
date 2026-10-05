@@ -26,8 +26,8 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 | $3E00–$3F3F | Stärke, HUD-Zeile 24 |
 | $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 140 Bytes und Diagonal-Guard 42 Bytes |
 
-Die vier versteckten Bitmap-Zeilen (0, 21–23) haben identische schwarze
-Vorder- und Hintergrundfarbe. Zeichner und Clear-Routinen schützen diese Bereiche.
+Die vier versteckten Bitmap-Zeilen (0, 21–23) haben identische Vorder- und
+Hintergrundfarbe (grünes Schachbrett). Zeichner und Clear-Routinen schützen diese Bereiche.
 Der Loader transportiert die oberen Tabellen zunächst ab $3000; die
 Initialisierung installiert sie vor dem Löschen der sichtbaren Bitmap.
 Zero Page enthält Zustand, temporäre Mathematik und die 32-Byte-
@@ -40,11 +40,8 @@ nachweislich hinein; weitere Speicheroptimierung ist Voraussetzung.
 Primärquelle: [Commodore TED 7360 Datenblatt](https://www.karlstechnology.com/commodore/TED7360-datasheet.pdf).
 $FF06=$3B, $FF07=$08, $FF12=$08, $FF14=$18 schalten 320×200-Hi-Res,
 PAL/40 Spalten, RAM-Bitmap $2000 und Attribute $1800/$1C00 ein.
-Im HUD ergeben Luminanz/Farbe $07/$10 Weiß auf Schwarz. Im Spielfeld ist
-Grau die Hintergrundfarbe (Luminanz 5). Vollständig spielbare 8×8-Zellen
-verwenden $57/$11 (Weiß auf Grau), Zellen mit Geometriepixeln $50/$01
-(Schwarz auf Grau). Alle acht statischen Bitmapbytes müssen null sein,
-damit eine Zelle Weiß verwendet. Klassifizierung vor Lochring/Ball/Zielmarke.
+Im HUD ergeben Luminanz/Farbe $07/$10 Weiß auf Schwarz. Spielfeld siehe
+Abschnitt „Rahmen, Schrägen und grünes Schachbrett (2026-10-05)“.
 Palette in src/palette.inc; keine Muster, keine Schatten, kein Multicolor.
 IRQ-Quellen sind deaktiviert. VICE prüft die Register mit passenden Masken.
 
@@ -378,3 +375,26 @@ waren Wegwerfskripte auf Basis von profile_sweep.profile_call. Ein Zyklus
 entspricht nicht festen Ticks: Arbeit im sichtbaren Bildbereich kostet
 etwa doppelt, daher immer in VICE nachmessen.
 Ergebnis: Runtime 4979 Bytes, 653 frei; schlechtester Frame 30173/32000.
+
+## Rahmen, Schrägen und grünes Schachbrett (2026-10-05)
+
+initialise_course_colors (src/course_renderer.asm, versteckte Zeilen)
+klassifiziert nach dem Füllen jede Zelle der Zeilen 1–20 aus ihren acht
+Bitmapbytes: Fläche (alle 0), innere Schräge (gemischt), fest (alle 1).
+Die Klassen liegen vorübergehend in der Farbmatrix (Anzeige aus). Jede
+innere Schräge kopiert ihr Muster in die Nachbarzelle zur festen Seite,
+waagerecht und senkrecht: das ist die äußere Rahmenschräge (Grün auf
+Schwarz). Erkannt wird die feste Seite am rechten Pixel der Mittelzeile
+und am mittleren Pixel der obersten Zeile. Feste Zellen mit einer Flächen-
+zelle in der 8er-Nachbarschaft werden schwarzer Rahmen, die übrigen grünes
+Schachbrett. Eine Tabelle (Klasse × Parität) liefert die Attribute für die
+Zeilen 0–23; die versteckten Zeilen bekommen gleiche Vorder- und
+Hintergrundfarbe. Palette: Fläche $61, Rahmen/Markierungen $00, Schachbrett
+$35/$45. Der Ball hat drei Zeilenformen ($70, $f8, $b8 mit Glanzpunkt).
+
+tests/course_reference.py ist ein unabhängiges Pixelmodell für Bitmap und
+Attribute. Es wird für die Testbahn, für Schrägen in allen vier Richtungen,
+für einspringende Schrägen und im VICE-Smoke-Test verwendet. Das
+Eingabemodul liegt wieder in der Runtime; emit_segment ist in die
+versteckten Zeilen umgezogen. Runtime 5176 Bytes, 456 frei; versteckte Zeilen
+907/960. VICE: schlechtester Frame 30367/32000 Ticks.

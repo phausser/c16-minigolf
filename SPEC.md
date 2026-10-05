@@ -6,18 +6,18 @@ Ein technisch anspruchsvolles Minigolfspiel für den unveränderten Commodore 16
 
 Planungsannahmen: PAL als erstes Ziel, ein Spieler, C16-kompatibler Joystick an Port 1 als Grundsteuerung, P auf der Tastatur zum Pausieren. Alle 18 Löcher liegen im geladenen Programm; während einer Runde wird nichts nachgeladen. Auslieferung als PRG, zusätzlich ein D64 mit demselben Programm. Keine Speichererweiterung erforderlich. NTSC ist ein späteres Kompatibilitätsziel mit derselben Simulationszeit, aber eigener Laufzeitprüfung.
 
-„Kein Multicolor“ bedeutet TED Standard-Hi-Res mit einem Bit pro Pixel und zwei Farben pro 8×8-Zelle. Graue Spielflächen sind die Hintergrundfarbe. Vollständig spielbare Zellen nutzen weiße Vordergrundfarbe; Zellen mit festen Geometriepixeln schwarze. Die Pixelauflösung bleibt 320×200.
+„Kein Multicolor“ bedeutet TED Standard-Hi-Res mit einem Bit pro Pixel und zwei Farben pro 8×8-Zelle. Graue Spielflächen sind die Hintergrundfarbe, Ball und Markierungen die schwarze Vordergrundfarbe. Rahmen und grünes Schachbrett entstehen allein über die Zellattribute. Die Pixelauflösung bleibt 320×200.
 
 ## Darstellung und Atmosphäre
 
 - TED Standard-Hi-Res-Bitmap, 320 × 200 Pixel, fester Bildschirm ohne Scrollen.
 - Spielfeldbereich: x = 8…311, y = 8…167. Statusbereich: y = 176…199; dazwischen Abstand.
-- Spielbare Flächen glatt grau, nichtspielbare Flächen und Hindernisse schwarz. Ball, Zielmarke und Lochring weiß in vollständigen Bahnzellen, schwarz in Zellen mit einer Kontur. Bei Zellübergängen können Markierungen teilweise weiß und teilweise schwarz sein. HUD weiß auf Schwarz.
-- Ball: kompakte, symmetrische 5 × 5-Pixel-Marke, physikalischer Radius 2 Pixel. Loch: klar erkennbarer Ring.
+- Spielbare Flächen glatt hellgrau (Luminanz 6). Um die Bahn läuft ein schwarzer Rahmen von genau einer Zelle (8 Pixel); an 45°-Schrägen ist auch die Außenkante schräg, um eine Zelle versetzt (Zellen Schwarz/Grün). Hindernisse schmaler als zwei Rahmenbreiten sind ganz schwarz. Alles übrige, auch die versteckten Zeilen 0 und 21–23 (gleiche Vorder- und Hintergrundfarbe), zeigt ein grünes Schachbrett: jede Zelle mittelgrün, Nachbarzellen eine Luminanzstufe verschieden. Ball, Zielmarke und Lochring schwarz. HUD weiß auf Schwarz.
+- Ball: kompakte 5 × 5-Pixel-Marke mit einem freien Glanzpunkt oben links, physikalischer Radius 2 Pixel. Loch: klar erkennbarer Ring.
 - Die Grenze zwischen Grau und Schwarz entspricht der physikalischen Kollisionskante. Alle geraden Kanten liegen vollständig auf dem 8×8-Zellraster; nur schräge Kanten schneiden Zellen.
 - Laufrichtung vor dem Schlag als kurze gestrichelte Linie und Richtungsspitze; keine vollständige Flugbahnvorhersage.
 - HUD zeigt nur Schlagstärke (0–32) und den Ladebalken. Keine Anleitung oder Statuswörter darunter. Weitere Wertungen auf separaten Ergebnisbildern; Spieltext ohne Umlaute.
-- Gleichmäßig gefärbte Flächen ohne Schatten oder Pixelmuster. Keine Perspektive und keine Hardware-Sprites.
+- Gleichmäßig gefärbte Flächen ohne Schatten oder Pixelmuster; das Schachbrett entsteht zellweise über Farben. Keine Perspektive und keine Hardware-Sprites.
 
 Statische Bahn einmal zeichnen. Ball, Zielmarke und kleine Effekte als Softwaregrafik mit gesichertem Hintergrund aktualisieren. Überlappende Elemente werden in fester Reihenfolge restauriert und neu gezeichnet. Keine vollständige Bitmap-Kopie im RAM, kein Vollbild-Neuzeichnen pro Frame und kein flackerndes XOR als Standardlösung.
 

@@ -13,7 +13,7 @@ initialise_video:
     lda #$18                  ; attributes $1800, color matrix $1c00
     sta TED_VIDEO
 
-    ; Default HUD palette; hidden rows and playfield colors are set below.
+    ; Default HUD palette; draw_course colors rows 0..23.
     ldx #0
 video_attributes:
     lda #(HUD_BACKGROUND_COLOR & $70) + ((HUD_FOREGROUND_COLOR & $70) >> 4)
@@ -56,18 +56,6 @@ video_clear_page:
     inc BITMAP_PTR + 1
     dex
     bne video_clear_page
-    ; Hidden code rows 21-23 ($3a40-$3dff) and lookup row 0.
-    ; Fixed black/black attributes hide instruction bits without multicolor.
-    ldx #119
-    lda #0
-video_hide_code:
-    sta LUMINANCE_BASE + 21*40,x
-    sta COLOR_BASE + 21*40,x
-    cpx #40
-    bcs video_hide_next
-    sta LUMINANCE_BASE,x
-    sta COLOR_BASE,x
-video_hide_next:
-    dex
-    bpl video_hide_code
+    ; Rows 0 and 21..23 get equal checker colors in draw_course; the
+    ; display stays off until then.
     jmp clear_hud_bitmap

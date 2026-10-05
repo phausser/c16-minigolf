@@ -32,7 +32,7 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] Code-, Daten- und Scratchbedarf messen; 18-Bahnen-Budget mit dem echten Testexport hochrechnen (`make budget`: 18 gleich große Exporte als ausdrückliche Annahme).
 - [x] Schlechteste Framezeit mit Anzeige messen, einschließlich Engstellen und Mehrfachkontakten.
 - [x] Allgemeine schräge Eckentreffer von 38873 auf höchstens 32000 PAL-Ticks optimieren; `make smoke` besteht mit 30173 Ticks, inklusive der vier teuersten Winkel eines 128-Winkel-Sweeps (neue Abprallphysik vom Nutzer in VICE als natürlich bestätigt).
-- [ ] Speicher erweitern (Stand: 653 Runtime-Bytes frei, Decoder und aktuelle Bahn resident; 17 weitere Testbahn-Größen brauchen 646 Bytes, Metadaten fehlen noch) und echtes 18-Bahnen-Budget nachweisen.
+- [ ] Speicher erweitern (Stand: 456 Runtime-Bytes frei, Decoder und aktuelle Bahn resident; 17 weitere Testbahn-Größen brauchen 646 Bytes, Metadaten fehlen noch) und echtes 18-Bahnen-Budget nachweisen.
 - [x] Start innerhalb des Fangradius und Lochfang unmittelbar nach einem Abpraller gezielt absichern.
 - [x] Wand-Kontakt-Epsilon gegen Rundungsreste von ein bis zwei Festkommaeinheiten prüfen.
 - [ ] Gleichzeitige Kontakte und schrägere Endpunktfälle vollständig absichern.
@@ -41,6 +41,12 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] Komprimierten Export im ACME-Kern dekodieren und die entpackte aktuelle Bahn separat vom Kursbestand halten (`decode_course`, Puffer $0100–$019F, Host-Referenz bitgenau geprüft).
 
 Abnahme: spielbarer Kern erfüllt Speicher- und Zeitbudget mit begründeter Reserve. Bei Überschreitung zuerst Architektur/Daten optimieren; Bahnproduktion erst nach erneutem Nachweis fortsetzen.
+
+### Grafik
+
+Seit 2026-10-05: schwarzer Ein-Zellen-Rahmen mit Schrägen innen und außen,
+hellgraue Fläche, schwarzer Ball mit Glanzpunkt, grünes Schachbrett außerhalb
+(siehe SPEC und docs/hardware.md). Der folgende Absatz beschreibt den Stand davor.
 
 ### Grafikänderung vor der Speicheroptimierung
 
@@ -53,7 +59,7 @@ Luminanz 5. Klassifizierung aus statischer Bitmap vor den Markierungen.
 47 Tests bestehen, VICE bestätigt Bild und Restaurierung sowie den echten
 emulierten Joystick-Port. Gerade Kanten am 8×8-Raster, Engstelle nun 16 Pixel.
 Nur Stärkeanzeige im HUD; Joystick links/rechts dreht, Feuer halten lädt,
-Loslassen schlägt. Runtime 4979 Bytes, 653 frei; versteckte Zeilen 21–23 832/960.
+Loslassen schlägt. Runtime 5176 Bytes, 456 frei; versteckte Zeilen 21–23 907/960.
 Bahnen liegen gepackt (Format 2) im Kern; decode_course entpackt die aktuelle
 Bahn in die Stackseite, Füllkanten entstehen beim Zeichnen aus den Segmenten.
 Für 17 weitere Bahnen in Testbahngröße fehlen 302 Bytes plus Metadaten.

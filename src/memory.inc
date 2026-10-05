@@ -135,6 +135,8 @@ M_DEN = $c0              ; 24-bit positive denominator
 M_QUOT = $c3             ; 16-bit division/sqrt result
 M_TRIAL = $c5            ; 24-bit sqrt trial
 M_COUNT = $c8
+BALL_LEFT = M_PRODUCT       ; three left byte masks while drawing the ball
+BALL_RIGHT = M_MULTIPLICAND ; three right byte masks
 ; decode_course scratch shares math scratch; decoding precedes physics.
 DECODE_X = M_A            ; current vertex, 2px units
 DECODE_Y = M_A + 1

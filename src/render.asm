@@ -15,24 +15,28 @@ ball_visible:
     sec
     sbc #2
     sta PIXEL_Y
-    ; Two row shapes, shifted once: M_A/M_B = left/right byte masks,
-    ; index 0 = narrow top/bottom row, index 1 = full middle rows.
-    lda #$70
-    sta M_A
-    lda #$f8
-    sta M_A + 1
+    ; Three row shapes, shifted once: BALL_LEFT/BALL_RIGHT byte masks,
+    ; 0 = narrow top/bottom row, 1 = full row, 2 = row with the highlight
+    ; pixel left clear so the floor shines through top left.
+    ldx #2
+ball_mask_init:
+    lda ball_shapes,x
+    sta BALL_LEFT,x
     lda #0
-    sta M_B
-    sta M_B + 1
+    sta BALL_RIGHT,x
+    dex
+    bpl ball_mask_init
     lda PIXEL_X
     and #7
     tax
     beq ball_masks_ready
 ball_mask_shift:
-    lsr M_A
-    ror M_B
-    lsr M_A + 1
-    ror M_B + 1
+    lsr BALL_LEFT
+    ror BALL_RIGHT
+    lsr BALL_LEFT + 1
+    ror BALL_RIGHT + 1
+    lsr BALL_LEFT + 2
+    ror BALL_RIGHT + 2
     dex
     bne ball_mask_shift
 ball_masks_ready:
@@ -60,13 +64,13 @@ ball_next:
     lda ball_row_shapes,x
     sta GLYPH
     tax
-    lda M_A,x
+    lda BALL_LEFT,x
     beq ball_second_byte
     sta PIXEL_MASK
     jsr save_dynamic_byte
 ball_second_byte:
     ldx GLYPH
-    lda M_B,x
+    lda BALL_RIGHT,x
     beq ball_row_done
     sta PIXEL_MASK
     lda TEMP
@@ -385,4 +389,6 @@ hud_power:
 HUD_BAR = $3e00 + 15 * 8      ; bar cell rows 2..4 hold $7c when filled
 
 ball_row_shapes:
-!byte 0,1,1,1,0
+!byte 0,2,1,1,0
+ball_shapes:
+!byte $70,$f8,$b8
