@@ -99,9 +99,9 @@ control_fire:
     jsr start_shot
     lda #0
     sta POWER
-    lda #1
-    sta HUD_DIRTY
+    lda #1                    ; empty bar; stop_ball shows the shot count
     sta DIRTY
+    sta HUD_DIRTY
     rts
 control_held:
     lda FIRE_LOCK

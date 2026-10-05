@@ -9,7 +9,7 @@ horizontally and vertically: the smooth outer frame edge. Other solid cells next
 faces such a cell, square at corners. The cup is a filled round 7-pixel
 disc. Cells with floor are gray with black ink, other playfield cells black
 ink on the green checker, rows 0 and 21..23 equal checker colors, row 24
-the HUD palette.
+HUD text on the checker and a white-on-black power bar.
 """
 
 FRAME_WIDTH = 6
@@ -87,11 +87,15 @@ def render(course, s):
                 bitmap[bitmap_offset(cx+dx, cy+dy)] |= 128 >> ((cx+dx) % 8)
     hud = attribute(s['HUD_FOREGROUND_COLOR'], s['HUD_BACKGROUND_COLOR'])
     luminance, color = [hud[0]]*1024, [hud[1]]*1024
-    for row in range(24):
+    for row in range(25):
         for col in range(40):
             checker = s['CHECKER_COLOR_ODD'] if (row+col) % 2 else s['CHECKER_COLOR_EVEN']
             kind = classes.get((row, col))
-            if kind in ('floor', 'edge'):
+            if row == 24:
+                bar = s['BAR_COLUMN'] <= col < s['BAR_COLUMN']+s['BAR_CELLS']
+                pair = (attribute(s['HUD_FOREGROUND_COLOR'], s['HUD_BACKGROUND_COLOR']) if bar
+                        else attribute(s['HUD_TEXT_COLOR'], checker))
+            elif kind in ('floor', 'edge'):
                 pair = attribute(s['COURSE_MARKER_COLOR'], s['COURSE_SURFACE_COLOR'])
             elif kind:
                 pair = attribute(s['COURSE_FRAME_COLOR'], checker)

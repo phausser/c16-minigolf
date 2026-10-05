@@ -101,17 +101,14 @@ frame_counter_ready:
     lda #0
     sta DIRTY
 frame_hud:
-    lda HUD_DIRTY
-    beq frame_done
-    and #1
-    beq frame_status
+    ; Bit 0: power bar, bit 1: hole and shot numbers. Shifts leave 0.
+    lsr HUD_DIRTY
+    bcc frame_status
     jsr draw_power
-    jmp frame_hud_done
 frame_status:
+    lsr HUD_DIRTY
+    bcc frame_done
     jsr draw_status
-frame_hud_done:
-    lda #0
-    sta HUD_DIRTY
 frame_done:
     lda TED_RASTER_LO
     sta FRAME_END_RASTER

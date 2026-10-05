@@ -42,7 +42,6 @@ AIM_X = $30                 ; word, unsigned pixel position * 16
 AIM_Y = $32                 ; word
 AIM_STEP_X = $34            ; signed byte, 4 fractional bits
 AIM_STEP_Y = $35
-BAR_LEFT = $36
 GLYPH_BITS = $37
 
 BALL_POS_X = $38             ; unsigned 24-bit Q16.8 (320 pixels need >16 bits)
@@ -59,7 +58,7 @@ HUD_DIRTY = $4a
 CONTACT_LIMIT_HITS = $4b
 CANDIDATE_COUNT = $4c
 FIRE_LOCK = $4d             ; require release after pause/rolling/restart
-BAR_FILLED = $4e           ; power bar cells currently drawn
+HOLE = $4e                 ; current hole, 0-based
 STATE_END = $4f
 BALL_SCREEN_X = $50          ; rounded integer word
 BALL_SCREEN_Y = $52

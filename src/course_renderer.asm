@@ -127,6 +127,8 @@ CLASS_EDGE = 1                  ; inner 45-degree edge: floor and solid
 CLASS_SOLID = 2                 ; frame or green checker
 CLASS_OUTER = 3                 ; outer 45-degree frame edge
 CLASS_HIDDEN = 4                ; rows 0, 21..23: equal checker colors
+CLASS_TEXT = 5                  ; HUD row 24: text on the green checker
+CLASS_BAR = 6                   ; HUD row 24: power bar cells
 ; COURSE_PTR addresses the class of cell i - 41: neighbours of i are at
 ; Y = 0,1,2 / 40,(41),42 / 80,81,82.
 CLASS_SELF = 41
@@ -143,6 +145,18 @@ course_class_clear:
     sta COLOR_BASE + 719,x
     dex
     bne course_class_clear
+    ldx #39
+hud_class:
+    lda #CLASS_TEXT
+    cpx #BAR_COLUMN
+    bcc hud_class_store
+    cpx #BAR_COLUMN + BAR_CELLS
+    bcs hud_class_store
+    lda #CLASS_BAR
+hud_class_store:
+    sta COLOR_BASE + 960,x
+    dex
+    bpl hud_class
     jsr course_cells_begin
 course_classify:
     ldy #7
@@ -351,7 +365,7 @@ frame_row_end:
 frame_columns:
 !byte FRAME_LEFT,$ff,FRAME_RIGHT,FRAME_LEFT,FRAME_RIGHT,FRAME_LEFT,$ff,FRAME_RIGHT
 
-; Attributes for rows 0..23 from class and checker parity.
+; Attributes for rows 0..24 from class and checker parity.
 colour_course_cells:
     lda #<COLOR_BASE
     sta COURSE_PTR
@@ -389,10 +403,10 @@ course_attribute_parity:
     inc COURSE_PTR + 1
 course_attribute_ready:
     lda COURSE_PTR
-    cmp #<(COLOR_BASE + 960)
+    cmp #<(COLOR_BASE + 1000)
     bne course_attribute
     lda COURSE_PTR + 1
-    cmp #>(COLOR_BASE + 960)
+    cmp #>(COLOR_BASE + 1000)
     bne course_attribute
     rts
 
@@ -408,6 +422,10 @@ course_luminance:
     +attribute_luminance COURSE_FRAME_COLOR, CHECKER_COLOR_ODD
     +attribute_luminance CHECKER_COLOR_EVEN, CHECKER_COLOR_EVEN
     +attribute_luminance CHECKER_COLOR_ODD, CHECKER_COLOR_ODD
+    +attribute_luminance HUD_TEXT_COLOR, CHECKER_COLOR_EVEN
+    +attribute_luminance HUD_TEXT_COLOR, CHECKER_COLOR_ODD
+    +attribute_luminance HUD_FOREGROUND_COLOR, HUD_BACKGROUND_COLOR
+    +attribute_luminance HUD_FOREGROUND_COLOR, HUD_BACKGROUND_COLOR
 course_color:
     +attribute_color COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
     +attribute_color COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
@@ -419,3 +437,7 @@ course_color:
     +attribute_color COURSE_FRAME_COLOR, CHECKER_COLOR_ODD
     +attribute_color CHECKER_COLOR_EVEN, CHECKER_COLOR_EVEN
     +attribute_color CHECKER_COLOR_ODD, CHECKER_COLOR_ODD
+    +attribute_color HUD_TEXT_COLOR, CHECKER_COLOR_EVEN
+    +attribute_color HUD_TEXT_COLOR, CHECKER_COLOR_ODD
+    +attribute_color HUD_FOREGROUND_COLOR, HUD_BACKGROUND_COLOR
+    +attribute_color HUD_FOREGROUND_COLOR, HUD_BACKGROUND_COLOR

@@ -235,85 +235,82 @@ draw_static_hud:
     sta TEXT_ROW
     lda #1
     sta TEXT_COLUMN
-    lda #<hud_power
+    lda #<hud_text
     sta TEXT_PTR
-    lda #>hud_power
+    lda #>hud_text
     sta TEXT_PTR + 1
-    jmp draw_text
-
-draw_power:
-    lda #24
-    sta TEXT_ROW
-    lda #7
+    jsr draw_text
+draw_status:
+    lda #6
     sta TEXT_COLUMN
-    ldx #0
-    lda POWER
-power_tens:
+    ldx HOLE
+    inx
+    txa
+    jsr draw_number
+    lda #16
+    sta TEXT_COLUMN
+    lda SHOTS
+; A = 0..99, left aligned in two cells from TEXT_COLUMN.
+draw_number:
+    ldx #'0'
+number_tens:
     cmp #10
-    bcc power_digits
-    sec
+    bcc number_units
     sbc #10
     inx
-    bne power_tens
-power_digits:
-    clc
-    adc #'0'
+    bne number_tens
+number_units:
+    ora #'0'
+    cpx #'0'
+    beq number_single
     sta TEMP
     txa
-    clc
-    adc #'0'
     jsr draw_glyph
     inc TEXT_COLUMN
     lda TEMP
+    jmp draw_glyph
+number_single:
     jsr draw_glyph
+    inc TEXT_COLUMN
+    lda #' '
+    jmp draw_glyph
 
-    ; Redraw only changed bar cells. Cells are contiguous in row 24 from
-    ; column 15; only glyph rows 2..4 are ever nonzero.
+; Black bar, 2 white pixels per power step in glyph rows 2..5, with a
+; 4-pixel black margin left and right: cell c shows end - 8c pixels.
+draw_power:
     lda POWER
-    clc
-    adc #1
-    lsr
-    sta BAR_LEFT              ; new length in cells
-    ldy #$7c
-    cmp BAR_FILLED
-    beq power_bar_done
-    bcs power_bar_grow
-    ldy #0                    ; erase BAR_LEFT .. BAR_FILLED-1
     asl
-    asl
-    asl
-    tax
-    lda BAR_FILLED
-    jmp power_bar_end
-power_bar_grow:
-    lda BAR_FILLED            ; fill BAR_FILLED .. BAR_LEFT-1
-    asl
-    asl
-    asl
-    tax
-    lda BAR_LEFT
-power_bar_end:
-    asl
-    asl
-    asl
+    adc #4                    ; POWER <= 32: carry clear
     sta TEMP
+    ldx #0
 power_bar_cell:
-    tya
+    ldy TEMP
+    cpy #8
+    bcc power_bar_mask
+    ldy #8
+power_bar_mask:
+    lda bar_masks,y
+    cpx #0
+    bne power_bar_store
+    and #$0f
+power_bar_store:
     sta HUD_BAR + 2,x
     sta HUD_BAR + 3,x
     sta HUD_BAR + 4,x
+    sta HUD_BAR + 5,x
+    lda TEMP
+    sec
+    sbc #8
+    bcs power_bar_next
+    lda #0
+power_bar_next:
+    sta TEMP
     txa
     clc
     adc #8
     tax
-    cpx TEMP
+    cpx #BAR_CELLS * 8
     bne power_bar_cell
-    lda BAR_LEFT
-    sta BAR_FILLED
-power_bar_done:
-    rts
-
-draw_status:
     rts
 
 draw_text:
@@ -384,9 +381,13 @@ wall_offsets_x:
 !byte $ff,$ff,0,1,1,1,0,$ff
 wall_offsets_y:
 !byte 0,$ff,$ff,$ff,0,1,1,1
-hud_power:
-!text "KRAFT 00/32  [                ]",0
-HUD_BAR = $3e00 + 15 * 8      ; bar cell rows 2..4 hold $7c when filled
+hud_text:
+!text "BAHN    PUNKTE",0
+BAR_COLUMN = 20
+BAR_CELLS = 9
+HUD_BAR = $3e00 + BAR_COLUMN * 8
+bar_masks:
+!byte $00,$80,$c0,$e0,$f0,$f8,$fc,$fe,$ff
 
 ball_row_shapes:
 !byte 0,2,1,1,0

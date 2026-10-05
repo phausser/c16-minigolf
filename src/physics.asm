@@ -21,6 +21,7 @@ reset_ball:
     lda #1
     sta FIRE_LOCK
     sta DIRTY
+    lda #3
     sta HUD_DIRTY
     rts
 
