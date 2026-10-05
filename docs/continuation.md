@@ -216,7 +216,7 @@ flüchtige Puffer (z. B. entpackte aktuelle Bahn) und 87 versteckte Bytes.
 48 Tests, VICE-Grafik und Joystick bestehen; Bild unverändert. Physik
 38821 > 32000 Ticks weiter offen. make budget: Geometrie allein braucht noch
 167 Bytes plus Decoder/Metadaten.
-Nächste Reserve: Spalten 0 und 39 liegen laut SPEC außerhalb des Spielfelds
-(x 8…311). Je Zeile ergeben Spalte 39 von Zeile r und Spalte 0 von r+1
-16 zusammenhängende Bytes (19 Blöcke), $3A38–$3A3F verlängert den versteckten
-Block. Dafür Löschroutine, Klassifizierung und Attributschwärzung anpassen.
+Spalten 0 und 39 bleiben auf Nutzerwunsch frei: der ganze Bildschirm soll
+für Bahnen verfügbar bleiben. Keine Daten im Rand verstecken. Weitere Reserve
+aus Codeverkleinerung, Stackseite, Attributlücken ($1BE8/$1FE8, je 24 Bytes)
+und Zero Page gewinnen.
