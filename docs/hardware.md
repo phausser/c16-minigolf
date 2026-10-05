@@ -17,14 +17,14 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 | $0100–$019F | Entpackte aktuelle Bahn, bis 32 Segmente (beim Start vorher Kopierer) |
 | $01A0–$01D5 | 54 Bytes Hintergrundrestaurierung |
 | $01D6–$01FF | Stack, 42 Bytes reserviert; gemessene Tiefe 12 Bytes |
-| $0200–$1572 | Laufzeitcode und gepackte Bahnen: 4979 Bytes |
-| $1573–$17FF | 653 freie Bytes |
+| $0200–$168F | Laufzeitcode, Bahn-Decoder und gepackte Bahnen: 5264 Bytes |
+| $1690–$17FF | 368 freie Bytes |
 | $1800–$1FFF | TED-Luminanz und Farbe |
 | $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
 | $2140–$3A3F | Sichtbares Spielfeld |
-| $3A40–$3DFF | Unsichtbare Zeilen 21–23: Bahnzeichner, weite Mathematik, Eingabe; 832 Bytes, 128 frei |
+| $3A40–$3DFF | Unsichtbare Zeilen 21–23: Bahnzeichner mit Zellformung und Farben, weite Mathematik; 876 Bytes, 84 frei |
 | $3E00–$3F3F | Stärke, HUD-Zeile 24 |
-| $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 140 Bytes und Diagonal-Guard 42 Bytes |
+| $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 115 Bytes und Diagonal-Guard 42 Bytes |
 
 Die vier versteckten Bitmap-Zeilen (0, 21–23) haben identische Vorder- und
 Hintergrundfarbe (grünes Schachbrett). Zeichner und Clear-Routinen schützen diese Bereiche.
@@ -78,8 +78,8 @@ Der automatisierte Emulator-Smoke-Test injiziert weiterhin logische Ereignisse.
 
 ## Physikprüfung und Laufzeit
 
-43 automatisierte Tests bestehen, davon 36 am assemblierten Kern und
-sieben für Host-Geometrie/Export. Geprüft sind: Loader, Grafik,
+51 automatisierte Tests bestehen (Stand 2026-10-05), davon 44 am
+assemblierten Kern und sieben für Host-Geometrie/Export. Geprüft sind: Loader, Grafik,
 Eingabe, Hintergrund, exakte Arithmetik, 128 Richtungen, Reichweiten und
 Stillstand, Achsen-/Diagonalbanden, radiale Endpunkte, Streifkontakte,
 Lochfang und deterministische längere Testbahn-Replays. Das ersetzt noch

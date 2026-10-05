@@ -29,7 +29,7 @@ erfolgreich geprüft. Dort den Smoke-Test in drei getrennten Aufrufen ausführen
 
 ```sh
 python3 tests/vice_smoke.py --prepare-only
-/opt/homebrew/bin/xplus4 -silent -default -console -model c16 -pal -ramsize 16 -sounddev dummy -warp -autostartprgmode 1 -autostart build/minigolf.prg -initbreak 0x0200 -moncommands build/vice-pal.mon -monlog -monlogname build/vice-pal.log -limitcycles 20000000
+xplus4 -silent -default -console -model c16 -pal -ramsize 16 -sounddev dummy -warp -autostartprgmode 1 -autostart build/minigolf.prg -initbreak 0x0200 -moncommands build/vice-pal.mon -monlog -monlogname build/vice-pal.log -limitcycles 20000000
 python3 tests/vice_smoke.py --verify-only
 ```
 
@@ -68,7 +68,7 @@ Geschwindigkeit, Richtung und Spielzustand der jeweils sieben Frames.
 
 ## Joystick-Port und Feuerdauer
 
-47 Tests prüfen auch die getrennte Joystick-/Pause-Abfrage, Entprellung,
+Die Tests prüfen auch die getrennte Joystick-/Pause-Abfrage, Entprellung,
 Feuerdauer, Sättigung, Loslassen, Abbruch bei Pause sowie gehaltenes Feuer
 nach Rollen/Neustart. Historische Eckensweep-Replays bekommen die gespeicherte
 Geometrie aus `tests/fixtures/course-before-cell-grid.json`, damit die neuen
@@ -78,7 +78,7 @@ Zusätzlicher VICE-Test über den echten emulierten TED-Joystick-Pfad:
 
 ```sh
 python3 tests/vice_joystick.py --prepare-only
-/opt/homebrew/bin/xplus4 -silent -default -console -model c16 -pal -ramsize 16 -sounddev dummy -warp -autostartprgmode 1 -autostart build/minigolf.prg -initbreak 0x0200 -moncommands build/vice-joystick.mon -binarymonitor -binarymonitoraddress 127.0.0.1:6503
+xplus4 -silent -default -console -model c16 -pal -ramsize 16 -sounddev dummy -warp -autostartprgmode 1 -autostart build/minigolf.prg -initbreak 0x0200 -moncommands build/vice-joystick.mon -binarymonitor -binarymonitoraddress 127.0.0.1:6503
 # Während VICE im Monitor wartet, in einem zweiten Terminal:
 python3 tests/vice_joystick.py --verify-only
 ```

@@ -299,3 +299,10 @@ Endstand Rahmen (Nutzerentscheidung nach Vorschauen): gerade Kanten 6 px,
 Schrägen glatt bis zur Zellkante; Pixel-Ausdehnung wieder entfernt,
 Zellformung in shape_course_cells (FRAME_WIDTH). Aufbau ≈1,03 Mio. Zyklen.
 Runtime 368 frei, versteckte Zeilen 134 frei.
+
+Stand Ende 2026-10-05: Rahmen gerade Kanten 6 px (FRAME_WIDTH), Schrägen glatt
+bis zur Zellkante, Schrägkopien an den Enden auf die Rahmenbreite gekappt
+(bündige Übergänge). Nutzer: „sieht gut aus“. 51 Tests, VICE-Smoke 30473/32000,
+Joystick bestanden. Runtime 5264 Bytes, 368 frei; versteckte Zeilen 876/960.
+Nächster Schritt: Speicher für Par-Werte/Ergebnisse und 17 weitere Bahnen
+(make budget: 302 Bytes fehlen bei Testbahn-Größe), dann Kontakt-Grenzfälle.
