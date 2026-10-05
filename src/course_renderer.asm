@@ -10,7 +10,9 @@ draw_course:
     lda #0
     sta pattern_count
     sta pattern_overflow
-    jsr classify_course_cells
+    lda #$ff
+    sta solid_code            ; none yet
+    jsr clear_course_classes
     jsr mark_water
     lda #0
     sta window_row
@@ -61,35 +63,46 @@ draw_course_done:
 
 ; Drop the oldest scratch row, keep the two just shaped, and fill the next.
 slide_window:
-    ; slot 1 -> slot 0, then slot 2 -> slot 1. Copying as one 640-byte
-    ; block would make the second half's destination overlap its source.
-    lda #<(SCRATCH_BASE + 320)
-    sta COPY_SOURCE
-    lda #>(SCRATCH_BASE + 320)
-    sta COPY_SOURCE + 1
-    lda #<SCRATCH_BASE
-    sta COPY_TARGET
-    lda #>SCRATCH_BASE
-    sta COPY_TARGET + 1
-    jsr copy_320
-    lda #<(SCRATCH_BASE + 640)
-    sta COPY_SOURCE
-    lda #>(SCRATCH_BASE + 640)
-    sta COPY_SOURCE + 1
-    lda #<(SCRATCH_BASE + 320)
-    sta COPY_TARGET
-    lda #>(SCRATCH_BASE + 320)
-    sta COPY_TARGET + 1
-    jsr copy_320
+    ; Slot 1 -> slot 0 and slot 2 -> slot 1. Each index reads slot 1
+    ; before it is overwritten.
+    ldx #0
+slide_first_page:
+    lda SCRATCH_BASE + 320,x
+    sta SCRATCH_BASE,x
+    lda SCRATCH_BASE + 640,x
+    sta SCRATCH_BASE + 320,x
+    inx
+    bne slide_first_page
+    ldx #320 - 256
+slide_rest:
+    lda SCRATCH_BASE + 320 + 256 - 1,x
+    sta SCRATCH_BASE + 256 - 1,x
+    lda SCRATCH_BASE + 640 + 256 - 1,x
+    sta SCRATCH_BASE + 320 + 256 - 1,x
+    dex
+    bne slide_rest
     inc window_row
     lda window_row
     clc
     adc #2
     jmp fill_window_row
 
-; A = absolute cell row. window_row selects its scratch slot.
+; A = absolute cell row. window_row selects its scratch slot. Rows 1..20
+; are classified as soon as they are filled: shaping row r needs only the
+; classes of rows r-1..r+1, and shaping may then turn cells of row r+1
+; into outer edges.
 fill_window_row:
     sta fill_target
+    jsr fill_window_pixels
+    lda fill_target
+    beq fill_window_done
+    cmp #21
+    bcs fill_window_done
+    jmp classify_row
+fill_window_done:
+    rts
+
+fill_window_pixels:
     sec
     sbc window_row
     jsr clear_scratch_slot
@@ -122,38 +135,6 @@ clear_64:
     iny
     dex
     bne clear_64
-    rts
-
-copy_320:
-    ldy #0
-copy_256:
-    lda (COPY_SOURCE),y
-    sta (COPY_TARGET),y
-    iny
-    bne copy_256
-    inc COPY_SOURCE + 1
-    inc COPY_TARGET + 1
-    ldx #64
-copy_64:
-    lda (COPY_SOURCE),y
-    sta (COPY_TARGET),y
-    iny
-    dex
-    bne copy_64
-    clc
-    lda COPY_SOURCE
-    adc #64
-    sta COPY_SOURCE
-    bcc copy_source_ready
-    inc COPY_SOURCE + 1
-copy_source_ready:
-    clc
-    lda COPY_TARGET
-    adc #64
-    sta COPY_TARGET
-    bcc copy_target_ready
-    inc COPY_TARGET + 1
-copy_target_ready:
     rts
 
 fill_course:
@@ -243,45 +224,72 @@ fill_clip_back:
 fill_scanline:
     lda LINE_Y
     cmp fill_y1
-    bcs fill_next_edge
-    lda LINE_X
-    sta PIXEL_X
-    lda LINE_X + 1
-    sta PIXEL_X + 1
+    bcc fill_scanline_open
+    jmp fill_next_edge
+fill_scanline_open:
+    ; BITMAP_PTR = this scanline in its window slot; the bytes of one
+    ; scanline are 8 apart, columns 32..39 lie 256 bytes further on.
+    lsr
+    lsr
+    lsr
+    sec
+    sbc window_row
+    tax
     lda LINE_Y
-    sta PIXEL_Y
-    jsr point_pixel
-    lda PIXEL_MASK
+    and #7
+    clc
+    adc scratch_lo,x
+    sta BITMAP_PTR
+    lda scratch_hi,x
+    adc #0
+    sta BITMAP_PTR + 1
+    lda LINE_X
+    and #7
+    tax
+    lda pixel_masks,x
     asl
     sec
     sbc #1
-    sta PIXEL_MASK
-    lda PIXEL_X + 1
-    lsr
-    lda PIXEL_X
-    ror
-    lsr
-    lsr
-    sta TEMP
-    lda #39
-    sec
-    sbc TEMP
-    sta GLYPH_BITS
-fill_byte:
+    sta PIXEL_MASK            ; first byte: bits from the crossing rightwards
+    lda LINE_X
+    and #$f8
+    tay
+    ; Invert from the crossing to column 38.
+    lda LINE_X + 1
+    bne fill_high_first
     lda (BITMAP_PTR),y
     eor PIXEL_MASK
     sta (BITMAP_PTR),y
     clc
-    lda BITMAP_PTR
+fill_low:
+    tya
     adc #8
-    sta BITMAP_PTR
-    bcc fill_byte_ready
+    tay
+    bcs fill_high_start       ; carry only past column 31
+    lda (BITMAP_PTR),y
+    eor #$ff
+    sta (BITMAP_PTR),y
+    jmp fill_low
+fill_high_first:
     inc BITMAP_PTR + 1
-fill_byte_ready:
-    lda #$ff
-    sta PIXEL_MASK
-    dec GLYPH_BITS
-    bne fill_byte
+    lda (BITMAP_PTR),y
+    eor PIXEL_MASK
+    sta (BITMAP_PTR),y
+    jmp fill_high_next
+fill_high_start:
+    inc BITMAP_PTR + 1
+    ldy #0
+fill_high:
+    lda (BITMAP_PTR),y
+    eor #$ff
+    sta (BITMAP_PTR),y
+fill_high_next:
+    tya
+    clc
+    adc #8
+    tay
+    cpy #7 * 8
+    bcc fill_high
     clc
     lda LINE_X
     adc LINE_X_STEP
@@ -295,7 +303,8 @@ fill_step_positive:
     sta LINE_X + 1
     inc LINE_Y
     dec LINE_LEFT
-    bne fill_scanline
+    beq fill_next_edge
+    jmp fill_scanline
 fill_next_edge:
     lda SEGMENTS_LEFT
     clc
@@ -316,7 +325,7 @@ CLASS_HIDDEN = 4
 CLASS_WATER = 5
 CLASS_SELF = 41
 
-classify_course_cells:
+clear_course_classes:
     lda #CLASS_HIDDEN
     sta CLASS_SENTINEL
     ldx #240                  ; rows 0..23 only; row 24 is the HUD
@@ -327,59 +336,62 @@ classify_clear:
     sta ATTR_BASE + 719,x
     dex
     bne classify_clear
-    lda #1
-    sta shape_row
-classify_rows:
-    lda shape_row
-    sta window_row
-    jsr fill_window_row
-    lda #<SCRATCH_BASE
-    sta BITMAP_PTR
-    lda #>SCRATCH_BASE
-    sta BITMAP_PTR + 1
-    lda shape_row
-    jsr class_row_pointer
-    ldy #0
-classify_cell:
-    jsr cell_bitmap_address
-    tya
+    rts
+
+; A = absolute row resident in the window. Cells already marked as water
+; keep that class; water areas only cover whole floor cells.
+classify_row:
     pha
-    ldy #7
-    lda (COPY_TARGET),y
-    sta TEMP
-    sta GLYPH
-classify_byte:
-    dey
-    bmi classify_ready
-    lda (COPY_TARGET),y
+    sec
+    sbc window_row
     tax
-    ora GLYPH
-    sta GLYPH
-    txa
-    and TEMP
-    sta TEMP
-    jmp classify_byte
-classify_ready:
+    lda scratch_lo,x
+    sta COPY_TARGET
+    lda scratch_hi,x
+    sta COPY_TARGET + 1
+    pla
+    jsr class_row_pointer
+    lda #0
+    sta TEXT_COLUMN
+classify_cell:
+    ldy #0
+    lda (COPY_TARGET),y
+!for cell_byte, 1, 7 {
+    ldy #cell_byte
+    ora (COPY_TARGET),y
+}
     ldx #CLASS_SOLID
-    lda GLYPH
+    tay
     beq classify_store
-    dex
-    lda TEMP
+    ldy #0
+    lda (COPY_TARGET),y
+!for cell_byte, 1, 7 {
+    ldy #cell_byte
+    and (COPY_TARGET),y
+}
+    ldx #CLASS_EDGE
     cmp #$ff
     bne classify_store
-    dex
+    ldx #CLASS_FLOOR
 classify_store:
-    pla
-    tay
+    ldy TEXT_COLUMN
+    lda (COURSE_PTR),y
+    cmp #CLASS_WATER
+    beq classify_next
     txa
     sta (COURSE_PTR),y
-    iny
-    cpy #40
+classify_next:
+    clc
+    lda COPY_TARGET
+    adc #8
+    sta COPY_TARGET
+    bcc classify_column
+    inc COPY_TARGET + 1
+classify_column:
+    inc TEXT_COLUMN
+    lda TEXT_COLUMN
+    cmp #40
     bne classify_cell
-    inc shape_row
-    lda shape_row
-    cmp #21
-    bne classify_rows
     rts
 
 ; A = absolute row already resident in the scratch window.
@@ -597,9 +609,9 @@ emit_playfield_row:
     sbc window_row
     tax
     lda scratch_lo,x
-    sta BITMAP_PTR
+    sta COPY_TARGET
     lda scratch_hi,x
-    sta BITMAP_PTR + 1
+    sta COPY_TARGET + 1
     lda emit_row
     jsr class_row_pointer
     lda COURSE_PTR
@@ -608,62 +620,78 @@ emit_playfield_row:
     clc
     adc #>(SCREEN_BASE - ATTR_BASE)
     sta COPY_SOURCE + 1
-    ldy #0
-    sty TEXT_COLUMN
+    lda #0
+    sta TEXT_COLUMN
 emit_cell:
+    ldy TEXT_COLUMN
     lda (COURSE_PTR),y
     sta GLYPH
-    jsr cell_bitmap_address
-    tya
-    pha
-    ldy #7
-emit_invert:
+    ; No black pixel: the solid character. The emitted row is not read
+    ; again, so its bytes need not be inverted.
+    ldy #0
+    lda (COPY_TARGET),y
+!for cell_byte, 1, 7 {
+    ldy #cell_byte
+    ora (COPY_TARGET),y
+}
+    bne emit_pattern
+    jsr solid_character
+    jmp emit_code
+emit_pattern:
+!for cell_byte, 0, 7 {
+    ldy #cell_byte
     lda (COPY_TARGET),y
     eor #$ff
     sta (COPY_TARGET),y
-    dey
-    bpl emit_invert
-    lda BITMAP_PTR
-    pha
-    lda BITMAP_PTR + 1
-    pha
+}
     lda COPY_TARGET
     sta BITMAP_PTR
     lda COPY_TARGET + 1
     sta BITMAP_PTR + 1
     jsr intern_pattern
-    tax
-    pla
-    sta BITMAP_PTR + 1
-    pla
-    sta BITMAP_PTR
-    pla
-    tay
-    txa
+emit_code:
+    ldy TEXT_COLUMN
     sta (COPY_SOURCE),y
-    lda emit_row
-    eor TEXT_COLUMN
+    tya
+    eor emit_row
     and #1
-emit_ink_index:
     asl GLYPH
     ora GLYPH
     tax
     lda course_ink,x
     sta (COURSE_PTR),y
+    clc
+    lda COPY_TARGET
+    adc #8
+    sta COPY_TARGET
+    bcc emit_column
+    inc COPY_TARGET + 1
+emit_column:
     inc TEXT_COLUMN
-    iny
-    cpy #40
-    bne emit_cell
+    lda TEXT_COLUMN
+    cmp #40
+    beq emit_row_done
+    jmp emit_cell
+emit_row_done:
     rts
 
-; Rows whose bitmap is irrelevant: one solid character, checker foreground.
-emit_hidden_row:
-    sta emit_row
+; A = screen code of the solid glyph, interned on first use.
+solid_character:
+    lda solid_code
+    bpl solid_ready
     lda #<solid_glyph
     sta BITMAP_PTR
     lda #>solid_glyph
     sta BITMAP_PTR + 1
     jsr intern_pattern
+    sta solid_code
+solid_ready:
+    rts
+
+; Rows whose bitmap is irrelevant: one solid character, checker foreground.
+emit_hidden_row:
+    sta emit_row
+    jsr solid_character
     sta TEMP
     lda emit_row
     jsr class_row_pointer
@@ -699,26 +727,6 @@ emit_ink_store:
     lda course_ink,x
     sta (COURSE_PTR),y
     jmp hidden_stored
-
-; Y = column. COPY_TARGET points at that cell in the row at BITMAP_PTR.
-; Column 32 is byte 256 of the row, so the shift carry is the high byte.
-cell_bitmap_address:
-    tya
-    asl
-    asl
-    asl
-    sta COPY_TARGET
-    lda #0
-    rol
-    sta COPY_TARGET + 1
-    clc
-    lda COPY_TARGET
-    adc BITMAP_PTR
-    sta COPY_TARGET
-    lda COPY_TARGET + 1
-    adc BITMAP_PTR + 1
-    sta COPY_TARGET + 1
-    rts
 
 ; Eight bytes at BITMAP_PTR join the course catalogue. A = screen code.
 intern_pattern:
@@ -779,6 +787,8 @@ course_ink:
 
 window_row:
 !byte 0
+solid_code:
+!byte $ff
 fill_target:
 !byte 0
 fill_y0:

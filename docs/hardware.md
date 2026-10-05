@@ -6,7 +6,7 @@ Datum beschreiben teils noch den früheren Hi-Res-Bitmap-Stand.
 
 ## Speicher und Start
 
-PRG: 8331 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
+PRG: 8443 Bytes einschließlich Ladeadresse; BASIC-Start `SYS4109`.
 Ein temporärer Kopierer läuft im unteren Stackbereich ab $0100 und kopiert
 überlappungssicher den Laufzeitkörper nach $0200. Währenddessen erfolgt
 kein Unterprogrammaufruf; der Stackpointer wird danach auf $FF gesetzt.
@@ -18,8 +18,8 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 | $0100–$019F | Entpackte aktuelle Bahn, bis 32 Segmente (beim Start vorher Kopierer) |
 | $01A0–$01C3 | Dynamische Zellen: Bildschirmadresse und alter Zeichencode, je 12 |
 | $01D6–$01FF | Stack, 42 Bytes reserviert; gemessene Tiefe 12 Bytes |
-| $0200–$2237 | Laufzeitcode, Tabellen, Decoder und alle 18 gepackten Bahnen: 8248 Bytes |
-| $2238–$2FFE | 3527 freie Bytes |
+| $0200–$22A7 | Laufzeitcode, Tabellen, Decoder und alle 18 gepackten Bahnen: 8360 Bytes |
+| $22A8–$2FFE | 3415 freie Bytes |
 | $2FFF | Klassifizierungsrand (Zelle −1), zur Laufzeit geschrieben |
 | $3000–$33FF | Attribute: Vordergrundfarbe je Zelle; beim Zeichnen Zellklassen |
 | $3400–$37FF | Zeichencodes |
@@ -52,9 +52,11 @@ Der Bahnzeichner arbeitet bei abgeschaltetem Bild mit demselben Algorithmus
 wie früher (Even/Odd-Scanline-Füllung, Klassifizierung, Rahmenbänder,
 Außenschrägen), aber in einem Puffer von drei Zellzeilen. Jede fertige Zelle
 wird invertiert und gegen die bisherigen Bahnzeichen gesucht (linear,
-höchstens 64; Überlauf färbt den Rahmen rot). Gemessen im 6502-Kern
-(2026-10-05): 11–25 Zeichen je Bahn, 1,6–3,1 Mio. Zyklen je Bahnwechsel
-(Bahn 17 am längsten).
+höchstens 64; Überlauf färbt den Rahmen rot). Jede Zeile wird beim Eintritt ins
+Fenster klassifiziert (keine zweite Füllung); Zellen ohne schwarzes Pixel
+nehmen ohne Suche das volle Zeichen. Gemessen im 6502-Kern (2026-10-05):
+11–25 Zeichen je Bahn, 0,89–1,47 Mio. Zyklen je Bahnwechsel (Bahn 17 am
+längsten; vor der Optimierung 1,6–3,1 Mio., Bitmap-Stand ≈1,03 Mio.).
 
 Ball und Zielpunkte: Für jede berührte Zelle wird das statische Zeichen in
 eines von zwölf dynamischen Zeichen kopiert, dann werden Pixel gelöscht.

@@ -72,21 +72,18 @@ plot_outside_playfield:
 
 ; A = character code 0..127. FONT_PTR points at its eight bytes.
 charset_address:
+    pha
+    asl
+    asl
+    asl
     sta FONT_PTR
-    lda #0
-    sta FONT_PTR + 1
-    asl FONT_PTR
-    rol FONT_PTR + 1
-    asl FONT_PTR
-    rol FONT_PTR + 1
-    asl FONT_PTR
-    rol FONT_PTR + 1
-    clc
-    lda FONT_PTR
-    adc #<CHARSET_BASE
-    sta FONT_PTR
-    lda FONT_PTR + 1
-    adc #>CHARSET_BASE
+    pla
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    ora #>CHARSET_BASE        ; 1 KB aligned: no carry into bit 2
     sta FONT_PTR + 1
     rts
 

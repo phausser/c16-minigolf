@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-05: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 61 automatisierte Tests bestehen. VICE bestätigt ROM-Start, Textmodus, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31107 von 32000 Ticks (Test-Build mit Testbahn, ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis das Speicherbudget für 18 Bahnen nachgewiesen ist. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-05: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 61 automatisierte Tests bestehen. VICE bestätigt ROM-Start, Textmodus, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31142 von 32000 Ticks (Test-Build mit Testbahn, ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis das Speicherbudget für 18 Bahnen nachgewiesen ist. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -73,15 +73,15 @@ Plan und Ergebnis: [docs/textmode-plan.md](docs/textmode-plan.md).
 
 - [x] Entscheidung in der SPEC festhalten.
 - [x] Test-Helfer Text → Pixel; alle Bahnen pixelgleich zur Referenz.
-- [x] Speicherumbau ohne versteckte Bitmap-Bereiche: 3527 Bytes frei.
+- [x] Speicherumbau ohne versteckte Bitmap-Bereiche: 3415 Bytes frei.
 - [x] Statischer Renderer auf Zeichen, mit Zeichenbudget (höchstens 25 von 64).
 - [x] HUD auf Zeichen.
 - [x] Ball und Zielpunkte über dynamische Zeichen.
-- [x] VICE-Smoke und Zeitbudget: 31107 ≤ 32000 Ticks.
+- [x] VICE-Smoke und Zeitbudget: 31142 ≤ 32000 Ticks.
 - [x] Editor: Zeichenzahl je Bahn.
 - [x] README-Screenshot neu erzeugen.
 - [ ] Freien Speicher verteilen (Plan, Schritt 9).
-- [ ] Bahnwechsel dauert im Kern 1,6–3,1 Mio. Zyklen (Bahn 17 am längsten); bei abgeschaltetem Bild also grob 1–2 s. Bei Bedarf beschleunigen (Hash statt linearer Mustersuche, Füllung nicht je Zellzeile neu).
+- [x] Bahnwechsel beschleunigt: 1,6–3,1 → 0,89–1,47 Mio. Zyklen (Klassifizieren im Zeichenfenster statt eigener Füllung, schnellere Füllschleife, Schnellpfad für das volle Zeichen, ausgerollte Zellschleifen).
 
 ### Nächste Umsetzung innerhalb von Schritt 2
 

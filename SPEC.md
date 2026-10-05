@@ -138,7 +138,7 @@ Bahnquelle in menschenlesbarem Datenformat: Name, Par, Abschlag, Loch, Außenkon
 | $3800–$3BFF | 1024 | Zeichensatz: ROM-Schrift, Ladebalken, dynamische und Bahnzeichen. |
 | $3C00–$3FFF | 1024 | Pixelpuffer des Bahnzeichners (3 Zellzeilen), sonst frei. |
 
-Stand 2026-10-05: Laufzeitbereich 8248 Bytes belegt, 3527 Bytes frei vor den Attributen. ACME-Symbole, Assemblierzeit-Grenzprüfungen und Größenbericht müssen jeden Bereich nachweisen. Kein Heap; Scratch wird zwischen ausschließlich nacheinander aktiven Routinen geteilt. Das Programm darf beim Laden den BASIC-Arbeitsbereich überschreiben, kehrt anschließend nicht zu BASIC zurück.
+Stand 2026-10-05: Laufzeitbereich 8360 Bytes belegt, 3415 Bytes frei vor den Attributen. ACME-Symbole, Assemblierzeit-Grenzprüfungen und Größenbericht müssen jeden Bereich nachweisen. Kein Heap; Scratch wird zwischen ausschließlich nacheinander aktiven Routinen geteilt. Das Programm darf beim Laden den BASIC-Arbeitsbereich überschreiben, kehrt anschließend nicht zu BASIC zurück.
 
 Falls das Budget scheitert: Daten und Text komprimieren, Routinen vereinfachen und Effekte kürzen. Keine stille Umstellung auf 64 KB, Multicolor oder schwächere Eckphysik. Ein notwendiger Architekturwechsel wird ausdrücklich neu entschieden.
 
