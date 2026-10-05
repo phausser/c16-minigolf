@@ -116,7 +116,7 @@ Vorläufig Gesamtpar: 54. Jede Bahn zeigt Abschlag und Loch gleichzeitig. Keine 
 
 Humor bleibt kurz und stört das Zielen nicht. Ereignisse: harter Bandentreffer → kurzes „TOK!“; mehrere Bandenkontakte → „BANDE MIT BANDE“; extrem kurzer Schlag → „WAR DAS SCHON ALLES?“; Hole-in-one → Sternchen und kleine TED-Fanfare; Einlochen nach vielen Schlägen → „ENDLICH FEIERABEND“.
 
-Texte erscheinen im HUD, Partikel nur nach Stillstand bzw. Einlochen. Höchstens vier kleine Partikel, maximal etwa eine halbe Sekunde. Auslöser haben Cooldown und feste Priorität. Effekte ändern weder Ballzustand noch Physikzeit. Keine Bildschirmerschütterung. Ton abschaltbar; keine dauernde Musik während des Zielens. Erst nach erfolgreicher Physikabnahme als optionale Erweiterung denkbar: deutlich markierte Spezialbanden. Sie gehören nicht zum Grundumfang.
+Umgesetzt (2026-10-05): Schlag „Plopp“, Bande „Tok“ bei jedem Wandkontakt, Einlochen als aufsteigender Zweiklang, Wasser als Rauschen; alles auf TED-Stimme 2, $FF12 bleibt unberührt. Texte erscheinen im HUD, Partikel nur nach Stillstand bzw. Einlochen. Höchstens vier kleine Partikel, maximal etwa eine halbe Sekunde. Auslöser haben Cooldown und feste Priorität. Effekte ändern weder Ballzustand noch Physikzeit. Keine Bildschirmerschütterung. Ton abschaltbar; keine dauernde Musik während des Zielens. Erst nach erfolgreicher Physikabnahme als optionale Erweiterung denkbar: deutlich markierte Spezialbanden. Sie gehören nicht zum Grundumfang.
 
 ## Architektur und Daten
 
@@ -132,7 +132,7 @@ Bahnquelle in menschenlesbarem Datenformat: Name, Par, Abschlag, Loch, Außenkon
 |---|---:|---|
 | $0000–$01FF | 512 | Zero Page und Hardwarestack; reservierte CPU-Port-Adressen respektieren. |
 | $0200–$17FF | 5632 | Startstub, Code, Tabellen, alle gepackten Bahnen, Zustand und Scratch. |
-| $1800–$1FFF | 2048 | TED-Attribute, feste Farb-/Luminanzwerte. |
+| $1800–$1FFF | 2048 | TED-Attribute; die je 24 Bytes nach den 1000-Byte-Matrizen halten Bahndaten ($1BFF bleibt als Klassifizierungsrand „versteckt“). |
 | $2000–$3FFF | 8192 | Bitmap; Zeile 0 Rechentabellen, Zeilen 21–23 Code und Bahndaten (schwarz auf schwarz), Zeile 24 Status mit Bahndaten in den Zellen 7–14 und 25–30 (schwarz auf schwarz), Bytes ab $3F40 Startcode und Daten. |
 
 Arbeitsbudget innerhalb der 5632 Bytes: 3500 Code/Stub, 1400 gepackte Bahnen/Texte, 300 Tabellen, 432 Zustand/entpackte aktuelle Bahn/Scratch. Das ist eine harte Arbeitshypothese, keine bereits bewiesene Passform. ACME-Symbole, Assemblierzeit-Grenzprüfungen und Größenbericht müssen jeden Bereich nachweisen. Kein Heap; Scratch wird zwischen ausschließlich nacheinander aktiven Routinen geteilt. Das Programm darf beim Laden den BASIC-Arbeitsbereich überschreiben, kehrt anschließend nicht zu BASIC zurück.

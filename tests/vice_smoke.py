@@ -88,8 +88,9 @@ def main():
     attrs = Path(f'{prefix}-attributes.bin').read_bytes()
     course = json.loads((ROOT/'assets/test-course.json').read_text())
     _, luminance, color = render(course, s)
-    expected_attrs = bytes(luminance+color)
-    assert attrs == expected_attrs, 'hires colors/luminance/checker/frame'
+    # The 24 bytes after each 1000-byte matrix hold course data.
+    assert attrs[:1000]+attrs[1024:2024] == bytes(luminance[:1000]+color[:1000]), \
+        'hires colors/luminance/checker/frame'
     video = Path(f'{prefix}-video.bin').read_bytes()
     assert video[0] & 0x7f == 0x3b, 'bitmap/display/25-row configuration'
     assert video[1] & 0x7f == 8, 'PAL hires 40-column configuration'

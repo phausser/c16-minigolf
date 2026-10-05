@@ -421,7 +421,7 @@ class MovementTests(unittest.TestCase):
         self.r.call('physics_tick')
         self.assertEqual(self.r.get('HOLED'),1)
         self.assertEqual(point(self.r),(272,112))
-        self.r.call('reset_ball')
+        self.r.call('initialise_state')
         position(self.r,268.8,112)
         self.shoot(0,32)
         self.r.call('physics_tick')

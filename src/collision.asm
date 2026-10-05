@@ -494,14 +494,12 @@ circle_general_sweep:
     +copy16 QX, M_A
     +copy16 STEP_X, M_B
     jsr swept_axis_near
-    bcs circle_swept_x
-    jmp circle_no_contact
+    bcc circle_diagonal_miss
 circle_swept_x:
     +copy16 QY, M_A
     +copy16 STEP_Y, M_B
     jsr swept_axis_near
-    bcs circle_swept_y
-    jmp circle_no_contact
+    bcc circle_diagonal_miss
 circle_swept_y:
     lda STEP_SQUARE_VALID
     bne circle_square_ready
@@ -542,9 +540,8 @@ circle_restore_q:
     lda M_PRODUCT + 3
     adc DX_WIDE + 3
     sta M_PRODUCT + 3
-    bmi collision_branch_9
-    jmp circle_no_contact
-collision_branch_9:
+    bpl circle_miss
+
     sec
     lda #0
     sbc M_PRODUCT
@@ -572,6 +569,9 @@ collision_branch_9:
 circle_closest_end:
     lda #255
     bne circle_closest_ready
+circle_miss:
+    clc
+    rts
 circle_closest_fraction:
     jsr divide_fraction
     lda M_QUOT
@@ -585,9 +585,8 @@ circle_prefix_ready:
     sta BISECT_HI
     sta TRIAL_T
     jsr circle_at_trial
-    bcs collision_branch_10
-    jmp circle_no_contact
-collision_branch_10:
+    bcc circle_miss
+
     ; Binary time-bit search. Maintain exact Q8.16 positions, so testing a
     ; new bit requires additions, not two fractional multiplies. Restrict
     ; trials to the monotone entry branch before the closest-point time.

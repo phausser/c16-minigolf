@@ -81,6 +81,7 @@ frame_begin:
     bne frame_counter_ready
     inc FRAMES + 1
 frame_counter_ready:
+    jsr sound_tick
     jsr scan_keyboard
     jsr debounce_keyboard
     jsr apply_controls
@@ -117,7 +118,7 @@ frame_done:
     jmp main_loop
 
 ; Draw hole HOLE from scratch with the display off. The main loop then
-; draws ball, aim and HUD (reset_ball marks them dirty).
+; draws ball, aim and HUD (initialise_state marks them dirty).
 start_hole:
     lda #$0b
     sta TED_CONTROL1
@@ -151,7 +152,8 @@ new_round:
     sta TOTAL
     beq start_hole
 
-; Clears per-hole state (HOLE and TOTAL lie beyond it), unpacks HOLE.
+; Clears per-hole state (HOLE and TOTAL lie beyond it), unpacks HOLE and
+; puts the ball on the tee; fire must be released before the first shot.
 ; The accepted keys survive, so fire held into a new hole still needs a
 ; release before it charges.
 initialise_state:
@@ -168,7 +170,18 @@ clear_state:
     sta KEY_CANDIDATE
     ldx HOLE
     jsr decode_course
-    jmp reset_ball
+    lda COURSE_START_X
+    sta BALL_POS_X + 1
+    lda COURSE_START_X_HI
+    sta BALL_POS_X + 2
+    lda COURSE_START_Y
+    sta BALL_POS_Y + 1
+    lda #1
+    sta FIRE_LOCK
+    sta DIRTY
+    lda #3
+    sta HUD_DIRTY
+    rts
 
 !source "src/video.asm"
 !source "src/input.asm"
@@ -177,6 +190,7 @@ clear_state:
 !source "src/physics.asm"
 !source "src/collision.asm"
 !source "src/course_decoder.asm"
+!source "src/sound.asm"
 !ifdef TEST_BUILD {
 !source "build/assets-test.inc"
 } else {
@@ -199,6 +213,19 @@ small_square_hi:
 !for square_index, 0, 127 { !byte >(square_index*square_index) }
 !source "src/normals.inc"
 !fill $2140 - *, 0
+}
+; Course data for the 24 unused bytes after each 1000-byte attribute
+; matrix; startup copies it there before the playfield is cleared.
+attribute_data_image:
+!pseudopc LUMINANCE_BASE + 1000 {
+!ifdef TEST_BUILD { !source "build/attr-a-data-test.inc" } else { !source "build/attr-a-data.inc" }
+!fill LUMINANCE_BASE + 1023 - *, 0
+; $1BFF is "cell -1" for the classifier's neighbour reads: never floor.
+!byte CLASS_HIDDEN
+}
+!pseudopc COLOR_BASE + 1000 {
+!ifdef TEST_BUILD { !source "build/attr-b-data-test.inc" } else { !source "build/attr-b-data.inc" }
+!fill COLOR_BASE + 1024 - *, 0
 }
 ; Hidden rows 21-23 ($3a40-$3dff) form one black/black code block.
 * = $3a40

@@ -147,7 +147,9 @@ class HardwareTests(unittest.TestCase):
         hidden = self.r.bus[0x3a40:0x3e00]
         startup = self.r.bus[0x3f40:0x4000]
         lookup = self.r.bus[S['lookup_image']:S['lookup_image']+320]
+        gap_data = self.r.bus[S['attribute_data_image']:S['attribute_data_image']+48]
         self.r.bus[0x1800:0x4000] = [255]*(0x4000-0x1800)
+        self.r.bus[S['attribute_data_image']:S['attribute_data_image']+48] = gap_data
         self.r.bus[0x3a40:0x3e00] = hidden
         self.r.bus[0x3f40:0x4000] = startup
         self.r.bus[S['lookup_image']:S['lookup_image']+320] = lookup
@@ -157,6 +159,8 @@ class HardwareTests(unittest.TestCase):
         luma, colors = [7]*1024,[16]*1024
         for col in [*range(7,15), *range(25,31)]:
             luma[960+col] = colors[960+col] = 0
+        luma[1000:], colors[1000:] = gap_data[:24], gap_data[24:]   # course data
+        self.assertEqual(gap_data[23], S['CLASS_HIDDEN'])
         self.assertEqual(self.r.bus[0x1800:0x1c00], luma)
         self.assertEqual(self.r.bus[0x1c00:0x2000], colors)
         self.assertEqual(self.r.bus[0x2000:0x2140],lookup)
@@ -205,9 +209,10 @@ class HardwareTests(unittest.TestCase):
         address = 0x8000             # outside the 16 KB RAM; test bus only
         self.r.bus[S['course_table_lo']] = address & 255
         self.r.bus[S['course_table_hi']] = address >> 8
+        self.r.call('initialise_video')
         for course in courses:
             data = encode(course)
-            self.r.call('initialise_video')
+            self.r.call('clear_playfield')    # as start_hole: startup runs once
             self.r.bus[address:address+len(data)] = list(data)
             self.r.cpu.x = 0
             self.r.call('decode_course')
@@ -245,7 +250,7 @@ class HardwareTests(unittest.TestCase):
         self.r.call('initialise_video')
         self.r.call('draw_course')
         for angle, power in ((0, 24), (0, 32), (6, 20), (64-6, 28)):
-            self.r.call('reset_ball')
+            self.r.call('initialise_state')
             if angle > 32:   # roll left from the right of the pond
                 self.r.bus[S['BALL_POS_X']:S['BALL_POS_X']+3] = [0, 232, 0]
             self.r.put('ANGLE', angle)
@@ -510,6 +515,28 @@ class HardwareTests(unittest.TestCase):
         self.tick(32)
         self.assertEqual(self.r.get('CHARGING'),1)
 
+    def test_sound_effects_set_voice_two_and_switch_off(self):
+        def tone():
+            n = self.r.bus[0xff0f] + 256*(self.r.bus[0xff10] & 3)
+            return round(110840/(1024-n)), self.r.bus[0xff11] & 0x70
+        self.r.bus[0xff12] = 0x08
+        expected = {'SOUND_SHOT': [(150, 0x20)], 'SOUND_WALL': [(1205, 0x20)],
+                    'SOUND_CUP': [(523, 0x20), (786, 0x20)], 'SOUND_WATER': [(277, 0x40)]}
+        for name, tones in expected.items():
+            self.r.cpu.x = S[name]
+            self.r.call('play_sound')
+            heard = [tone()]
+            self.assertGreaterEqual(self.r.bus[0xff11] & 15, 8)   # maximal volume
+            for _ in range(60):
+                self.r.call('sound_tick')
+                if not self.r.get('SOUND_TIME'):
+                    break
+                if tone() != heard[-1]:
+                    heard.append(tone())
+            self.assertEqual(heard, tones, name)
+            self.assertEqual(self.r.bus[0xff11] & 0x70, 0, name)   # voices off
+            self.assertEqual(self.r.bus[0xff12], 0x08)              # bitmap untouched
+
     def test_twelfth_stroke_without_holing_counts_thirteen(self):
         for shots, holed, expected in ((11, 0, (11, 0)), (12, 0, (13, 13)), (12, 1, (12, 1))):
             self.r.put('SHOTS', shots)
@@ -535,6 +562,7 @@ class HardwareTests(unittest.TestCase):
         from course_codec import encode
         game = Runtime('minigolf')
         self.assertEqual(game.S['COURSE_COUNT'], 18)
+        game.call('initialise_video')         # copies the attribute-gap courses
         for hole, path in enumerate(sorted((ROOT/'assets/courses').glob('*.json'))):
             course = json.loads(path.read_text())
             address = game.bus[game.S['course_table_lo']+hole]+256*game.bus[game.S['course_table_hi']+hole]

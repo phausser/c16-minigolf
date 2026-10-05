@@ -3,8 +3,7 @@ initialise_video:
     sta TED_CONTROL1
     lda #$08                  ; PAL, 40 columns, hires, zero x-scroll
     sta TED_CONTROL2
-    lda #$08                  ; bitmap at $2000, dot fetches from RAM
-    sta TED_BITMAP
+    sta TED_BITMAP            ; $08 too: bitmap at $2000, dots from RAM
     lda #0                    ; allow TED's clock doubling in blanking
     sta TED_CLOCK
     lda #BORDER_COLOR
@@ -29,19 +28,24 @@ video_attributes:
     inx
     bne video_attributes
 
-    ; The first bitmap cell row holds 320 bytes of immutable lookup data.
-    ldy #0
+    ; The first bitmap cell row holds 320 bytes of immutable lookup data;
+    ; 2 x 24 course bytes go to the unused ends of both attribute matrices.
+    ; X = 160..1 (bpl would stop at once: 159 has bit 7 set).
+    ldx #160
 video_install_lookup:
-    lda lookup_image,y
-    sta BITMAP_BASE,y
-    iny
+    lda lookup_image - 1,x
+    sta BITMAP_BASE - 1,x
+    lda lookup_image + 159,x
+    sta BITMAP_BASE + 159,x
+    cpx #25
+    bcs video_install_next
+    lda attribute_data_image - 1,x
+    sta LUMINANCE_BASE + 999,x
+    lda attribute_data_image + 23,x
+    sta COLOR_BASE + 999,x
+video_install_next:
+    dex
     bne video_install_lookup
-    ldy #63
-video_install_lookup_tail:
-    lda lookup_image + 256,y
-    sta BITMAP_BASE + 256,y
-    dey
-    bpl video_install_lookup_tail
     ; HUD cells 7..14 and 25..30 hold loaded course data: black on black.
     lda #0
     ldx #7

@@ -1,30 +1,3 @@
-reset_ball:
-    lda #0
-    sta BALL_POS_X
-    sta BALL_POS_Y
-    sta ROLLING
-    sta HOLED
-    sta SHOTS
-    sta CHARGING
-    sta CHARGE_TICKS
-    sta POWER
-    sta VELOCITY_X
-    sta VELOCITY_X + 1
-    sta VELOCITY_Y
-    sta VELOCITY_Y + 1
-    lda COURSE_START_X
-    sta BALL_POS_X + 1
-    lda COURSE_START_X_HI
-    sta BALL_POS_X + 2
-    lda COURSE_START_Y
-    sta BALL_POS_Y + 1
-    lda #1
-    sta FIRE_LOCK
-    sta DIRTY
-    lda #3
-    sta HUD_DIRTY
-    rts
-
 ball_screen_position:
     lda BALL_POS_X
     cmp #128
@@ -93,7 +66,8 @@ shot_speed:
     sta ROLLING
     lda #2
     sta HUD_DIRTY
-    rts                       ; physics_tick derives VELOCITY in this frame
+    ldx #SOUND_SHOT           ; physics_tick derives VELOCITY in this frame
+    jmp play_sound
 
 ; Y = 2 (y component), then 0 (x); the multiplies preserve Y.
 velocity_from_unit:
@@ -117,12 +91,11 @@ velocity_axis:
 physics_tick:
     lda PAUSED
     ora HOLED
-    beq physics_branch_1
-    jmp physics_idle
-physics_branch_1:
+    bne physics_rest
     lda ROLLING
     bne physics_branch_2
-    jmp physics_idle
+physics_rest:
+    rts
 physics_branch_2:
     lda HAZARD_COUNT
     beq physics_dry_course
@@ -179,6 +152,8 @@ physics_hit:
     sta TRIAL_T
     jsr displacement_at_t
     jsr accept_trial
+    ldx #SOUND_WALL
+    jsr play_sound
     ldx #3
 physics_best_normal:
     lda BEST_NX,x
@@ -230,7 +205,9 @@ physics_ashore:
     sta BALL_POS_X,x
     dex
     bpl physics_ashore
-    jmp stop_ball
+    jsr stop_ball
+    ldx #SOUND_WATER
+    jmp play_sound
 physics_dry:
     ; Constant radial resistance preserves the unit direction. There is
     ; no independent x/y braking and no asymptotic never-ending creep.
@@ -286,7 +263,8 @@ finish_hole:
     sta HOLED
     jsr stop_ball
     sta DIRTY
-    rts
+    ldx #SOUND_CUP
+    jmp play_sound
 
 make_step:
     ldx #3
