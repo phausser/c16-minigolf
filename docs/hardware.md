@@ -379,7 +379,7 @@ Ergebnis: Runtime 4979 Bytes, 653 frei; schlechtester Frame 30173/32000.
 ## Rahmen, Schrägen und grünes Schachbrett (2026-10-05)
 
 Nach mehreren Nutzer-Iterationen (8-px-Zellrahmen, 4 px und 3 px per
-Pixel-Ausdehnung) gilt: gerade Kanten 7 px, Schrägen glatt bis zur
+Pixel-Ausdehnung) gilt: gerade Kanten 6 px (≈ 8/√2), Schrägen glatt bis zur
 Zellkante. Rahmen schmaler als eine Zelle erzeugen an 45°-Schrägen
 zwangsläufig Stufen, weil die Grau/Schwarz-Zellen der inneren Schräge keine
 dritte Farbe (Grün) aufnehmen können; das wurde mit Vorschaubildern geklärt.
@@ -394,7 +394,7 @@ kopiert vorher ihr Flächenmuster in die feste Nachbarzelle zur festen Seite,
 waagerecht und senkrecht: die glatte äußere Schräge. Erkannt wird die feste
 Seite an einem freien rechten Pixel der Mittelzeile bzw. mittleren Pixel der
 obersten Zeile. Übrige feste Zellen bekommen für jede ganze Flächenzelle in
-der 8er-Nachbarschaft ein Band von FRAME_WIDTH = 7 Pixeln auf dieser Seite
+der 8er-Nachbarschaft ein Band von FRAME_WIDTH = 6 Pixeln auf dieser Seite
 (Tabellen für Zeilenbereich und Spaltenmaske), Ecken also rechtwinklig.
 Attribute aus Klasse × Schachbrettparität: Fläche $61 mit schwarzer Tinte,
 übrige Spielfeldzellen Schwarz auf Grün $35/$45, Zeilen 0 und 21–23 Grün

@@ -44,7 +44,7 @@ Abnahme: spielbarer Kern erfüllt Speicher- und Zeitbudget mit begründeter Rese
 
 ### Grafik
 
-Seit 2026-10-05: schwarzer 7-Pixel-Rahmen (Schrägen glatt bis zur Zellkante), gefülltes rundes Loch,
+Seit 2026-10-05: schwarzer 6-Pixel-Rahmen (Schrägen glatt bis zur Zellkante, optisch gleich stark), gefülltes rundes Loch,
 hellgraue Fläche, schwarzer Ball mit Glanzpunkt, grünes Schachbrett außerhalb
 (siehe SPEC und docs/hardware.md). Der folgende Absatz beschreibt den Stand davor.
 

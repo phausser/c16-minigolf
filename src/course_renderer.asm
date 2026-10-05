@@ -5,7 +5,7 @@
 ; solid cells next to whole floor cells get FRAME_WIDTH black pixels on that
 ; side, square at corners. Half-open y intervals count shared vertices once;
 ; obstacles follow the parity rule.
-FRAME_WIDTH = 7
+FRAME_WIDTH = 6
 draw_course:
     jsr fill_course
     jsr classify_course_cells

@@ -295,7 +295,7 @@ der äußeren Schrägkante eine Pixelstufe je Zelle ergibt (Zwei-Farben-Grenze).
 Loch: gefüllte runde 7-px-Scheibe in der Runtime (draw_cup). Runtime 350 frei,
 versteckte Zeilen 938/960.
 
-Endstand Rahmen (Nutzerentscheidung nach Vorschauen): gerade Kanten 7 px,
+Endstand Rahmen (Nutzerentscheidung nach Vorschauen): gerade Kanten 6 px,
 Schrägen glatt bis zur Zellkante; Pixel-Ausdehnung wieder entfernt,
 Zellformung in shape_course_cells (FRAME_WIDTH). Aufbau ≈1,03 Mio. Zyklen.
 Runtime 368 frei, versteckte Zeilen 134 frei.

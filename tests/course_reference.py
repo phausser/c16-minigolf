@@ -12,7 +12,7 @@ ink on the green checker, rows 0 and 21..23 equal checker colors, row 24
 the HUD palette.
 """
 
-FRAME_WIDTH = 7
+FRAME_WIDTH = 6
 
 
 def bitmap_offset(x, y):
