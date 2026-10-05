@@ -561,6 +561,8 @@ class CourseValidationTests(unittest.TestCase):
             [[16,24],[128,24],[100,60],[16,152]],
             [[16,24],[128,136],[16,136],[128,24]],
             [[16,24],[128,24],[64,24],[64,152],[16,152]],
+            # 45-degree corner off the cell grid (format 3 stores cells).
+            [[16,24],[122,24],[128,30],[128,152],[16,152]],
         ]
         for outline in cases:
             course = copy.deepcopy(COURSE)

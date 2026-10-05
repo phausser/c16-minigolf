@@ -1,9 +1,9 @@
 """Lossless packed course geometry, decoded at runtime by decode_course.
 
-Version 2 stream: start x/2, start y/2, cup x/2, cup y/2, contour count,
-then per contour: first vertex x/2, y/2 with bit 7 = normal side flag,
+Version 3 stream: start x/2, start y/2, cup x/2, cup y/2, contour count,
+then per contour: first vertex x/8, y/8 with bit 7 = normal side flag,
 run count and runs. A run byte has a 3-bit compass direction and a 5-bit
-length in 2px units (zero means 32). Longer edges use repeated runs;
+length in 8px cells (zero means 32). All vertices lie on the cell grid. Longer edges use repeated runs;
 decoding merges them back into one segment. The side flag is set when the
 wall normal is direction+2 (outline: positive area, obstacle: negative).
 Names, par and material data are deliberately outside this version.
@@ -33,14 +33,14 @@ def encode(course):
         for a,b in zip(contour,contour[1:]+contour[:1]):
             dx,dy = b[0]-a[0],b[1]-a[1]
             direction = DIRECTIONS.index(((dx>0)-(dx<0),(dy>0)-(dy<0)))
-            length = max(abs(dx),abs(dy))//2
+            length = max(abs(dx),abs(dy))//8
             while length:
                 chunk = min(length,32)
                 runs.append(direction*32+(chunk & 31))
                 length -= chunk
         if len(runs) > 255:
             raise ValueError('contour has too many runs')
-        data.extend([contour[0][0]//2,contour[0][1]//2 | side,len(runs)])
+        data.extend([contour[0][0]//8,contour[0][1]//8 | side,len(runs)])
         data.extend(runs)
     if len(data) > 256:
         raise ValueError('packed course exceeds 256 bytes')
@@ -64,7 +64,7 @@ def decode(data):
         raise ValueError('invalid contour count')
     contours = []
     for _ in range(count):
-        point = [byte()*2,(byte() & 127)*2]
+        point = [byte()*8,(byte() & 127)*8]
         contour = [point.copy()]
         run_count = byte()
         if not run_count:
@@ -76,8 +76,8 @@ def decode(data):
             if previous is not None and direction != previous:
                 contour.append(point.copy())
             dx,dy = DIRECTIONS[direction]
-            point[0] += dx*length*2
-            point[1] += dy*length*2
+            point[0] += dx*length*8
+            point[1] += dy*length*8
             previous = direction
         if point != contour[0]:
             raise ValueError('open contour')
@@ -101,7 +101,7 @@ def budget():
     estimated = len(data)*18+directory_bytes
     missing = (len(data)+2)*17
     free = memory['runtime_free_bytes']
-    report = {'format_version':2, 'test_course_segments':len(validate(course)),
+    report = {'format_version':3, 'test_course_segments':len(validate(course)),
               'expanded_test_course_bytes':len(validate(course))*5,
               'packed_test_course_bytes':len(data), 'course_count':18,
               'directory_bytes':directory_bytes, 'estimated_geometry_bytes':estimated,

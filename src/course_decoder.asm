@@ -1,4 +1,4 @@
-; X = course index. Unpacks a version-2 stream (tools/course_codec.py)
+; X = course index. Unpacks a version-3 stream (tools/course_codec.py)
 ; into course_segments plus start/cup variables. Runs of one direction merge
 ; into one segment; flags match tools/generate_assets.expanded_segments.
 decode_course:
@@ -24,14 +24,19 @@ decode_header:
     lda (COURSE_PTR),y
     sta DECODE_CONTOURS
 decode_contour:
+    ; Cells to 2px segment units: x/8 * 4.
     iny
     lda (COURSE_PTR),y
+    asl
+    asl
     sta DECODE_X
     iny
     lda (COURSE_PTR),y
     and #$80
     sta DECODE_SIDE
     eor (COURSE_PTR),y
+    asl
+    asl
     sta DECODE_Y
     iny
     lda (COURSE_PTR),y
@@ -58,6 +63,8 @@ decode_run:
     bne decode_length
     lda #32
 decode_length:
+    asl
+    asl
     sta DECODE_LENGTH
     lda (COURSE_PTR),y
     lsr

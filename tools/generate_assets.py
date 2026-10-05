@@ -39,8 +39,8 @@ def validate(course):
             if not (8 <= a[0] <= 310 and 8 <= a[1] <= 166):
                 raise ValueError('vertex outside safe playfield')
             dx,dy = b[0]-a[0], b[1]-a[1]
-            if (dx == 0 or dy == 0) and any(n % 8 for n in (*a,*b)):
-                raise ValueError('axis-aligned edges must use the 8x8 cell grid')
+            if any(n % 8 for n in a):
+                raise ValueError('vertices must use the 8x8 cell grid')
             if not (dx or dy) or (dx and dy and abs(dx) != abs(dy)):
                 raise ValueError('only nonzero axis-aligned or 45 degree edges supported')
             segments.append((a,b,contour_index,i,len(contour)))
