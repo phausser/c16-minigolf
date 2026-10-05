@@ -251,18 +251,50 @@ class HardwareTests(unittest.TestCase):
     def test_all_aim_directions_restore_background_exactly(self):
         pattern = [(i*73+19)%256 for i in range(8000)]
         self.r.bus[0x2000:0x3f40] = pattern
-        for angle in range(128):
-            self.r.put('ANGLE', angle)
-            self.r.call('draw_dynamic')
-            self.assertEqual(self.r.get('DYNAMIC_COUNT'), 18)
-            self.assertNotEqual(self.r.bus[0x2000:0x3f40], pattern)
-            self.r.call('restore_dynamic')
-            self.assertEqual(self.r.bus[0x2000:0x3f40], pattern, angle)
+        for phase in range(4):
+            self.r.put('AIM_PHASE', phase)
+            for angle in range(128):
+                self.r.put('ANGLE', angle)
+                self.r.call('draw_dynamic')
+                self.assertEqual(self.r.get('DYNAMIC_COUNT'), 17)
+                self.assertNotEqual(self.r.bus[0x2000:0x3f40], pattern)
+                self.r.call('restore_dynamic')
+                self.assertEqual(self.r.bus[0x2000:0x3f40], pattern, (phase,angle))
         self.r.put('PAUSED', 1)
         self.r.call('draw_dynamic')
         self.assertEqual(self.r.get('DYNAMIC_COUNT'), 10)
         self.r.call('restore_dynamic')
         self.assertEqual(self.r.bus[0x2000:0x3f40], pattern)
+
+    def test_aim_dots_walk_outwards_one_pixel_per_phase(self):
+        for angle in (0, 16, 32, 45, 64, 100):
+            self.r.call('initialise_state')
+            self.r.put('ANGLE', angle)
+            bx, by = self.r.get('COURSE_START_X'), self.r.get('COURSE_START_Y')
+            distances = []
+            for phase in range(4):
+                self.r.put('AIM_PHASE', phase)
+                self.r.put('DYNAMIC_COUNT', 0)
+                self.r.call('draw_dynamic')
+                dots = []
+                for i in range(self.r.get('DYNAMIC_COUNT')-7, self.r.get('DYNAMIC_COUNT')):
+                    address = self.r.bus[S['DYNAMIC_LO']+i]+256*self.r.bus[S['DYNAMIC_HI']+i]-0x2000
+                    # Two dots can share a byte: the later save holds this dot's result.
+                    count = self.r.get('DYNAMIC_COUNT')
+                    later = [j for j in range(i+1, count)
+                             if self.r.bus[S['DYNAMIC_LO']+j]+256*self.r.bus[S['DYNAMIC_HI']+j]-0x2000 == address]
+                    after = self.r.bus[S['DYNAMIC_OLD']+later[0]] if later else self.r.bus[address+0x2000]
+                    mask = after ^ self.r.bus[S['DYNAMIC_OLD']+i]
+                    x = (address%320)//8*8 + 7-(mask.bit_length()-1)
+                    y = address//320*8 + address%8
+                    a = angle*math.pi/64
+                    dots.append((x-bx)*math.cos(a)+(y-by)*math.sin(a))
+                self.r.call('restore_dynamic')
+                distances.append(dots)
+            for phase in range(4):
+                self.assertEqual(len(distances[phase]), 7)
+                for k, d in enumerate(distances[phase]):
+                    self.assertLessEqual(abs(d-(8+phase+4*k)), 2, (angle, phase, distances))
 
     def test_joystick_port_one_and_separate_pause_keyboard(self):
         for mask in range(32):

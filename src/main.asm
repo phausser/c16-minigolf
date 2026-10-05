@@ -94,6 +94,17 @@ frame_counter_ready:
     jsr debounce_keyboard
     jsr apply_controls
     jsr physics_tick
+    ; While aiming, the direction dots walk one pixel every four frames.
+    lda ROLLING
+    ora PAUSED
+    ora HOLED
+    bne aim_still
+    lda FRAMES
+    and #3
+    bne aim_still
+    inc AIM_PHASE
+    inc DIRTY
+aim_still:
     lda DIRTY
     beq frame_hud
     jsr restore_dynamic

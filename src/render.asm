@@ -100,9 +100,10 @@ ball_row_advanced:
     cmp #5
     bne ball_next
     lda PAUSED
-    bne aim_done
-    lda ROLLING
-    bne aim_done
+    ora ROLLING
+    beq aim_draw
+    rts
+aim_draw:
 
     ; Fractional accumulation gives visibly distinct 128 directions without
     ; a separate bitmap for each angle. This is display data, not physics.
@@ -130,14 +131,43 @@ aim_start_shift:
     rol AIM_Y + 1
     dex
     bne aim_start_shift
-    lda #0
-    sta POINT_INDEX
+    ; Walking dots: start AIM_PHASE single pixels (a quarter step each)
+    ; further out, so every dot moves outwards and the outermost one
+    ; reappears at the inner end of the fixed 8..35 pixel window.
+    lda AIM_STEP_X
+    pha
+    lda AIM_STEP_Y
+    pha
+    ldx #1
+aim_quarter:
+    lda AIM_STEP_X,x
+    cmp #$80
+    ror
+    cmp #$80
+    ror
+    sta AIM_STEP_X,x
+    dex
+    bpl aim_quarter
+    lda AIM_PHASE
+    and #3
+    tax
+    beq aim_phase_done
+aim_phase:
+    jsr advance_aim
+    dex
+    bne aim_phase
+aim_phase_done:
+    pla
+    sta AIM_STEP_Y
+    pla
+    sta AIM_STEP_X
+    stx POINT_INDEX
 aim_next:
     jsr advance_aim
-    ; Skip the first two points inside/next to the ball.
+    ; Skip the first point inside/next to the ball.
     inc POINT_INDEX
     lda POINT_INDEX
-    cmp #3
+    cmp #2
     bcc aim_next
     jsr aim_coordinates
     lda PIXEL_X + 1
@@ -154,29 +184,24 @@ aim_x_on_screen:
     jsr plot_dynamic
 aim_skip_pixel:
     lda POINT_INDEX
-    cmp #10
+    cmp #8
     bne aim_next
 aim_done:
     rts
 
+; Four pixels along ANGLE in 1/16 pixel units: (cos + 2) / 4, signed.
 lookup_aim_step:
     jsr cosine_unit
-    +copy16 M_A, M_B
-    asl M_A
-    rol M_A + 1
-    +add16 M_A, M_B, M_A
     clc
     lda M_A
-    adc #8
+    adc #2
     sta M_A
     lda M_A + 1
     adc #0
-    sta M_A + 1
-    ldx #4
+    ldx #2
 aim_unit_scale:
-    lda M_A + 1
-    asl
-    ror M_A + 1
+    cmp #$80
+    ror
     ror M_A
     dex
     bne aim_unit_scale

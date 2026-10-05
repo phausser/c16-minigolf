@@ -36,7 +36,10 @@ def main():
     for index,event in enumerate(events):
         commands += [f"until ${s['apply_controls']:04x}",
                      f"> ${s['KEY_ACTIONS']:04x} {event:02x}",
-                     f"> ${s['DIRTY']:04x} 01", 'stopwatch reset',
+                     f"> ${s['DIRTY']:04x} 01",
+                     # Freeze the walking aim dots for the bitmap comparison.
+                     f"> ${s['FRAMES']:04x} 01", f"> ${s['AIM_PHASE']:04x} 00",
+                     'stopwatch reset',
                      f"until ${s['frame_done']:04x}", 'stopwatch',
                      f'bsave "{prefix}-state-{index}.bin" 0 $0020 $002d',
                      f'bsave "{prefix}-frame-{index}.bin" 0 $2000 $3f3f']
