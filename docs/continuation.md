@@ -288,3 +288,9 @@ Rahmen auf Nutzerwunsch geändert: 4 px an geraden Kanten, Schrägen 8 px
 waagerecht (Ausdehnung der Fläche um 4 px im Quadrat, zweite XOR-Füllung).
 Aufbau eines Lochs ≈1,4 s. Runtime 344 frei; für 17 weitere Testbahn-Größen
 fehlen ~300 Bytes plus Metadaten.
+
+Danach auf Nutzerwunsch: Rahmen 3 px (DILATE_RADIUS = 3), Schrägen 6 px
+waagerecht; Flächenzellen werden vor der zweiten Füllung ganz gesetzt, was an
+der äußeren Schrägkante eine Pixelstufe je Zelle ergibt (Zwei-Farben-Grenze).
+Loch: gefüllte runde 7-px-Scheibe in der Runtime (draw_cup). Runtime 350 frei,
+versteckte Zeilen 938/960.

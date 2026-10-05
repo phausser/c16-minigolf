@@ -392,3 +392,42 @@ ball_row_shapes:
 !byte 0,2,1,1,0
 ball_shapes:
 !byte $70,$f8,$b8
+
+; The cup is a filled round 7-pixel disc; plotting covers x > 255 too.
+draw_cup:
+    lda #6
+    sta POINT_INDEX           ; disc row 0..6, dy = row - 3
+cup_row:
+    lda POINT_INDEX
+    clc
+    adc COURSE_CUP_Y
+    sec
+    sbc #3
+    sta PIXEL_Y
+    ldx POINT_INDEX
+    lda cup_half_widths,x
+    sta TEMP
+    asl
+    sta GLYPH
+    inc GLYPH                 ; 2 * half width + 1 pixels
+    sec
+    lda COURSE_CUP_X
+    sbc TEMP
+    sta PIXEL_X
+    lda COURSE_CUP_X_HI
+    sbc #0
+    sta PIXEL_X + 1
+cup_pixel:
+    jsr plot_pixel
+    inc PIXEL_X
+    bne cup_pixel_next
+    inc PIXEL_X + 1
+cup_pixel_next:
+    dec GLYPH
+    bne cup_pixel
+    dec POINT_INDEX
+    bpl cup_row
+    rts
+
+cup_half_widths:
+!byte 1,2,3,3,3,2,1

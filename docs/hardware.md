@@ -381,12 +381,16 @@ Ergebnis: Runtime 4979 Bytes, 653 frei; schlechtester Frame 30173/32000.
 draw_course (versteckte Zeilen): Die Spielfläche startet leer. Die Even/Odd-
 Füllung setzt die Flächenpixel; classify_course_cells merkt Zellen mit Fläche
 (Klassen vorübergehend in der Farbmatrix, Anzeige aus). dilate_course
-(Runtime) dehnt die gesetzten Pixel in place um 4 Pixel aus: waagerecht pro
+(Runtime) dehnt die gesetzten Pixel in place um DILATE_RADIUS = 3 Pixel aus: waagerecht pro
 Pixelzeile mit 16-Bit-Schiebefenstern aus den Originalnachbarn, senkrecht in
 einem Abwärts- und einem Aufwärtsdurchgang mit vier Originalbytes Gedächtnis.
-Volle und leere Bytes ohne Nachbarn werden übersprungen. Eine zweite,
+Volle und leere Bytes ohne Nachbarn werden übersprungen. Danach werden alle
+Zellen mit Fläche ganz gesetzt (solidify_floor_cells), damit der feste Teil
+einer Schrägzelle schwarz ist und nie grau durchscheint. Eine zweite,
 identische XOR-Füllung löscht die Fläche wieder; übrig bleibt der Rahmen
-(4 px gerade, 8 px waagerecht an Schrägen, rechtwinklige Ecken). Attribute
+(3 px gerade, 6 px waagerecht an Schrägen mit einer Pixelstufe je Zelle,
+rechtwinklige Ecken). Das Loch ist eine gefüllte Scheibe (draw_cup, Zeilen-
+halbbreiten 1,2,3,3,3,2,1) statt eines Rings. Attribute
 aus Klasse × Schachbrettparität: Fläche $61 mit schwarzer Tinte, übrige
 Spielfeldzellen Schwarz auf Grün $35/$45, Zeilen 0 und 21–23 Grün auf Grün.
 Ball mit Zeilenformen $70, $f8, $b8 (Glanzpunkt).

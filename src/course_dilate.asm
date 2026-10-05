@@ -1,12 +1,14 @@
-; Grow the set (floor) pixels of rows 1..20 by 4 pixels in x and y, in
-; place: a pixel becomes set when a set pixel lies within a 9x9 square.
+; Grow the set (floor) pixels of rows 1..20 by DILATE_RADIUS pixels in x and
+; y, in place: a pixel becomes set when a set pixel lies within the square.
 ; Pixels outside the playfield rows count as clear.
 DILATE_PREV = M_A             ; original byte left of the current one
 DILATE_CUR = M_A + 1
 DILATE_NEXT = M_B
 DILATE_LOW = M_B + 1          ; 16-bit shift window
 DILATE_HIGH = M_PRODUCT
-DILATE_HISTORY = M_PRODUCT + 1 ; four original bytes above/below
+DILATE_RADIUS = 3
+!if DILATE_RADIUS != 3 { !error "dilate_vertical_byte keeps three history bytes" }
+DILATE_HISTORY = M_PRODUCT + 1 ; DILATE_RADIUS original bytes above/below
 DILATE_CELLS = M_COUNT
 
 dilate_course:
@@ -51,7 +53,7 @@ dilate_next_ready:
     sta DILATE_HIGH
     lda DILATE_CUR
     sta DILATE_LOW
-    ldx #4
+    ldx #DILATE_RADIUS
 dilate_from_left:
     lsr DILATE_HIGH
     ror DILATE_LOW
@@ -62,7 +64,7 @@ dilate_from_left:
     stx DILATE_LOW
     ldx DILATE_CUR
     stx DILATE_HIGH
-    ldx #4
+    ldx #DILATE_RADIUS
 dilate_from_right:
     asl DILATE_LOW
     rol DILATE_HIGH
@@ -162,7 +164,7 @@ dilate_next_column:
 
 dilate_history_clear:
     lda #0
-    ldx #3
+    ldx #DILATE_RADIUS - 1
 dilate_history_zero:
     sta DILATE_HISTORY,x
     dex
@@ -171,7 +173,7 @@ dilate_history_zero:
     sta DILATE_CELLS
     rts
 
-; OR the byte at (COPY_SOURCE),Y with the four previous originals of this
+; OR the byte at (COPY_SOURCE),Y with the three previous originals of this
 ; pass and remember its original value.
 dilate_vertical_byte:
     lda (COPY_SOURCE),y
@@ -179,11 +181,8 @@ dilate_vertical_byte:
     ora DILATE_HISTORY
     ora DILATE_HISTORY + 1
     ora DILATE_HISTORY + 2
-    ora DILATE_HISTORY + 3
     beq dilate_vertical_done  ; all clear: nothing to store or remember
     sta (COPY_SOURCE),y
-    lda DILATE_HISTORY + 2
-    sta DILATE_HISTORY + 3
     lda DILATE_HISTORY + 1
     sta DILATE_HISTORY + 2
     lda DILATE_HISTORY

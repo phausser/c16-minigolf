@@ -105,12 +105,7 @@ def generate():
     quarter = [round(math.cos(i*math.tau/128)*256) for i in range(33)]
     lines += [bytes_section('unit_cos_lo',quarter), bytes_section('unit_cos_hi',[v>>8 for v in quarter])]
     ball = [(x,y) for y in range(-2,3) for x in range(-2,3) if x*x+y*y <= 5]
-    ring = sorted({(round(math.cos(i*math.tau/32)*5), round(math.sin(i*math.tau/32)*5))
-                   for i in range(32)})
-    lines += [f'BALL_POINTS = {len(ball)}', f'CUP_POINTS = {len(ring)}']
-    for name, points in [('cup',ring)]:
-        lines += [bytes_section(name+'_dx', [p[0] for p in points]),
-                  bytes_section(name+'_dy', [p[1] for p in points])]
+    lines += [f'BALL_POINTS = {len(ball)}']
     output = ROOT / 'build/assets.inc'
     output.parent.mkdir(exist_ok=True)
     output.write_text('\n\n'.join(lines)+'\n')

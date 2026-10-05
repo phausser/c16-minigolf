@@ -1,13 +1,15 @@
 ; Static course picture. The playfield starts clear. An even/odd fill
-; sets the floor pixels, which are then grown by 4 pixels in x and y
-; (square distance). A second, identical XOR fill clears the floor again:
-; the remaining set pixels are the black frame, 4 px at straight walls and
-; 8 px horizontally (~5.7 px across) at 45-degree walls. Half-open y
+; sets the floor pixels, which are then grown by 3 pixels in x and y
+; (square distance). Cells containing floor become fully set, so their solid
+; part is black too. A second, identical XOR fill clears the floor again:
+; the remaining set pixels are the black frame, 3 px at straight walls and
+; 6 px horizontally (~4.2 px across) at 45-degree walls. Half-open y
 ; intervals count shared vertices once; obstacles follow the parity rule.
 draw_course:
     jsr fill_course
     jsr classify_course_cells
     jsr dilate_course
+    jsr solidify_floor_cells
     jsr fill_course
     jsr colour_course_cells
     jmp draw_cup
@@ -120,36 +122,6 @@ fill_next_edge:
 fill_done:
     rts
 
-; Cup ring is static and tests plotting at x > 255.
-draw_cup:
-    lda #0
-    sta POINT_INDEX
-cup_next:
-    ldx POINT_INDEX
-    lda cup_dx,x
-    clc
-    adc COURSE_CUP_X
-    sta PIXEL_X
-    lda cup_dx,x
-    bpl cup_positive_x
-    lda #$ff
-    bne cup_x_sign
-cup_positive_x:
-    lda #0
-cup_x_sign:
-    adc COURSE_CUP_X_HI
-    sta PIXEL_X + 1
-    lda cup_dy,x
-    clc
-    adc COURSE_CUP_Y
-    sta PIXEL_Y
-    jsr plot_pixel
-    inc POINT_INDEX
-    lda POINT_INDEX
-    cmp #CUP_POINTS
-    bne cup_next
-    rts
-
 ; Cell classes, kept in the color matrix while the display is off.
 CLASS_FLOOR = 0                 ; cell contains floor: gray, black edges
 CLASS_SOLID = 1                 ; black frame pixels on the green checker
@@ -205,6 +177,46 @@ course_classify_more:
     lda BITMAP_PTR + 1
     cmp #>$3a40
     bne course_classify
+    rts
+
+; After dilation: fill every cell that contains floor, so the solid part of
+; an inner 45-degree cell is black and never shows the gray background.
+solidify_floor_cells:
+    lda #<$2140
+    sta BITMAP_PTR
+    lda #>$2140
+    sta BITMAP_PTR + 1
+    lda #<(COLOR_BASE + 40)
+    sta COURSE_PTR
+    lda #>(COLOR_BASE + 40)
+    sta COURSE_PTR + 1
+solidify_cell:
+    ldy #0
+    lda (COURSE_PTR),y
+    bne solidify_next         ; not CLASS_FLOOR
+    lda #$ff
+    ldy #7
+solidify_byte:
+    sta (BITMAP_PTR),y
+    dey
+    bpl solidify_byte
+solidify_next:
+    inc COURSE_PTR
+    bne solidify_class
+    inc COURSE_PTR + 1
+solidify_class:
+    clc
+    lda BITMAP_PTR
+    adc #8
+    sta BITMAP_PTR
+    bcc solidify_more
+    inc BITMAP_PTR + 1
+solidify_more:
+    cmp #<$3a40
+    bne solidify_cell
+    lda BITMAP_PTR + 1
+    cmp #>$3a40
+    bne solidify_cell
     rts
 
 ; Attributes for rows 0..23 from class and checker parity.
