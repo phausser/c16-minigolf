@@ -151,7 +151,7 @@ Abnahme: vollständige Runde vom Start bis zur korrekten Endwertung ohne Neustar
 
 ## 6. Humor und Ton
 
-- [x] Kurze Schlag-, Banden-, Einloch- und Wassergeräusche mit TED erzeugen (Stimme 2: Plopp 150 Hz, Tok 1,2 kHz, Zweiklang 523/784 Hz, Rauschen; in VICE als WAV nachgewiesen).
+- [x] Kurze Schlag-, Banden-, Einloch- und Wassergeräusche mit TED erzeugen. Seit 2026-10-05 Effekte 51/38/53 aus c16-sound-fx auf beiden Stimmen, Wasser Rauschen; Hörprüfung in VICE steht aus.
 - [ ] Tonumschaltung ergänzen.
 - [ ] HUD-Kommentare mit Cooldown und Prioritäten hinzufügen.
 - [ ] Hole-in-one-Sternchen und Abschlussfanfare im verbleibenden Budget ergänzen.

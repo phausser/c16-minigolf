@@ -168,15 +168,16 @@ Registerbelegung laut TED-Datenblatt, Abschnitte Sound und Register 14–18:
 
 Für Frequenzwert N gilt ungefähr f = 110840,45/(1024−N) Hz bei PAL,
 111860,781/(1024−N) Hz bei NTSC. Beide Stimmen teilen die Lautstärke.
-Wichtig für Hi-Res: Sound darf beim Schreiben von $FF12 nur Bits 0–1
-ändern; Bitmap- und ROM/RAM-Auswahl bleiben erhalten. Dafür verwendet das
-spätere Soundmodul einen gemeinsamen Register-Schatten mit der Grafik.
-Der Start schaltet Sound über $FF11=0 aus. Das Soundmodul
-(src/sound.asm) nutzt nur Stimme 2: ein Steuerbyte geht nach $FF10
-(Bits 0–1 Frequenz) und nach $FF11 (Bit 3 gesetzt: volle Lautstärke,
-Bit 5 Rechteck, Bit 6 Rauschen); $FF12 wird nie geschrieben. VICE-Aufnahme
-(2026-10-05, `-sounddev wav`): Schlag und Bandentreffer als getrennte
-Tonstöße nachgewiesen.
+Sound darf beim Schreiben von $FF12 nur Bits 0–1 ändern; Bit 2 wählt
+den Zeichensatz im RAM. Der Start schaltet Sound über $FF11=0 aus. Das
+Soundmodul (src/sound.asm) spielt Schrittfolgen aus
+[c16-sound-fx](https://github.com/phausser/c16-sound-fx) (Nr. 51 Schlag,
+38 Bande, 53 Einlochen; Wasser als eigenes Rauschen): je Schritt Dauer,
+Frequenzwerte beider Stimmen und ein Steuerbyte für $FF11. In $FF10 und
+$FF12 liest es den Wert und ersetzt nur Bits 0–1. Die frühere
+VICE-Aufnahme (2026-10-05, `-sounddev wav`) galt den alten Tönen auf
+Stimme 2; die neuen Effekte sind per Test am Register geprüft, aber noch
+nicht angehört.
 
 $FF07 Bit 6 wählt NTSC (1) oder PAL (0). Eine Moduserkennung muss **vor**
 der Videoinitialisierung erfolgen: diese setzt derzeit ausdrücklich PAL.

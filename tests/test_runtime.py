@@ -528,27 +528,40 @@ class HardwareTests(unittest.TestCase):
         self.tick(32)
         self.assertEqual(self.r.get('CHARGING'),1)
 
-    def test_sound_effects_set_voice_two_and_switch_off(self):
-        def tone():
-            n = self.r.bus[0xff0f] + 256*(self.r.bus[0xff10] & 3)
-            return round(110840/(1024-n)), self.r.bus[0xff11] & 0x70
-        self.r.bus[0xff12] = 0x00
-        expected = {'SOUND_SHOT': [(150, 0x20)], 'SOUND_WALL': [(1205, 0x20)],
-                    'SOUND_CUP': [(523, 0x20), (786, 0x20)], 'SOUND_WATER': [(277, 0x40)]}
-        for name, tones in expected.items():
+    def test_sound_effects_follow_the_catalog_and_switch_off(self):
+        # c16-sound-fx steps: frames, voice 1 Hz, voice 2 Hz, $FF11 control.
+        def hz(f):
+            return 1024-(110840+f//2)//f
+        def step():
+            n1 = self.r.bus[0xff0e]+256*(self.r.bus[0xff12] & 3)
+            n2 = self.r.bus[0xff0f]+256*(self.r.bus[0xff10] & 3)
+            return n1, n2, self.r.bus[0xff11]
+        expected = {
+            'SOUND_SHOT': [(1, 320, 110, 0x14), (1, 320, 110, 0x12), (1, 320, 110, 0x11)],
+            'SOUND_WALL': [(2, 110, 2000, 0x44)],
+            'SOUND_CUP': [(2, 330, 660, 0x34), (2, 440, 880, 0x35), (2, 660, 1320, 0x35),
+                          (2, 440, 880, 0x34), (2, 880, 1760, 0x34), (3, 1320, 2640, 0x32)],
+            'SOUND_WATER': [(14, 110, 277, 0x48)]}
+        for name, steps in expected.items():
+            self.r.bus[0xff12] = 0xc4           # charset bit and unused bits must survive
+            self.r.bus[0xff10] = 0xfc
             self.r.cpu.x = S[name]
             self.r.call('play_sound')
-            heard = [tone()]
-            self.assertGreaterEqual(self.r.bus[0xff11] & 15, 8)   # maximal volume
+            heard = []
             for _ in range(60):
-                self.r.call('sound_tick')
                 if not self.r.get('SOUND_TIME'):
                     break
-                if tone() != heard[-1]:
-                    heard.append(tone())
-            self.assertEqual(heard, tones, name)
-            self.assertEqual(self.r.bus[0xff11] & 0x70, 0, name)   # voices off
-            self.assertEqual(self.r.bus[0xff12], 0x00)              # voice 1 / charset source untouched
+                current = step()
+                if heard and heard[-1][1] == current:
+                    heard[-1][0] += 1
+                else:
+                    heard.append([1, current])
+                self.r.call('sound_tick')
+            want = [[frames, (hz(f1), hz(f2), control)] for frames, f1, f2, control in steps]
+            self.assertEqual(heard, want, name)
+            self.assertEqual(self.r.bus[0xff11] & 0x7f, 0, name)   # voices off
+            self.assertEqual(self.r.bus[0xff12] & 0xfc, 0xc4, name)
+            self.assertEqual(self.r.bus[0xff10] & 0xfc, 0xfc, name)
 
     def test_twelfth_stroke_without_holing_counts_thirteen(self):
         for shots, holed, expected in ((11, 0, (11, 0)), (12, 0, (13, 13)), (12, 1, (12, 1))):

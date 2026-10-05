@@ -310,7 +310,7 @@ Nächster Schritt: Speicher für Par-Werte/Ergebnisse und 17 weitere Bahnen
 ## Stand 2026-10-05 abends
 
 Spielbar: 18 Bahnen (Entwürfe, nicht spielgetestet), Wasser, Wertung,
-Schlaglimit, Endanzeige, Sound (Stimme 2), Bahneditor (`make editor`),
+Schlaglimit, Endanzeige, Sound (c16-sound-fx 51/38/53), Bahneditor (`make editor`),
 `make play HOLE=n`. Spiel-Build hat 20 Bytes frei; Testläufe und VICE-
 Messungen nutzen `build/minigolf-test.prg` (Testbahn), schlechtester Frame
 31269/32000 Ticks. 60 Tests bestehen.

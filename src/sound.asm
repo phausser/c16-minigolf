@@ -1,53 +1,76 @@
-; Short effects on TED voice 2 (square or noise); $FF12 stays untouched.
-; One control byte serves both registers: bits 0-1 are frequency bits 8-9
-; in $FF10, and in $FF11 bit 3 makes the volume maximal whatever bits 0-2
-; hold (9..15 equal 8), bit 5 selects the square wave, bit 6 noise.
-; f = 110840 / (1024 - N) Hz on PAL.
-SOUND_SHOT = 0
-SOUND_WALL = 1
-SOUND_CUP = 2
-SOUND_WATER = 4
-SOUND_CHAIN = 4               ; control bit 2: the next tone follows
+; Short step sequences on both TED voices. Shot, wall and cup are effects
+; 51, 38 and 53 of https://github.com/phausser/c16-sound-fx (PAL data).
+; A step is: frames, voice 1 N lo/hi, voice 2 N lo/hi, $FF11 control
+; (bit 4 voice 1 square, bit 5 voice 2 square, bit 6 voice 2 noise,
+; bits 0-3 volume). Frame 0 ends the effect. Only bits 0-1 of $FF10 and
+; $FF12 are written; $FF12 bit 2 selects the RAM character set.
+; f = 110840 / (1024 - N) Hz on PAL, rounded as in c16-sound-fx.
+SOUND_CLOCK = 110840
 
-; X = tone index. Callers do not need X afterwards.
+!macro sound_step .frames, .hz1, .hz2, .control {
+    .n1 = 1024 - (SOUND_CLOCK + .hz1 / 2) / .hz1
+    .n2 = 1024 - (SOUND_CLOCK + .hz2 / 2) / .hz2
+    !byte .frames, <.n1, >.n1, <.n2, >.n2, .control
+}
+
+; X = offset of the first step. Callers do not need X afterwards.
 play_sound:
-    lda sound_lo,x
-    sta TED_VOICE2_LO
-    lda sound_control,x
-    sta TED_VOICE2_HI
-    sta TED_SOUND
-    lda sound_frames,x
+    lda sound_steps,x
+    beq sound_off
     sta SOUND_TIME
     stx SOUND_TONE
+    lda sound_steps + 1,x
+    sta TED_VOICE1_LO
+    lda TED_BITMAP
+    and #$fc
+    ora sound_steps + 2,x
+    sta TED_BITMAP
+    lda sound_steps + 3,x
+    sta TED_VOICE2_LO
+    lda TED_VOICE2_HI
+    and #$fc
+    ora sound_steps + 4,x
+    sta TED_VOICE2_HI
+    lda sound_steps + 5,x
+    sta TED_SOUND
+    rts
+sound_off:
+    sta SOUND_TIME            ; A = 0
+    sta TED_SOUND             ; voices off
     rts
 
-; Once per frame: count down, chain to the next tone or switch off.
+; Once per frame: count down, then the next step or silence.
 sound_tick:
     lda SOUND_TIME
     beq sound_done
     dec SOUND_TIME
     bne sound_done
-    ldx SOUND_TONE
-    lda sound_control,x
-    and #SOUND_CHAIN
-    beq sound_off
-    inx
-    bne play_sound
-sound_off:
-    sta TED_SOUND             ; A = 0: voices off
+    lda SOUND_TONE
+    clc
+    adc #6
+    tax
+    jmp play_sound
 sound_done:
     rts
 
-; Shot "plopp" 150 Hz, wall "tok" 1.2 kHz, cup 523 + 784 Hz, water noise.
-SOUND_N0 = 1024 - 739
-SOUND_N1 = 1024 - 92
-SOUND_N2 = 1024 - 212
-SOUND_N3 = 1024 - 141
-SOUND_N4 = 1024 - 400
-sound_lo:
-!byte <SOUND_N0, <SOUND_N1, <SOUND_N2, <SOUND_N3, <SOUND_N4
-sound_control:
-!byte $28 + >SOUND_N0, $28 + >SOUND_N1, $28 + SOUND_CHAIN + >SOUND_N2
-!byte $28 + >SOUND_N3, $48 + >SOUND_N4
-sound_frames:
-!byte 4, 2, 6, 12, 14
+sound_steps:
+SOUND_SHOT = * - sound_steps   ; 51 boulder-diamond: 320 Hz pickup
+    +sound_step 1, 320, 110, $14
+    +sound_step 1, 320, 110, $12
+    +sound_step 1, 320, 110, $11
+    !byte 0
+SOUND_WALL = * - sound_steps   ; 38 switch-click: dry noise click
+    +sound_step 2, 110, 2000, $44
+    !byte 0
+SOUND_CUP = * - sound_steps    ; 53 paradroid-link: rising double tones
+    +sound_step 2, 330, 660, $34
+    +sound_step 2, 440, 880, $35
+    +sound_step 2, 660, 1320, $35
+    +sound_step 2, 440, 880, $34
+    +sound_step 2, 880, 1760, $34
+    +sound_step 3, 1320, 2640, $32
+    !byte 0
+SOUND_WATER = * - sound_steps  ; noise splash, unchanged
+    +sound_step 14, 110, 277, $48
+    !byte 0
+!if * - sound_steps > 256 { !error "sound steps exceed one index page" }
