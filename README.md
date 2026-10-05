@@ -17,5 +17,4 @@ make run
 
 ## Lizenz
 
-MIT, siehe [LICENSE](LICENSE). Die C16-ROMs (Zeichensatz, KERNAL) gehören
-nicht zum Projekt und werden nur zur Laufzeit bzw. für Tests aus VICE gelesen.
+MIT, siehe [LICENSE](LICENSE).
