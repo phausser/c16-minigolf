@@ -112,13 +112,13 @@ def main():
     hues = m.memory(0x1c00+21*40,0x1c00+24*40-1)
     assert all(v >> 4 == v & 15 for v in list(luma)+list(hues)),'hidden code rows are visible'
     assert any(bitmap[0x3e78-0x3b80:0x3ef8-0x3b80]),'charge bar not filled'
-    assert not any(bitmap[0x3f08-0x3b80:]),'status text remains'
+    assert any(bitmap[0x3f08-0x3b80:]),'shot count missing at the right'
     m.joystick(0)
     st = frames(2)
     assert st['SHOTS'] == 1 and st['ROLLING'] == 1 and st['POWER'] == 0,st
     result = dict(hardware='VICE C16 PAL 16 KB',port=1,
                   joystick_latch_verified=True,full_charge_frames=64,
-                  fires_on_release=True,hidden_code_rows=True,status_empty=True)
+                  fires_on_release=True,hidden_code_rows=True,status_right=True)
     (ROOT/'build/joystick-smoke.json').write_text(json.dumps(result,indent=2)+'\n')
     # VICE 3.10 can exit before acknowledging Quit; do not wait for a reply.
     m.serial += 1

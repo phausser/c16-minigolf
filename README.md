@@ -30,8 +30,7 @@ PAL-C16 mit 16 KB RAM. Auf dem C16: `LOAD"MINIGOLF",8,1`, danach `RUN`.
 Die Farben werden in `src/palette.inc` als `(LUMINANZ << 4) + FARBE`
 konfiguriert: Luminanz 0–7, Farbe 0–15 (0 = Schwarz, 1 = Grau/Weiß).
 `COURSE_SURFACE_COLOR` ist die hellgraue Fläche, `COURSE_MARKER_COLOR` färbt
-Ball, Zielmarke und Loch, `COURSE_FRAME_COLOR` den Rahmen, `HUD_TEXT_COLOR` die Schrift der Statuszeile,
-`HUD_FOREGROUND_COLOR`/`HUD_BACKGROUND_COLOR` Füllung und Grund des Ladebalkens. Außerhalb liegt ein
+Ball, Zielmarke und Loch, `COURSE_FRAME_COLOR` den Rahmen. Außerhalb liegt ein
 grünes Schachbrett aus `CHECKER_COLOR_EVEN`/`CHECKER_COLOR_ODD`. Die Rahmenbreite
 an geraden Kanten steht als `FRAME_WIDTH` in `src/course_renderer.asm`.
 

@@ -6,9 +6,8 @@ COURSE_MARKER_COLOR = (0 << 4) + 0 ; ball, aim marks, cup ring and inner edges
 COURSE_FRAME_COLOR = (0 << 4) + 0  ; one-cell frame around the course
 CHECKER_COLOR_EVEN = (3 << 4) + 5  ; non-playable area, (column + row) even
 CHECKER_COLOR_ODD = (4 << 4) + 5   ; neighbouring cells, one luminance step
-HUD_TEXT_COLOR = (0 << 4) + 0     ; HUD row 24: text on the green checker
-HUD_FOREGROUND_COLOR = (7 << 4) + 1 ; power bar fill
-HUD_BACKGROUND_COLOR = (0 << 4) + 0 ; empty power bar
+HUD_FOREGROUND_COLOR = (7 << 4) + 1
+HUD_BACKGROUND_COLOR = (0 << 4) + 0
 BORDER_COLOR = (0 << 4) + 0
 
 !if COURSE_MARKER_COLOR = COURSE_SURFACE_COLOR {

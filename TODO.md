@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-05: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 52 automatisierte Tests bestehen (45 am assemblierten Kern, sieben für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 30368 von 32000 Ticks, inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis das Speicherbudget für 18 Bahnen nachgewiesen ist. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-05: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 52 automatisierte Tests bestehen (45 am assemblierten Kern, sieben für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 30527 von 32000 Ticks, inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis das Speicherbudget für 18 Bahnen nachgewiesen ist. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -121,7 +121,7 @@ Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kante
 ## 5. Vollständiges Spiel
 
 - [ ] Titel, kompakte Bedienhilfe und Rundenstart ergänzen.
-- [ ] HUD mit Loch, Par, Schlägen, Stärke und Gesamtstand fertigstellen (Bahn, Punkte und pixelweiser Ladebalken auf dem Rasen umgesetzt; Par und Gesamtstand fehlen).
+- [ ] HUD mit Loch, Par, Schlägen, Stärke und Gesamtstand fertigstellen (Bahn links, Punkte rechts und pixelweiser Ladebalken in der Mitte umgesetzt; Par und Gesamtstand fehlen).
 - [ ] Training mit freier Lochwahl implementieren.
 - [ ] Lochbilanz und bestätigten Übergang zum nächsten Loch implementieren.
 - [ ] Schlaglimit mit 13er-Wertung und Abbruchmarkierung implementieren.

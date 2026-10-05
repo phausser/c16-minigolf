@@ -178,8 +178,8 @@ class HardwareTests(unittest.TestCase):
         self.r.call('initialise_video')
         self.r.call('draw_course')
         expected, luminance, color = render(COURSE, S)
-        self.assertEqual(self.r.bus[0x1800:0x1800+1000], luminance[:1000])
-        self.assertEqual(self.r.bus[0x1c00:0x1c00+1000], color[:1000])
+        self.assertEqual(self.r.bus[0x1800:0x1800+960], luminance[:960])
+        self.assertEqual(self.r.bus[0x1c00:0x1c00+960], color[:960])
         self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
         self.assertEqual(bytes(self.r.bus[0x3e00:0x3f40]), expected[7680:])
 
@@ -206,8 +206,8 @@ class HardwareTests(unittest.TestCase):
             self.r.call('draw_course')
             expected, luminance, color = render(course, S)
             self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
-            self.assertEqual(self.r.bus[0x1800:0x1800+1000], luminance[:1000])
-            self.assertEqual(self.r.bus[0x1c00:0x1c00+1000], color[:1000])
+            self.assertEqual(self.r.bus[0x1800:0x1800+960], luminance[:960])
+            self.assertEqual(self.r.bus[0x1c00:0x1c00+960], color[:960])
 
     def test_markers_restore_floor_and_boundary_cells_without_recoloring(self):
         self.r.call('initialise_video')
@@ -469,40 +469,34 @@ class HardwareTests(unittest.TestCase):
         self.assertLessEqual(depth, 24, depth)
         self.assertGreaterEqual(0x100+lowest[0]-16, S['STACK_FLOOR'])
 
-    def test_power_bar_fills_two_pixels_per_step(self):
+    def test_power_bar_grows_pixel_by_pixel(self):
         self.r.call('initialise_video')
         self.r.call('draw_static_hud')
         base = 0x3e00+S['BAR_COLUMN']*8
-        for power in (0,1,2,7,32,31,16,0,32,0,5,6,5,32):
+        for power in (0,1,2,3,7,32,31,16,0,32,0,5,6,5,32):
             self.r.put('POWER', power)
             self.r.call('draw_power')
-            pixels = [0]*72
-            for x in range(4, 4+2*power):
-                pixels[x] = 1
+            filled = 5*power//2
             for cell in range(S['BAR_CELLS']):
-                byte = sum(bit << (7-i) for i,bit in enumerate(pixels[cell*8:cell*8+8]))
+                n = max(0, min(8, filled-cell*8))
+                byte = (0xff00 >> n) & 0xff
                 address = base+cell*8
-                self.assertEqual(self.r.bus[address:address+8], [0,0]+[byte]*4+[0,0], (power,cell))
+                self.assertEqual(self.r.bus[address:address+8], [0,byte,byte,0xff,byte,byte,0,0], (power,cell))
 
-    def test_status_shows_hole_and_shots(self):
+    def test_status_shows_hole_left_and_shots_right(self):
         self.r.call('initialise_video')
-        self.r.put('HOLE', 0)
-        self.r.put('SHOTS', 0)
-        self.r.call('draw_static_hud')
         def text(column, count):
-            cells = []
-            for c in range(column, column+count):
-                address = 0x3e00+c*8
-                cells.append(bytes(self.r.bus[address:address+8]))
-            return cells
+            return [bytes(self.r.bus[0x3e00+c*8:0x3e00+c*8+8]) for c in range(column, column+count)]
         def glyph(char):
             code = ord(char) & 63
             return bytes(self.r.bus[0xd000+code*8:0xd000+code*8+8])
-        self.assertEqual(text(1,17), [glyph(c) for c in 'BAHN 1  PUNKTE 0 '])
-        self.r.put('HOLE', 17)
-        self.r.put('SHOTS', 13)
-        self.r.call('draw_status')
-        self.assertEqual(text(1,17), [glyph(c) for c in 'BAHN 18 PUNKTE 13'])
+        for hole, shots, left, right in ((0,0,'BAHN 1 ',' PUNKTE 0'),(17,13,'BAHN 18','PUNKTE 13'),
+                                         (8,9,'BAHN 9 ',' PUNKTE 9')):
+            self.r.put('HOLE', hole)
+            self.r.put('SHOTS', shots)
+            self.r.call('draw_static_hud')
+            self.assertEqual(text(0,7), [glyph(c) for c in left])
+            self.assertEqual(text(31,9), [glyph(c) for c in right])
 
     def test_glyph_cell_above_255_and_hud_stays_outside_course(self):
         self.r.bus[0x2000:0x4000] = [0x55]*8192
@@ -512,6 +506,7 @@ class HardwareTests(unittest.TestCase):
         self.r.call('draw_glyph')
         pointer = 0x2000+bitmap_offset(312,192)
         self.assertEqual(self.r.bus[pointer:pointer+8], [24,60,102,126,102,102,102,0])
+        self.r.put('SHOTS', 13)               # widest count: no blank cell
         self.r.call('draw_static_hud')
         for power in range(33):
             self.r.put('POWER', power)
@@ -519,7 +514,7 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.bus[0x2000:0x2000+22*320], [0x55]*(22*320))
         self.assertEqual(self.r.bus[0x3f40:0x4000], [0x55]*192)
         self.assertEqual(self.r.bus[0x3b80:0x3cc0], [0x55]*320)
-        self.assertEqual(self.r.bus[0x3f08:0x3f40], [0x55]*48 + [24,60,102,126,102,102,102,0])
+        self.assertEqual(self.r.bus[pointer:pointer+8], self.r.bus[0xd000+ord('3')*8:0xd000+ord('3')*8+8])
 
 
 class CourseValidationTests(unittest.TestCase):

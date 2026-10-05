@@ -233,36 +233,40 @@ aim_shift_y:
 draw_static_hud:
     lda #24
     sta TEXT_ROW
-    lda #1
+    lda #0
     sta TEXT_COLUMN
-    lda #<hud_text
-    sta TEXT_PTR
-    lda #>hud_text
-    sta TEXT_PTR + 1
-    jsr draw_text
+    lda #<hud_hole
+    ldx #>hud_hole
+    jsr draw_text_at
 draw_status:
-    lda #6
+    lda #5
     sta TEXT_COLUMN
     ldx HOLE
     inx
     txa
     jsr draw_number
-    lda #16
+    ; "PUNKTE n" ends in column 39: one digit gets a leading blank.
+    lda #31
     sta TEXT_COLUMN
     lda SHOTS
+    cmp #10
+    lda #<hud_shots
+    bcc status_shots
+    lda #<(hud_shots + 1)
+status_shots:
+    ldx #>hud_shots
+    jsr draw_text_at
+    lda SHOTS
+    jsr number_digits
+    cpx #'0'
+    beq number_single_digit
+    bne number_pair
 ; A = 0..99, left aligned in two cells from TEXT_COLUMN.
 draw_number:
-    ldx #'0'
-number_tens:
-    cmp #10
-    bcc number_units
-    sbc #10
-    inx
-    bne number_tens
-number_units:
-    ora #'0'
+    jsr number_digits
     cpx #'0'
     beq number_single
+number_pair:
     sta TEMP
     txa
     jsr draw_glyph
@@ -273,14 +277,30 @@ number_single:
     jsr draw_glyph
     inc TEXT_COLUMN
     lda #' '
+number_single_digit:
     jmp draw_glyph
+; A = 0..99 -> X = tens digit, A = units digit (ASCII).
+number_digits:
+    ldx #'0'
+number_tens:
+    cmp #10
+    bcc number_units
+    sbc #10
+    inx
+    bne number_tens
+number_units:
+    ora #'0'
+    rts
 
-; Black bar, 2 white pixels per power step in glyph rows 2..5, with a
-; 4-pixel black margin left and right: cell c shows end - 8c pixels.
+; Ten-cell bar centred in row 24: glyph row 3 is a thin line; the first
+; 5 * POWER / 2 pixels (80 at full power) grow to rows 1..5.
 draw_power:
     lda POWER
+    lsr
+    sta TEMP
+    lda POWER
     asl
-    adc #4                    ; POWER <= 32: carry clear
+    adc TEMP                  ; POWER <= 32: carry clear
     sta TEMP
     ldx #0
 power_bar_cell:
@@ -290,14 +310,12 @@ power_bar_cell:
     ldy #8
 power_bar_mask:
     lda bar_masks,y
-    cpx #0
-    bne power_bar_store
-    and #$0f
-power_bar_store:
+    sta HUD_BAR + 1,x
     sta HUD_BAR + 2,x
-    sta HUD_BAR + 3,x
     sta HUD_BAR + 4,x
     sta HUD_BAR + 5,x
+    lda #$ff
+    sta HUD_BAR + 3,x
     lda TEMP
     sec
     sbc #8
@@ -313,6 +331,9 @@ power_bar_next:
     bne power_bar_cell
     rts
 
+draw_text_at:
+    sta TEXT_PTR
+    stx TEXT_PTR + 1
 draw_text:
     ldy #0
     lda (TEXT_PTR),y
@@ -381,10 +402,12 @@ wall_offsets_x:
 !byte $ff,$ff,0,1,1,1,0,$ff
 wall_offsets_y:
 !byte 0,$ff,$ff,$ff,0,1,1,1
-hud_text:
-!text "BAHN    PUNKTE",0
-BAR_COLUMN = 20
-BAR_CELLS = 9
+hud_hole:
+!text "BAHN",0
+hud_shots:
+!text " PUNKTE ",0
+BAR_COLUMN = 15
+BAR_CELLS = 10
 HUD_BAR = $3e00 + BAR_COLUMN * 8
 bar_masks:
 !byte $00,$80,$c0,$e0,$f0,$f8,$fc,$fe,$ff
