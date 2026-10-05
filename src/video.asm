@@ -83,11 +83,15 @@ plot_dynamic:
     cmp #168
     bcs dynamic_outside_playfield
     jsr point_pixel
+; Y = byte offset from BITMAP_PTR; the exact address BITMAP_PTR+Y is saved.
 save_dynamic_byte:
     ldx DYNAMIC_COUNT
-    lda BITMAP_PTR
+    tya
+    clc
+    adc BITMAP_PTR
     sta DYNAMIC_LO,x
     lda BITMAP_PTR + 1
+    adc #0
     sta DYNAMIC_HI,x
     lda (BITMAP_PTR),y
     sta DYNAMIC_OLD,x
@@ -99,18 +103,18 @@ dynamic_outside_playfield:
 
 restore_dynamic:
     ldy #0
-restore_next:
-    lda DYNAMIC_COUNT
-    beq restore_done
-    dec DYNAMIC_COUNT
     ldx DYNAMIC_COUNT
-    lda DYNAMIC_LO,x
+    beq restore_done
+restore_next:
+    lda DYNAMIC_LO - 1,x
     sta BITMAP_PTR
-    lda DYNAMIC_HI,x
+    lda DYNAMIC_HI - 1,x
     sta BITMAP_PTR + 1
-    lda DYNAMIC_OLD,x
+    lda DYNAMIC_OLD - 1,x
     sta (BITMAP_PTR),y
-    jmp restore_next
+    dex
+    bne restore_next
+    stx DYNAMIC_COUNT
 restore_done:
     rts
 

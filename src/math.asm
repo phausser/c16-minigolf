@@ -150,24 +150,29 @@ square_low_ready:
     sta M_PRODUCT + 2
     lda #0
     sta M_PRODUCT + 3
+    txa
+    beq square_finished
+    ; Cross term 2*lo*hi*256: bit 8 of 2*lo adds hi to byte 2 once,
+    ; the low byte of 2*lo is accumulated hi times in A.
     lda M_A
     asl
     sta M_MULTIPLICAND
-    lda #0
-    rol
-    sta M_MULTIPLICAND + 1
-    cpx #0
-    beq square_finished
+    bcc square_cross_low
+    txa
+    clc
+    adc M_PRODUCT + 2
+    sta M_PRODUCT + 2
+square_cross_low:
+    lda M_PRODUCT + 1
 square_cross:
     clc
-    lda M_PRODUCT + 1
     adc M_MULTIPLICAND
-    sta M_PRODUCT + 1
-    lda M_PRODUCT + 2
-    adc M_MULTIPLICAND + 1
-    sta M_PRODUCT + 2
+    bcc square_cross_next
+    inc M_PRODUCT + 2
+square_cross_next:
     dex
     bne square_cross
+    sta M_PRODUCT + 1
 square_finished:
     rts
 

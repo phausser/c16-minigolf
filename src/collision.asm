@@ -616,17 +616,16 @@ collision_branch_10:
     sta CIRCLE_BIT
 circle_bit_search:
     ; STEP<<8 is halved once per bit, giving exact STEP*128 ... STEP*1.
-    ldx #3
-circle_delta_half:
-    lda CIRCLE_DELTA + 2,x
+    lda CIRCLE_DELTA + 2
     asl
-    ror CIRCLE_DELTA + 2,x
-    ror CIRCLE_DELTA + 1,x
-    ror CIRCLE_DELTA,x
-    dex
-    dex
-    dex
-    bpl circle_delta_half
+    ror CIRCLE_DELTA + 2
+    ror CIRCLE_DELTA + 1
+    ror CIRCLE_DELTA
+    lda CIRCLE_DELTA + 5
+    asl
+    ror CIRCLE_DELTA + 5
+    ror CIRCLE_DELTA + 4
+    ror CIRCLE_DELTA + 3
     lda BISECT_LO
     ora CIRCLE_BIT
     cmp BISECT_HI

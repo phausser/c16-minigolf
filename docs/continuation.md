@@ -239,3 +239,19 @@ Runtime 5288 Bytes, 344 frei; Decoder ca. 270 Bytes. make budget: 17 weitere
 Testbahn-Größen brauchen 646 Bytes, es fehlen 302 plus Metadaten.
 Nächste Reserven ohne Bildrand: Codeverkleinerung (collision.asm ~2 KB),
 Attributlücken $1BE8/$1FE8, Rest in versteckten Zeilen (59) und Bitmap-Ende.
+
+## Laufzeitoptimierung, Stand 2026-10-05
+
+Bitgenau (alle Replays unverändert): circle_entry-Nachprüfung entfällt
+(CIRCLE_OUT ist exakt), Teilprodukte im Akku (multiply_fraction,
+multiply_signed in zwei Bytedurchläufen), vorberechnete Broadphase-Grenzen,
+sqrt_speed mit 24-Bit-Schieben, square_small-Kreuzterm im Akku, entrollte
+Delta-Halbierung, Ballzeichner mit einmaliger Adresse/Maske,
+save_dynamic_byte mit Y-Offset, kürzere Restaurierungsschleife.
+Profil Winkel 17 (VICE-Fall): Physik 23672 -> 19906 Zyklen; VICE 38811 ->
+33210 Ticks (Grenze 32000). ACHTUNG: VICE misst das Eckenszenario nur bei
+Winkel 17. py65 über 128 Winkel: schlechtester Fall Winkel 100 (124,83)
+mit 22619 Physikzyklen, dort zwei vollständige Kreis-Suchen (~4800 je).
+Grob: 32000 Ticks entsprechen ~18800 Physikzyklen; es fehlen ~3800.
+Runtime 5309 Bytes, 323 frei. Messskripte: Histogramm nach Label und
+Winkel-Sweep (nicht im Repo; profile_sweep.profile_call wiederverwenden).

@@ -15,6 +15,39 @@ ball_visible:
     sec
     sbc #2
     sta PIXEL_Y
+    ; Two row shapes, shifted once: M_A/M_B = left/right byte masks,
+    ; index 0 = narrow top/bottom row, index 1 = full middle rows.
+    lda #$70
+    sta M_A
+    lda #$f8
+    sta M_A + 1
+    lda #0
+    sta M_B
+    sta M_B + 1
+    lda PIXEL_X
+    and #7
+    tax
+    beq ball_masks_ready
+ball_mask_shift:
+    lsr M_A
+    ror M_B
+    lsr M_A + 1
+    ror M_B + 1
+    dex
+    bne ball_mask_shift
+ball_masks_ready:
+    ; The right byte is off screen from x = 312.
+    lda PIXEL_X + 1
+    beq ball_right_ok
+    lda PIXEL_X
+    cmp #56
+    lda #0
+    bcs ball_right_flag
+ball_right_ok:
+    lda #1
+ball_right_flag:
+    sta TEMP
+    jsr point_pixel
     lda #0
     sta ROW_INDEX
 ball_next:
@@ -24,46 +57,40 @@ ball_next:
     cmp #168
     bcs ball_row_done
     ldx ROW_INDEX
-    lda ball_row_masks,x
-    sta M_A
-    lda #0
-    sta M_B
-    lda PIXEL_X
-    and #7
+    lda ball_row_shapes,x
+    sta GLYPH
     tax
-    beq ball_mask_ready
-ball_mask_shift:
-    lsr M_A
-    ror M_B
-    dex
-    bne ball_mask_shift
-ball_mask_ready:
-    jsr point_pixel
-    lda M_A
-    sta PIXEL_MASK
+    lda M_A,x
     beq ball_second_byte
+    sta PIXEL_MASK
     jsr save_dynamic_byte
 ball_second_byte:
-    lda M_B
-    sta PIXEL_MASK
+    ldx GLYPH
+    lda M_B,x
     beq ball_row_done
-    lda PIXEL_X + 1
-    cmp #1
-    bne ball_right_visible
-    lda PIXEL_X
-    cmp #56
-    bcs ball_row_done
-ball_right_visible:
-    clc
-    lda BITMAP_PTR
-    adc #8
-    sta BITMAP_PTR
-    bcc ball_right_address
-    inc BITMAP_PTR + 1
-ball_right_address:
+    sta PIXEL_MASK
+    lda TEMP
+    beq ball_row_done
+    ldy #8                    ; next cell to the right
     jsr save_dynamic_byte
+    ldy #0
 ball_row_done:
     inc PIXEL_Y
+    ; Next scanline: +1 inside a cell row (never carries), else +313.
+    lda PIXEL_Y
+    and #7
+    beq ball_next_cell_row
+    inc BITMAP_PTR
+    bne ball_row_advanced
+ball_next_cell_row:
+    clc
+    lda BITMAP_PTR
+    adc #<313
+    sta BITMAP_PTR
+    lda BITMAP_PTR + 1
+    adc #>313
+    sta BITMAP_PTR + 1
+ball_row_advanced:
     inc ROW_INDEX
     lda ROW_INDEX
     cmp #5
@@ -341,5 +368,5 @@ hud_power:
 power_glyph:
 !byte 0,0,$7c,$7c,$7c,0,0,0
 
-ball_row_masks:
-!byte $70,$f8,$f8,$f8,$70
+ball_row_shapes:
+!byte 0,1,1,1,0
