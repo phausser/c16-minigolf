@@ -11,40 +11,54 @@ multiply_a_positive:
     bpl multiply_b_positive
     +negate16 M_B
 multiply_b_positive:
+    ; Low multiplier byte: the running high byte stays in A.
+    lda #0
+    sta M_PRODUCT + 1
+    sta M_PRODUCT + 3
+    ldx #8
+multiply_low_bit:
+    lsr M_B
+    bcc multiply_low_skip
+    tay
+    clc
+    lda M_PRODUCT + 1
+    adc M_A
+    sta M_PRODUCT + 1
+    tya
+    adc M_A + 1
+multiply_low_skip:
+    ror
+    ror M_PRODUCT + 1
+    ror M_PRODUCT
+    dex
+    bne multiply_low_bit
+    sta M_PRODUCT + 2
+    ; High multiplier byte adds |A| << 8 per bit; small steps exit early.
+    lda M_B + 1
+    beq multiply_sign
     +copy16 M_A, M_MULTIPLICAND
     lda #0
     sta M_MULTIPLICAND + 2
-    sta M_MULTIPLICAND + 3
-    sta M_PRODUCT
-    sta M_PRODUCT + 1
-    sta M_PRODUCT + 2
-    sta M_PRODUCT + 3
-multiply_bit:
+multiply_high_bit:
     lsr M_B + 1
-    ror M_B
-    bcc multiply_skip
+    bcc multiply_high_skip
     clc
-    lda M_PRODUCT
-    adc M_MULTIPLICAND
-    sta M_PRODUCT
     lda M_PRODUCT + 1
-    adc M_MULTIPLICAND + 1
+    adc M_MULTIPLICAND
     sta M_PRODUCT + 1
     lda M_PRODUCT + 2
-    adc M_MULTIPLICAND + 2
+    adc M_MULTIPLICAND + 1
     sta M_PRODUCT + 2
     lda M_PRODUCT + 3
-    adc M_MULTIPLICAND + 3
+    adc M_MULTIPLICAND + 2
     sta M_PRODUCT + 3
-multiply_skip:
-    lda M_B
-    ora M_B + 1
+multiply_high_skip:
+    lda M_B + 1
     beq multiply_sign
     asl M_MULTIPLICAND
     rol M_MULTIPLICAND + 1
     rol M_MULTIPLICAND + 2
-    rol M_MULTIPLICAND + 3
-    jmp multiply_bit
+    jmp multiply_high_bit
 multiply_sign:
     lda M_SIGN
     bpl multiply_done

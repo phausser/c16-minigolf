@@ -29,66 +29,77 @@ collect_candidates:
     lda BALL_POS_X + 1
     ror
     sta BOUNDS_X
+    tax
+    sec
+    sbc #4
+    bcs collect_x_low_ready
+    lda #0                    ; clamp near the left screen edge
+collect_x_low_ready:
+    sta COLLECT_X_LOW
+    txa
+    clc
+    adc #5
+    sta COLLECT_X_HIGH
     lda BALL_POS_Y + 1
     lsr
     sta BOUNDS_Y
+    tax
+    sec
+    sbc #4
+    bcs collect_y_low_ready
     lda #0
-    sta CANDIDATE_COUNT
-    sta SEG_OFFSET
+collect_y_low_ready:
+    sta COLLECT_Y_LOW
+    txa
+    clc
+    adc #5
+    sta COLLECT_Y_HIGH
+    ldy #0
+    sty CANDIDATE_COUNT
+    ; Keep a segment when min - 4 <= bounds <= max + 4 on both axes.
 collect_next:
-    ldy SEG_OFFSET
     lda course_segments,y
     cmp course_segments + 2,y
-    bcc collect_x_ordered
-    lda course_segments + 2,y
-collect_x_ordered:
-    sec
-    sbc #4
-    cmp BOUNDS_X
-    bcc collect_x_max
-    beq collect_x_max
-    jmp collect_skip
-collect_x_max:
-    lda course_segments,y
-    cmp course_segments + 2,y
-    bcs collect_x_max_ordered
-    lda course_segments + 2,y
-collect_x_max_ordered:
-    clc
-    adc #4
-    cmp BOUNDS_X
-    bcc collect_skip
-    lda course_segments + 1,y
-    cmp course_segments + 3,y
-    bcc collect_y_ordered
-    lda course_segments + 3,y
-collect_y_ordered:
-    sec
-    sbc #4
-    cmp BOUNDS_Y
-    bcc collect_y_max
-    beq collect_y_max
+    bcs collect_x_descending
+    cmp COLLECT_X_HIGH        ; A = min x
     bcs collect_skip
-collect_y_max:
+    lda course_segments + 2,y
+    cmp COLLECT_X_LOW         ; A = max x
+    bcc collect_skip
+    bcs collect_y
+collect_x_descending:
+    cmp COLLECT_X_LOW         ; A = max x
+    bcc collect_skip
+    lda course_segments + 2,y
+    cmp COLLECT_X_HIGH        ; A = min x
+    bcs collect_skip
+collect_y:
     lda course_segments + 1,y
     cmp course_segments + 3,y
-    bcs collect_y_max_ordered
+    bcs collect_y_descending
+    cmp COLLECT_Y_HIGH
+    bcs collect_skip
     lda course_segments + 3,y
-collect_y_max_ordered:
-    clc
-    adc #4
-    cmp BOUNDS_Y
+    cmp COLLECT_Y_LOW
     bcc collect_skip
+    bcs collect_keep
+collect_y_descending:
+    cmp COLLECT_Y_LOW
+    bcc collect_skip
+    lda course_segments + 3,y
+    cmp COLLECT_Y_HIGH
+    bcs collect_skip
+collect_keep:
     ldx CANDIDATE_COUNT
-    lda SEG_OFFSET
+    tya
     sta CANDIDATES,x
     inc CANDIDATE_COUNT
 collect_skip:
+    tya
     clc
-    lda SEG_OFFSET
     adc #5
-    sta SEG_OFFSET
-    cmp SEGMENT_BYTES
+    tay
+    cpy SEGMENT_BYTES
     bcc collect_next
     rts
 
@@ -638,15 +649,13 @@ circle_save_outside:
 circle_next_bit:
     lsr CIRCLE_BIT
     bne circle_bit_search
-circle_entry:
+    ; CIRCLE_OUT holds the last outside time exactly: its high 16 bits are
+    ; SAVED + floor(STEP * t / 256), identical to circle_at_trial at t.
+    ; Without a found bit it is the frame-origin offset at t = 0.
     lda BISECT_LO
     sta TRIAL_T
-    jsr circle_at_trial
-    bcc circle_entry_outside
-    lda BISECT_LO
-    beq circle_entry_outside
-    dec BISECT_LO
-    jmp circle_entry
+    +copy16 CIRCLE_OUT + 1, TRIAL_X
+    +copy16 CIRCLE_OUT + 4, TRIAL_Y
 circle_entry_outside:
     +copy16 TRIAL_X, NX
     +copy16 TRIAL_Y, NY

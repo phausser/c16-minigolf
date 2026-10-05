@@ -74,6 +74,7 @@ class ArithmeticTests(unittest.TestCase):
         rng = random.Random(264)
         values = [0,1,65536,1048576,2097152,4194303]
         values += [rng.randrange(4194304) for _ in range(200)]
+        values += [n for k in (1,2,255,256,1023,1024,2047) for n in (k*k-1,k*k,k*k+1)]
         for value in values:
             put(self.r,'M_PRODUCT',value,4)
             self.r.call('sqrt_speed')

@@ -97,6 +97,10 @@ COURSE_START_X_HI = $fc
 COURSE_CUP_X_HI = $fe
 COURSE_CUP_HALF_X = $aa   ; cup x / 2 for the byte broadphase
 SEGMENT_BYTES = $ab       ; 5 * segment count
+COLLECT_X_LOW = $ac       ; broadphase window in packed 2px units
+COLLECT_X_HIGH = $ad      ; exclusive upper limits
+COLLECT_Y_LOW = $ae
+COLLECT_Y_HIGH = $af
 STEP_X = $70              ; signed Q8.8 residual displacement
 STEP_Y = $72
 REMAINING_TIME = $78       ; Q0.8, 256 = complete frame

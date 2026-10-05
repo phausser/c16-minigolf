@@ -52,51 +52,51 @@ negate_math_b:
     asl M_PRODUCT
     rol M_PRODUCT + 1
     rol M_PRODUCT + 2
-    rol M_PRODUCT + 3
     rol M_REM
     rol M_REM + 1
 }
 ; Exact restoring root for bounded speed squares: input < 2^22.
-; The 11-bit root keeps remainder and trial within 16 bits.
+; The 11-bit root keeps remainder and trial within 16 bits. Two initial
+; shifts put the first bit pair at the top of the 24-bit input.
+; M_PRODUCT, M_REM and M_TRIAL are clobbered; the root is M_QUOT.
 sqrt_speed:
-    ldx #10
-sqrt_speed_shift:
     asl M_PRODUCT
     rol M_PRODUCT + 1
     rol M_PRODUCT + 2
-    rol M_PRODUCT + 3
-    dex
-    bne sqrt_speed_shift
+    asl M_PRODUCT
+    rol M_PRODUCT + 1
+    rol M_PRODUCT + 2
     lda #0
     sta M_QUOT
     sta M_QUOT + 1
     sta M_REM
     sta M_REM + 1
-    lda #11
-    sta M_COUNT
+    ldx #11
 sqrt_pair:
     +root_shift
     +root_shift
-    +copy16 M_QUOT, M_TRIAL
-    asl M_TRIAL
-    rol M_TRIAL + 1
-    asl M_TRIAL
-    rol M_TRIAL + 1
-    inc M_TRIAL
     asl M_QUOT
     rol M_QUOT + 1
-    lda M_REM + 1
-    cmp M_TRIAL + 1
-    bcc sqrt_next
-    bne sqrt_subtract
+    ; Trial 4 * old root + 1 = 2 * shifted root + 1.
+    lda M_QUOT
+    asl
+    ora #1
+    sta M_TRIAL
+    lda M_QUOT + 1
+    rol
+    sta M_TRIAL + 1
+    sec
     lda M_REM
-    cmp M_TRIAL
+    sbc M_TRIAL
+    tay
+    lda M_REM + 1
+    sbc M_TRIAL + 1
     bcc sqrt_next
-sqrt_subtract:
-    +sub16 M_REM, M_TRIAL, M_REM
+    sta M_REM + 1
+    sty M_REM
     inc M_QUOT
 sqrt_next:
-    dec M_COUNT
+    dex
     bne sqrt_pair
     rts
 
@@ -181,39 +181,36 @@ multiply_fraction:
 fraction_absolute:
     lda #0
     sta M_PRODUCT
-    sta M_PRODUCT + 1
     sta M_PRODUCT + 2
-    lda M_B
-    sta M_COUNT
-    lda M_A
-    beq fraction_high_part
-fraction_eight_bits:
+    ldx M_B
+    stx M_COUNT
+    ldx M_A
+    beq fraction_low_done
     ldx #8
 fraction_multiply_bit:
+    ; The running high byte stays in A; adc's carry is its ninth bit.
     lsr M_B
     bcc fraction_no_add
     clc
-    lda M_PRODUCT + 1
     adc M_A
-    sta M_PRODUCT + 1
 fraction_no_add:
-    ror M_PRODUCT + 1
+    ror
     ror M_PRODUCT
     dex
     bne fraction_multiply_bit
-fraction_high_part:
+fraction_low_done:
     ldx M_A + 1
-    beq fraction_sign
+    beq fraction_high_done
 fraction_high_loop:
     clc
-    lda M_PRODUCT + 1
     adc M_COUNT
-    sta M_PRODUCT + 1
     bcc fraction_high_no_carry
     inc M_PRODUCT + 2
 fraction_high_no_carry:
     dex
     bne fraction_high_loop
+fraction_high_done:
+    sta M_PRODUCT + 1
 fraction_sign:
     lda M_SIGN
     bpl fraction_return
