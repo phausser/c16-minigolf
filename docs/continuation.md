@@ -45,7 +45,7 @@ make, make test, make budget; make run für VICE. Buildberichte: build/memory.js
 Falls VICE beim Start aus dem Python-Smokeprozess in der eingeschränkten Umgebung abstürzt, getrennte Tool-Aufrufe verwenden:
 
 1. python3 tests/vice_smoke.py --prepare-only
-2. /opt/homebrew/bin/xplus4 -silent -default -console -model c16 -pal -ramsize 16 -sounddev dummy -warp -autostartprgmode 1 -autostart build/minigolf.prg -initbreak 0x0200 -moncommands build/vice-pal.mon -monlog -monlogname build/vice-pal.log -limitcycles 20000000
+2. xplus4 -silent -default -console -model c16 -pal -ramsize 16 -sounddev dummy -warp -autostartprgmode 1 -autostart build/minigolf.prg -initbreak 0x0200 -moncommands build/vice-pal.mon -monlog -monlogname build/vice-pal.log -limitcycles 20000000
 3. python3 tests/vice_smoke.py --verify-only
 
 Letzte Implementierungscommits vor dieser Übergabe: 4bcaca9 (Renderer/Eckensweep), 9552c5d (Export/RAM-Bericht), beide auf main gepusht. Remote: git@github.com:phausser/c16-minigolf. Dokumentationsänderungen separat semantisch committen und pushen. Nach dem Clear zuerst git status prüfen, diesen Stand sowie TODO.md/SPEC.md lesen und keine erledigten Arbeiten wiederholen.
