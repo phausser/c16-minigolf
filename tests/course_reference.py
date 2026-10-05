@@ -9,7 +9,8 @@ horizontally and vertically: the smooth outer frame edge. Other solid cells next
 faces such a cell, square at corners. The cup is a filled round 7-pixel
 disc. Cells with floor are gray with black ink, other playfield cells black
 ink on the green checker, rows 0 and 21..23 equal checker colors, row 24
-the HUD palette.
+the HUD palette. Water areas are whole floor cells with black ink on a
+blue checker.
 """
 
 FRAME_WIDTH = 6
@@ -85,6 +86,8 @@ def render(course, s):
         for dx in range(-3, 4):
             if dx*dx+dy*dy <= 12.25:          # radius 3.5
                 bitmap[bitmap_offset(cx+dx, cy+dy)] |= 128 >> ((cx+dx) % 8)
+    water = {(row, col) for x1, y1, x2, y2 in course.get('hazards', [])
+             for row in range(y1//8, y2//8) for col in range(x1//8, x2//8)}
     hud = attribute(s['HUD_FOREGROUND_COLOR'], s['HUD_BACKGROUND_COLOR'])
     luminance, color = [hud[0]]*1024, [hud[1]]*1024
     for row in range(24):
@@ -97,5 +100,8 @@ def render(course, s):
                 pair = attribute(s['COURSE_FRAME_COLOR'], checker)
             else:
                 pair = attribute(checker, checker)
+            if (row, col) in water:
+                pair = attribute(s['COURSE_MARKER_COLOR'],
+                                 s['WATER_COLOR_ODD'] if (row+col) % 2 else s['WATER_COLOR_EVEN'])
             luminance[row*40+col], color[row*40+col] = pair
     return bitmap, luminance, color

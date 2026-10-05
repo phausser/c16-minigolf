@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-05: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 53 automatisierte Tests bestehen (46 am assemblierten Kern, sieben für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31220 von 32000 Ticks, inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis das Speicherbudget für 18 Bahnen nachgewiesen ist. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-05: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 56 automatisierte Tests bestehen (48 am assemblierten Kern, acht für Host-Geometrie/Export). VICE bestätigt ROM-Start, Hi-Res, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31113 von 32000 Ticks (Testbahn ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis das Speicherbudget für 18 Bahnen nachgewiesen ist. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -32,7 +32,7 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] Code-, Daten- und Scratchbedarf messen; 18-Bahnen-Budget mit dem echten Testexport hochrechnen (`make budget`: 18 gleich große Exporte als ausdrückliche Annahme).
 - [x] Schlechteste Framezeit mit Anzeige messen, einschließlich Engstellen und Mehrfachkontakten.
 - [x] Allgemeine schräge Eckentreffer von 38873 auf höchstens 32000 PAL-Ticks optimieren; `make smoke` besteht mit 30173 Ticks, inklusive der vier teuersten Winkel eines 128-Winkel-Sweeps (neue Abprallphysik vom Nutzer in VICE als natürlich bestätigt).
-- [ ] Speicher erweitern (Stand: 453 Runtime-Bytes frei, Decoder und aktuelle Bahn resident; Format 3 mit 28 Bytes je Testbahn, 17 weitere brauchen 510 Bytes, Metadaten und Spielablauf fehlen noch) und echtes 18-Bahnen-Budget nachweisen.
+- [ ] Speicher erweitern (Stand: 357 Runtime-Bytes frei, Decoder und aktuelle Bahn resident; Format 3 mit 28 Bytes je Testbahn, 17 weitere brauchen 510 Bytes, Metadaten und Spielablauf fehlen noch) und echtes 18-Bahnen-Budget nachweisen.
 - [x] Start innerhalb des Fangradius und Lochfang unmittelbar nach einem Abpraller gezielt absichern.
 - [x] Wand-Kontakt-Epsilon gegen Rundungsreste von ein bis zwei Festkommaeinheiten prüfen.
 - [ ] Gleichzeitige Kontakte und schrägere Endpunktfälle vollständig absichern.
@@ -94,6 +94,7 @@ Zusätzlich vorgemerkt: Multiplikation und Division anhand der tatsächlichen Au
 - [ ] Innen-/Außenecken, gleichzeitige Kontakte und 10-Pixel-Passagen prüfen.
 - [ ] Energiegewinn, Tunneling, Zittern und erschöpfte Kontaktlimits automatisch erkennen.
 - [ ] Lochfang bei geringer/hoher Geschwindigkeit und Durchquerung innerhalb eines Schritts prüfen.
+- [x] Wasserflächen (blaues Schachbrett, ohne Rahmen): Ball kehrt an den Bildanfang am Rand zurück; Format 4, Erkennung über den Farbton der Zelle unter der Ballmitte.
 - [ ] Sand/Eis hinzufügen und Materialgrenzen testen.
 - [ ] Physikkonstanten kalibrieren und dokumentieren; Referenz und Zielkern vergleichen.
 

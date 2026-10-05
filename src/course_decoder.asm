@@ -19,7 +19,14 @@ decode_header:
     bpl decode_header
     ldy #4
     lda (COURSE_PTR),y
+    and #63
     sta DECODE_CONTOURS
+    lda (COURSE_PTR),y
+    rol
+    rol
+    rol
+    and #3
+    sta HAZARD_COUNT
 decode_contour:
     ; Cells to 2px segment units: x/8 * 4.
     iny
@@ -118,6 +125,15 @@ decode_run_done:
     beq decode_done
     jmp decode_contour
 decode_done:
+    ; Water rectangles follow the last run.
+    iny
+    tya
+    clc
+    adc COURSE_PTR
+    sta HAZARD_PTR
+    lda COURSE_PTR + 1
+    adc #0
+    sta HAZARD_PTR + 1
     rts
 
 ; A = direction of the segment ending at the current vertex.

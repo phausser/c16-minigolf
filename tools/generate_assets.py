@@ -23,6 +23,42 @@ def intersects(a, b, c, d):
         (values[0],a,b,c), (values[1],a,b,d), (values[2],c,d,a), (values[3],c,d,b)))
 
 
+def playable(contours, x, y):
+    """Even-odd rule with half-open y intervals, as the renderer fills."""
+    inside = False
+    for contour in contours:
+        for a, b in zip(contour, contour[1:]+contour[:1]):
+            if (a[1] <= y < b[1]) or (b[1] <= y < a[1]):
+                if a[0]+(y-a[1])*(b[0]-a[0])/(b[1]-a[1]) <= x:
+                    inside = not inside
+    return inside
+
+
+def hazard_cells(course):
+    """Cells (row, col) of the water areas: [x1, y1, x2, y2), cell aligned."""
+    cells = set()
+    for area in course.get('hazards', []):
+        x1, y1, x2, y2 = area
+        if any(type(v) is not int or v % 8 for v in area) or x1 >= x2 or y1 >= y2:
+            raise ValueError('water areas must be nonempty cell-aligned rectangles')
+        cells |= {(row, col) for row in range(y1//8, y2//8) for col in range(x1//8, x2//8)}
+    return cells
+
+
+def validate_hazards(course):
+    if len(course.get('hazards', [])) > 3:
+        raise ValueError('at most three water areas')
+    contours = [course['outline'], *course['obstacles']]
+    cells = hazard_cells(course)
+    for row, col in cells:
+        if not all(playable(contours, col*8+dx, row*8+dy) for dy in range(8) for dx in range(8)):
+            raise ValueError('water areas must cover whole floor cells')
+    for key in ('start', 'cup'):
+        x, y = course[key]
+        if (y//8, x//8) in cells:
+            raise ValueError(f'{key} lies in water')
+
+
 def validate(course):
     contours = [course['outline'], *course['obstacles']]
     segments = []
@@ -46,6 +82,8 @@ def validate(course):
             segments.append((a,b,contour_index,i,len(contour)))
     if len(segments) > 32:
         raise ValueError('course exceeds 32-segment budget')
+    if len(contours) > 63:
+        raise ValueError('too many contours')
     for i,(a,b,ci,ei,ni) in enumerate(segments):
         for c,d,cj,ej,nj in segments[i+1:]:
             if ci == cj and ((ei-ej) % ni in (1,ni-1)):

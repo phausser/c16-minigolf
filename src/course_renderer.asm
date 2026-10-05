@@ -10,6 +10,7 @@ draw_course:
     jsr fill_course
     jsr classify_course_cells
     jsr shape_course_cells
+    jsr mark_water
     jsr colour_course_cells
     jmp draw_cup
 
@@ -127,6 +128,7 @@ CLASS_EDGE = 1                  ; inner 45-degree edge: floor and solid
 CLASS_SOLID = 2                 ; frame or green checker
 CLASS_OUTER = 3                 ; outer 45-degree frame edge
 CLASS_HIDDEN = 4                ; rows 0, 21..23: equal checker colors
+CLASS_WATER = 5                 ; whole floor cell of a water area
 ; COURSE_PTR addresses the class of cell i - 41: neighbours of i are at
 ; Y = 0,1,2 / 40,(41),42 / 80,81,82.
 CLASS_SELF = 41
@@ -338,6 +340,43 @@ course_cells_class:
 course_cells_more:
     rts
 
+; Water cells were shaped as floor (clear, frame bands next to walls);
+; only their class changes. Rectangles: left, top, right, bottom cells.
+mark_water:
+    lda HAZARD_COUNT
+    beq water_done
+    sta GLYPH
+    ldy #0
+water_area:
+    ldx #0
+water_bounds:
+    lda (HAZARD_PTR),y
+    sta LINE_X,x              ; LINE_X, +1 top, +2 right, +3 bottom
+    iny
+    inx
+    cpx #4
+    bne water_bounds
+    sty TEXT_COLUMN
+water_row:
+    lda LINE_X + 1
+    jsr class_row_pointer
+    ldy LINE_X
+    lda #CLASS_WATER
+water_cell:
+    sta (COURSE_PTR),y
+    cpy LINE_X + 2
+    iny
+    bcc water_cell
+    lda LINE_X + 1
+    inc LINE_X + 1
+    cmp LINE_X + 3
+    bcc water_row
+    ldy TEXT_COLUMN
+    dec GLYPH
+    bne water_area
+water_done:
+    rts
+
 ; Neighbour class offsets with the frame band each whole floor neighbour
 ; adds: rows [first, end) and a column mask (bit 7 = left pixel).
 FRAME_LEFT = ($ff << (8 - FRAME_WIDTH)) & $ff
@@ -408,6 +447,8 @@ course_luminance:
     +attribute_luminance COURSE_FRAME_COLOR, CHECKER_COLOR_ODD
     +attribute_luminance CHECKER_COLOR_EVEN, CHECKER_COLOR_EVEN
     +attribute_luminance CHECKER_COLOR_ODD, CHECKER_COLOR_ODD
+    +attribute_luminance COURSE_MARKER_COLOR, WATER_COLOR_EVEN
+    +attribute_luminance COURSE_MARKER_COLOR, WATER_COLOR_ODD
 course_color:
     +attribute_color COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
     +attribute_color COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
@@ -419,3 +460,5 @@ course_color:
     +attribute_color COURSE_FRAME_COLOR, CHECKER_COLOR_ODD
     +attribute_color CHECKER_COLOR_EVEN, CHECKER_COLOR_EVEN
     +attribute_color CHECKER_COLOR_ODD, CHECKER_COLOR_ODD
+    +attribute_color COURSE_MARKER_COLOR, WATER_COLOR_EVEN
+    +attribute_color COURSE_MARKER_COLOR, WATER_COLOR_ODD

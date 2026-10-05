@@ -209,6 +209,54 @@ class HardwareTests(unittest.TestCase):
             self.assertEqual(self.r.bus[0x1800:0x1800+960], luminance[:960])
             self.assertEqual(self.r.bus[0x1c00:0x1c00+960], color[:960])
 
+    def load_course(self, course, address=0x8000):
+        from course_codec import encode
+        data = encode(course)
+        self.r.bus[S['course_table_lo']] = address & 255
+        self.r.bus[S['course_table_hi']] = address >> 8
+        self.r.bus[address:address+len(data)] = list(data)
+        self.r.call('initialise_state')
+
+    WATER_COURSE = {'start':[64,88],'cup':[272,88],'obstacles':[],
+                    'outline':[[16,24],[304,24],[304,152],[16,152]],
+                    'hazards':[[128,64,176,112],[16,128,64,152]]}
+
+    def test_water_cells_are_blue_floor_without_frame(self):
+        self.load_course(self.WATER_COURSE)
+        self.assertEqual(self.r.get('HAZARD_COUNT'), 2)
+        self.r.call('initialise_video')
+        self.r.call('draw_course')
+        expected, luminance, color = render(self.WATER_COURSE, S)
+        self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
+        self.assertEqual(self.r.bus[0x1800:0x1800+960], luminance[:960])
+        self.assertEqual(self.r.bus[0x1c00:0x1c00+960], color[:960])
+        self.assertEqual(color[10*40+17] & 15, S['WATER_HUE'])
+
+    def test_ball_rolling_into_water_rests_where_it_fell_in(self):
+        self.load_course(self.WATER_COURSE)
+        self.r.call('initialise_video')
+        self.r.call('draw_course')
+        for angle, power in ((0, 24), (0, 32), (6, 20), (64-6, 28)):
+            self.r.call('reset_ball')
+            if angle > 32:   # roll left from the right of the pond
+                self.r.bus[S['BALL_POS_X']:S['BALL_POS_X']+3] = [0, 232, 0]
+            self.r.put('ANGLE', angle)
+            self.r.put('POWER', power)
+            self.r.call('start_shot')
+            for frame in range(400):
+                before = self.r.bus[S['BALL_POS_X']:S['BALL_POS_X']+5]
+                self.r.call('physics_tick')
+                if not self.r.get('ROLLING'):
+                    break
+            self.assertFalse(self.r.get('ROLLING'))
+            x = (self.r.bus[S['BALL_POS_X']+1] + 256*self.r.bus[S['BALL_POS_X']+2])
+            y = self.r.bus[S['BALL_POS_Y']+1]
+            # Back at the start of the entering frame: outside, near the edge.
+            self.assertEqual(self.r.bus[S['BALL_POS_X']:S['BALL_POS_X']+5], before, angle)
+            self.assertFalse(128 <= x < 176 and 64 <= y < 112, (angle, x, y))
+            distance = max(128-x-1, x-176, 64-y-1, y-112)
+            self.assertLessEqual(distance, 4, (angle, x, y))
+
     def test_markers_restore_floor_and_boundary_cells_without_recoloring(self):
         self.r.call('initialise_video')
         self.r.call('draw_course')

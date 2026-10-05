@@ -118,6 +118,25 @@ restore_next:
 restore_done:
     rts
 
+; COURSE_PTR = COLOR_BASE + A * 40, A = cell row 0..24. X is clobbered.
+class_row_pointer:
+    asl
+    asl
+    asl                       ; row * 8 <= 192
+    sta COURSE_PTR
+    ldx #>COLOR_BASE >> 2
+    stx COURSE_PTR + 1
+    asl
+    rol COURSE_PTR + 1
+    asl
+    rol COURSE_PTR + 1        ; COLOR_BASE + row * 32, carry clear
+    adc COURSE_PTR
+    sta COURSE_PTR
+    bcc class_row_ready
+    inc COURSE_PTR + 1
+class_row_ready:
+    rts
+
 pixel_masks:
 !byte $80,$40,$20,$10,$08,$04,$02,$01
 

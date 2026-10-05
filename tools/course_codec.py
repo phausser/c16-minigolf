@@ -1,9 +1,11 @@
 """Lossless packed course geometry, decoded at runtime by decode_course.
 
-Version 3 stream: start x/2, start y/2, cup x/2, cup y/2, contour count,
-then per contour: first vertex x/8, y/8 with bit 7 = normal side flag,
+Version 4 stream: start x/2, start y/2, cup x/2, cup y/2, a count byte
+(contours in bits 0-5, water areas in bits 6-7), then per contour: first vertex x/8, y/8 with bit 7 = normal side flag,
 run count and runs. A run byte has a 3-bit compass direction and a 5-bit
-length in 8px cells (zero means 32). All vertices lie on the cell grid. Longer edges use repeated runs;
+length in 8px cells (zero means 32). All vertices lie on the cell grid.
+Each water area follows as four cell numbers: left, top, right, bottom,
+inclusive. Longer edges use repeated runs;
 decoding merges them back into one segment. The side flag is set when the
 wall normal is direction+2 (outline: positive area, obstacle: negative).
 Names, par and material data are deliberately outside this version.
@@ -12,11 +14,12 @@ import argparse
 import json
 from pathlib import Path
 
-from generate_assets import ROOT, DIRECTIONS, validate
+from generate_assets import ROOT, DIRECTIONS, validate, validate_hazards
 
 
 def encode(course):
     validate(course)
+    validate_hazards(course)
     for key in ('start','cup'):
         point = course[key]
         if len(point) != 2 or any(type(v) is not int or v % 2 for v in point):
@@ -24,8 +27,9 @@ def encode(course):
         if not (0 <= point[0] < 320 and 0 <= point[1] < 168):
             raise ValueError(f'{key} outside playfield')
     contours = [course['outline'], *course['obstacles']]
+    hazards = course.get('hazards', [])
     data = bytearray([*(v//2 for v in course['start']),
-                      *(v//2 for v in course['cup']), len(contours)])
+                      *(v//2 for v in course['cup']), len(contours) | len(hazards) << 6])
     for ci,contour in enumerate(contours):
         area = sum(a[0]*b[1]-a[1]*b[0] for a,b in zip(contour,contour[1:]+contour[:1]))
         side = 128 if (area > 0) == (ci == 0) else 0
@@ -42,6 +46,8 @@ def encode(course):
             raise ValueError('contour has too many runs')
         data.extend([contour[0][0]//8,contour[0][1]//8 | side,len(runs)])
         data.extend(runs)
+    for x1, y1, x2, y2 in hazards:
+        data.extend([x1//8, y1//8, x2//8-1, y2//8-1])
     if len(data) > 256:
         raise ValueError('packed course exceeds 256 bytes')
     return bytes(data)
@@ -60,6 +66,7 @@ def decode(data):
 
     course = {'start':[byte()*2,byte()*2], 'cup':[byte()*2,byte()*2]}
     count = byte()
+    hazard_count, count = count >> 6, count & 63
     if not 1 <= count <= 32:
         raise ValueError('invalid contour count')
     contours = []
@@ -82,9 +89,15 @@ def decode(data):
         if point != contour[0]:
             raise ValueError('open contour')
         contours.append(contour)
+    hazards = []
+    for _ in range(hazard_count):
+        x1, y1, x2, y2 = byte(), byte(), byte(), byte()
+        hazards.append([x1*8, y1*8, x2*8+8, y2*8+8])
     if index != len(data):
         raise ValueError('trailing course data')
     course['outline'],course['obstacles'] = contours[0],contours[1:]
+    if hazards:
+        course['hazards'] = hazards
     if encode(course) != bytes(data):
         raise ValueError('non-canonical course stream or wrong side flag')
     return course
@@ -101,7 +114,7 @@ def budget():
     estimated = len(data)*18+directory_bytes
     missing = (len(data)+2)*17
     free = memory['runtime_free_bytes']
-    report = {'format_version':3, 'test_course_segments':len(validate(course)),
+    report = {'format_version':4, 'test_course_segments':len(validate(course)),
               'expanded_test_course_bytes':len(validate(course))*5,
               'packed_test_course_bytes':len(data), 'course_count':18,
               'directory_bytes':directory_bytes, 'estimated_geometry_bytes':estimated,

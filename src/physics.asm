@@ -124,6 +124,15 @@ physics_branch_1:
     bne physics_branch_2
     jmp physics_idle
 physics_branch_2:
+    lda HAZARD_COUNT
+    beq physics_dry_course
+    ldx #4
+physics_save_start:
+    lda BALL_POS_X,x
+    sta FRAME_START,x
+    dex
+    bpl physics_save_start
+physics_dry_course:
     jsr velocity_from_unit
     jsr collect_candidates
     ; A continuous finite-segment/circle sweep covers the whole frame path.
@@ -195,6 +204,34 @@ physics_contact_limit:
     inc CONTACT_LIMIT_HITS
 physics_substep_done:
 physics_steps_finished:
+    ; Water: when the ball centre ends a frame in a blue cell, it goes back
+    ; to where this frame began, at most 4 pixels from the edge, and rests.
+    lda HAZARD_COUNT
+    beq physics_dry
+    lda BALL_POS_Y + 1
+    lsr
+    lsr
+    lsr
+    jsr class_row_pointer
+    lda BALL_POS_X + 2
+    lsr
+    lda BALL_POS_X + 1
+    ror
+    lsr
+    lsr
+    tay
+    lda (COURSE_PTR),y
+    and #15
+    cmp #WATER_HUE
+    bne physics_dry
+    ldx #4
+physics_ashore:
+    lda FRAME_START,x
+    sta BALL_POS_X,x
+    dex
+    bpl physics_ashore
+    jmp stop_ball
+physics_dry:
     ; Constant radial resistance preserves the unit direction. There is
     ; no independent x/y braking and no asymptotic never-ending creep.
     lda SPEED + 1

@@ -101,6 +101,9 @@ COLLECT_X_LOW = $ac       ; broadphase window in packed 2px units
 COLLECT_X_HIGH = $ad      ; exclusive upper limits
 COLLECT_Y_LOW = $ae
 COLLECT_Y_HIGH = $af
+FRAME_START = $6b         ; BALL_POS_X/Y copy at the start of a rolling frame
+HAZARD_COUNT = $74        ; water areas of the current course, 0..3
+HAZARD_PTR = $75          ; word: their cell rectangles in the course stream
 STEP_X = $70              ; signed Q8.8 residual displacement
 STEP_Y = $72
 REMAINING_TIME = $78       ; Q0.8, 256 = complete frame

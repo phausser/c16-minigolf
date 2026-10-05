@@ -25,6 +25,21 @@ class CourseCodecTests(unittest.TestCase):
                   'outline':[[16,24],[304,24],[304,152],[16,152]],'obstacles':[]}
         self.assertEqual(decode(encode(course)),course)
 
+    def test_water_areas_roundtrip_and_validation(self):
+        course = {'start':[40,88],'cup':[272,88],'obstacles':[],
+                  'outline':[[16,24],[304,24],[304,152],[16,152]],
+                  'hazards':[[128,64,176,112],[208,24,240,48]]}
+        packed = encode(course)
+        self.assertEqual(packed[4], 1 | 2 << 6)
+        self.assertEqual(list(packed[-8:]), [16,8,21,13, 26,3,29,5])
+        self.assertEqual(decode(packed), course)
+        for hazards in ([[128,64,176,110]],       # not cell aligned
+                        [[8,64,40,112]],          # covers the frame
+                        [[32,80,48,96]],          # start in water
+                        [[128,64,176,112]]*4):    # too many areas
+            with self.assertRaises(ValueError, msg=hazards):
+                encode(dict(course, hazards=hazards))
+
     def test_every_truncation_and_trailing_byte_is_rejected(self):
         packed = encode(self.course)
         for index in range(len(packed)):
