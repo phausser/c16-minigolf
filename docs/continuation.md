@@ -40,7 +40,7 @@ Einzelmessungen am assemblierten Code mit py65; einschließlich RTS und interner
 
 ## Befehle und Emulatorhinweis
 
-make, make test, make budget; make run für VICE. Buildberichte: build/memory.json, build/course-budget.json, build/timing.json. ACME und VICE liegen unter /opt/homebrew/bin. Python/py65 ist in .venv verfügbar.
+make, make test, make budget; make run für VICE. Buildberichte: build/memory.json, build/course-budget.json, build/timing.json. ACME und VICE liegen jetzt unter /usr/bin (Linux). Python/py65 ist in .venv verfügbar.
 
 Falls VICE beim Start aus dem Python-Smokeprozess in der eingeschränkten Umgebung abstürzt, getrennte Tool-Aufrufe verwenden:
 
@@ -195,7 +195,7 @@ hält die alten corner-replays unverändert prüfbar (explizite historische Län
 über binären Monitor/I-O-Simulation, 64 Feuerframes, Release und leeres HUD.
 Protokoll benutzt Port0 für physischen Port1, aktiv niedrige Leitungen;
 Testgerät JOYPORT_ID_IO_SIMULATION=37. Build/joystick-smoke.json bestanden.
-make run standardmäßig -joydev1 1 (NumPad), JOYDEV=4 für erstes Hostgerät.
+make run ohne -default: eigene vicerc-Joystickwahl gilt; JOYDEV erzwingt ein Gerät.
 Runtime5381 Bytes,197 frei; Renderer287/320; Bitmap-Ende182/192; PRG12279.
 VICE-Smoke Grafik/Eingabe bestanden, Zeitbudget38873>32000 weiterhin offen.
 Neue Szenarien Ecke124,84 / schräg124,83 / flach123,84, Engstelle160,80.

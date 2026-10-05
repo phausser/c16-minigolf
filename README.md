@@ -19,9 +19,10 @@ make
 make run
 ```
 
-`make run` aktiviert die NumPad-Joystickemulation an Port 1, ohne Autofeuer.
-Für einen angeschlossenen Host-Joystick: `make run JOYDEV=4` (erstes Gerät).
-Weitere Geräte/Keysets lassen sich in VICE unter Joystick-Einstellungen wählen.
+`make run` übernimmt die Joystick-Einstellung aus der eigenen VICE-Konfiguration
+(`~/.config/vice/vicerc`, z. B. Tastensatz in den VICE-Einstellungen gewählt und
+gespeichert), ohne Autofeuer. Gerät erzwingen: `make run JOYDEV=1` (Ziffernblock),
+`JOYDEV=2` (Tastensatz 1) oder `JOYDEV=4` (erster Host-Joystick).
 
 Das Programm liegt in `build/minigolf.prg`. `make run` startet einen
 PAL-C16 mit 16 KB RAM. Auf dem C16: `LOAD"MINIGOLF",8,1`, danach `RUN`.

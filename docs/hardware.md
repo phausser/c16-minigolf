@@ -306,8 +306,8 @@ Nur Stärke bleibt im HUD; Anleitung und Statuswörter entfernt.
 Bei 50 Hz Start mit Stärke 1, alle zwei Frames +1, Sättigung bei 32 nach etwa
 1,3 s. Loslassen entprellt, Pause löscht die Aufladung. Während Rollen und
 nach Pause/Neustart gehaltenes Feuer wird bis zum Loslassen gesperrt.
-Reale Hardware bleibt ungeprüft; make run nutzt NumPad an Port 1, JOYDEV=4
-wählt das erste Host-Joystickgerät.
+Reale Hardware bleibt ungeprüft. make run startet ohne -default, damit die
+gespeicherte VICE-Joystick-/Tastensatz-Einstellung gilt; JOYDEV erzwingt ein Gerät.
 
 Runtime 5381 Bytes, 197 frei; 135 Bytes gegenüber dem letzten Stand gewonnen.
 PRG 12279 Bytes. Renderer 287, weite Mathematik 308, Bitmap-Ende 182 Bytes.
