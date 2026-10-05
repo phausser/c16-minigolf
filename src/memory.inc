@@ -140,8 +140,13 @@ M_DEN = $c0              ; 24-bit positive denominator
 M_QUOT = $c3             ; 16-bit division/sqrt result
 M_TRIAL = $c5            ; 24-bit sqrt trial
 M_COUNT = $c8
-BALL_LEFT = M_PRODUCT       ; three left byte masks while drawing the ball
-BALL_RIGHT = M_MULTIPLICAND ; three right byte masks
+; Ball drawing borrows the aim state; aiming rebuilds it after the ball.
+BALL_SIDE = AIM_X            ; 0 = left byte column, 1 = right
+BALL_MASK_POS = AIM_X + 1    ; current index into ball_masks
+BALL_ROW_Y = AIM_Y           ; glyph row 0..7 inside the current cell
+BALL_CELL_ROW = AIM_Y + 1
+BALL_MASK_INDEX = AIM_STEP_X ; first mask of this column
+BALL_MASK_END = AIM_STEP_Y
 ; decode_course scratch shares math scratch; decoding precedes physics.
 DECODE_X = M_A            ; current vertex, 2px units
 DECODE_Y = M_A + 1
@@ -173,7 +178,7 @@ course_segments = $0100       ; decoded: x1/2, y1/2, x2/2, y2/2, flags
 ; One dynamic character per cell touched by the ball (up to 4) and the
 ; aim dots (up to 7). Restore writes the static screen code back.
 MAX_DYNAMIC_CELLS = 12
-DYNAMIC_LO = $01a0           ; cell index, three arrays of 12 bytes
+DYNAMIC_LO = $01a0           ; screen address and old code, 3 x 12 bytes
 DYNAMIC_HI = $01ac
 DYNAMIC_OLD = $01b8
 ; Measured call depth is 12 bytes; $01d6-$01ff stay reserved for the stack.

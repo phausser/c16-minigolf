@@ -102,29 +102,7 @@ punch_pixel:
     lsr
     lsr
     lsr
-    jsr class_row_pointer
-    lda PIXEL_X + 1
-    lsr
-    lda PIXEL_X
-    ror
-    lsr
-    lsr                       ; column = x >> 3, including x >= 256
-    clc
-    adc COURSE_PTR
-    sta LINE_X
-    lda COURSE_PTR + 1
-    adc #0
-    sec
-    sbc #>ATTR_BASE
-    sta LINE_X + 1
-    clc
-    lda LINE_X
-    adc #<SCREEN_BASE
-    sta COPY_TARGET
-    lda LINE_X + 1
-    adc #>SCREEN_BASE
-    sta COPY_TARGET + 1
-    jsr find_dynamic_slot
+    jsr dynamic_cell
     lda PIXEL_Y
     and #7
     tay
@@ -135,15 +113,30 @@ punch_pixel:
 punch_done:
     rts
 
-find_dynamic_slot:
+; A = cell row 1..20, column from PIXEL_X. FONT_PTR = the cell's dynamic
+; character, copied from its static glyph on first use. Clobbers X and Y.
+dynamic_cell:
+    tax
+    lda PIXEL_X + 1
+    lsr
+    lda PIXEL_X
+    ror
+    lsr
+    lsr                       ; column = x >> 3, including x >= 256
+    clc
+    adc screen_rows_lo,x
+    sta COPY_TARGET
+    lda screen_rows_hi,x
+    adc #0
+    sta COPY_TARGET + 1       ; screen address of the cell
     ldx DYNAMIC_COUNT
     beq dynamic_alloc
 dynamic_search:
     lda DYNAMIC_LO - 1,x
-    cmp LINE_X
+    cmp COPY_TARGET
     bne dynamic_search_next
     lda DYNAMIC_HI - 1,x
-    cmp LINE_X + 1
+    cmp COPY_TARGET + 1
     beq dynamic_found
 dynamic_search_next:
     dex
@@ -152,40 +145,46 @@ dynamic_alloc:
     ldx DYNAMIC_COUNT
     cpx #MAX_DYNAMIC_CELLS
     bcs dynamic_overflow
-    lda LINE_X
+    inc DYNAMIC_COUNT
+    lda COPY_TARGET
     sta DYNAMIC_LO,x
-    lda LINE_X + 1
+    lda COPY_TARGET + 1
     sta DYNAMIC_HI,x
     ldy #0
     lda (COPY_TARGET),y
     sta DYNAMIC_OLD,x
-    inc DYNAMIC_COUNT
-    txa
-    clc
-    adc #DYNAMIC_CHAR
-    sta (COPY_TARGET),y
+    ; Static glyph at CHARSET_BASE + code * 8; code < 128.
     pha
-    lda DYNAMIC_OLD,x
-    jsr charset_address
-    lda FONT_PTR
+    asl
+    asl
+    asl
     sta COPY_SOURCE
-    lda FONT_PTR + 1
-    sta COPY_SOURCE + 1
     pla
-    jsr charset_address
-    ldy #7
-dynamic_copy:
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    ora #>CHARSET_BASE
+    sta COPY_SOURCE + 1
+    lda dynamic_codes,x
+    sta (COPY_TARGET),y
+    lda dynamic_glyphs_lo,x
+    sta FONT_PTR
+    lda dynamic_glyphs_hi,x
+    sta FONT_PTR + 1
+!for glyph_row, 0, 7 {
+    ldy #glyph_row
     lda (COPY_SOURCE),y
     sta (FONT_PTR),y
-    dey
-    bpl dynamic_copy
+}
     rts
 dynamic_found:
-    dex
-    txa
-    clc
-    adc #DYNAMIC_CHAR
-    jmp charset_address
+    lda dynamic_glyphs_lo - 1,x
+    sta FONT_PTR
+    lda dynamic_glyphs_hi - 1,x
+    sta FONT_PTR + 1
+    rts
 dynamic_overflow:
     lda #0
     sta PIXEL_MASK
@@ -198,15 +197,12 @@ dynamic_overflow:
 restore_dynamic:
     ldx DYNAMIC_COUNT
     beq restore_done
+    ldy #0
 restore_next:
-    clc
     lda DYNAMIC_LO - 1,x
-    adc #<SCREEN_BASE
     sta BITMAP_PTR
     lda DYNAMIC_HI - 1,x
-    adc #>SCREEN_BASE
     sta BITMAP_PTR + 1
-    ldy #0
     lda DYNAMIC_OLD - 1,x
     sta (BITMAP_PTR),y
     dex
@@ -214,6 +210,18 @@ restore_next:
     stx DYNAMIC_COUNT
 restore_done:
     rts
+
+!if CHARSET_BASE & $3ff { !error "glyph address math needs a 1 KB charset" }
+screen_rows_lo:
+!for cell_row, 0, 24 { !byte <(SCREEN_BASE + cell_row * 40) }
+screen_rows_hi:
+!for cell_row, 0, 24 { !byte >(SCREEN_BASE + cell_row * 40) }
+dynamic_codes:
+!for slot, 0, MAX_DYNAMIC_CELLS - 1 { !byte DYNAMIC_CHAR + slot }
+dynamic_glyphs_lo:
+!for slot, 0, MAX_DYNAMIC_CELLS - 1 { !byte <(CHARSET_BASE + (DYNAMIC_CHAR + slot) * 8) }
+dynamic_glyphs_hi:
+!for slot, 0, MAX_DYNAMIC_CELLS - 1 { !byte >(CHARSET_BASE + (DYNAMIC_CHAR + slot) * 8) }
 
 scratch_lo:
 !byte <SCRATCH_BASE,<SCRATCH_BASE + 320,<SCRATCH_BASE + 640

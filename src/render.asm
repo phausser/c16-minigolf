@@ -15,85 +15,87 @@ ball_visible:
     sec
     sbc #2
     sta PIXEL_Y
-    ; Three row shapes, shifted once: BALL_LEFT/BALL_RIGHT byte masks,
-    ; 0 = narrow top/bottom row, 1 = full row, 2 = row with the highlight
-    ; pixel left clear so the floor shines through top left.
-    ldx #2
-ball_mask_init:
-    lda ball_shapes,x
-    sta BALL_LEFT,x
-    lda #0
-    sta BALL_RIGHT,x
-    dex
-    bpl ball_mask_init
+    ; Five mask rows per pixel alignment; the right byte column is touched
+    ; only from alignment 4 and only left of x = 312.
     lda PIXEL_X
     and #7
-    tax
-    beq ball_masks_ready
-ball_mask_shift:
-    lsr BALL_LEFT
-    ror BALL_RIGHT
-    lsr BALL_LEFT + 1
-    ror BALL_RIGHT + 1
-    lsr BALL_LEFT + 2
-    ror BALL_RIGHT + 2
-    dex
-    bne ball_mask_shift
-ball_masks_ready:
-    ; The right byte is off screen from x = 312.
-    lda PIXEL_X + 1
-    beq ball_right_ok
-    lda PIXEL_X
-    cmp #56
-    lda #0
-    bcs ball_right_flag
-ball_right_ok:
-    lda #1
-ball_right_flag:
     sta TEMP
+    asl
+    asl
+    adc TEMP
+    sta BALL_MASK_INDEX       ; alignment * 5
     lda #0
-    sta ROW_INDEX
-ball_next:
+    sta BALL_SIDE
+ball_column:
+    lda BALL_MASK_INDEX
+    sta BALL_MASK_POS
+    clc
+    adc #5
+    sta BALL_MASK_END
     lda PIXEL_Y
-    cmp #8
-    bcc ball_row_done
-    cmp #168
-    bcs ball_row_done
-    ldx ROW_INDEX
-    lda ball_row_shapes,x
-    sta GLYPH
-    tax
-    lda BALL_LEFT,x
-    beq ball_second_byte
-    sta PIXEL_MASK
-    jsr punch_pixel
-ball_second_byte:
-    ldx GLYPH
-    lda BALL_RIGHT,x
-    beq ball_row_done
-    sta PIXEL_MASK
+    and #7
+    sta BALL_ROW_Y
+    lda PIXEL_Y
+    lsr
+    lsr
+    lsr
+    sta BALL_CELL_ROW
+    ; One dynamic character per cell, then the rows inside it. Cells off
+    ; the playfield are drawn into the idle renderer scratch instead.
+ball_cell:
+    lda BALL_CELL_ROW
+    beq ball_cell_hidden
+    cmp #21
+    bcs ball_cell_hidden
+    jsr dynamic_cell
+    jmp ball_cell_ready
+ball_cell_hidden:
+    lda #<SCRATCH_BASE
+    sta FONT_PTR
+    lda #>SCRATCH_BASE
+    sta FONT_PTR + 1
+ball_cell_ready:
+    ldx BALL_MASK_POS
+    ldy BALL_ROW_Y
+ball_row:
+    lda (FONT_PTR),y
+    and ball_masks,x
+    sta (FONT_PTR),y
+    inx
+    cpx BALL_MASK_END
+    beq ball_column_done
+    iny
+    cpy #8
+    bne ball_row
+    stx BALL_MASK_POS
+    inc BALL_CELL_ROW
+    lda #0
+    sta BALL_ROW_Y
+    beq ball_cell
+ball_column_done:
+    lda BALL_SIDE
+    bne ball_columns_done
     lda TEMP
-    beq ball_row_done
+    cmp #4
+    bcc ball_columns_done
+    lda PIXEL_X + 1
+    beq ball_right_column
+    lda PIXEL_X
+    cmp #<(312 - 256)
+    bcs ball_columns_done
+ball_right_column:
+    inc BALL_SIDE
+    lda BALL_MASK_INDEX
+    adc #40 - 1               ; carry set from cmp: + 40, the right table
+    sta BALL_MASK_INDEX
     clc
     lda PIXEL_X
-    pha
     adc #8
     sta PIXEL_X
-    lda PIXEL_X + 1
-    pha
-    adc #0
-    sta PIXEL_X + 1
-    jsr punch_pixel
-    pla
-    sta PIXEL_X + 1
-    pla
-    sta PIXEL_X
-ball_row_done:
-    inc PIXEL_Y
-    inc ROW_INDEX
-    lda ROW_INDEX
-    cmp #5
-    bne ball_next
+    bcc ball_column
+    inc PIXEL_X + 1
+    bne ball_column
+ball_columns_done:
     lda PAUSED
     ora ROLLING
     beq aim_draw
@@ -432,10 +434,21 @@ BAR_CELLS = 10
 bar_masks:
 !byte $00,$80,$c0,$e0,$f0,$f8,$fc,$fe,$ff
 
-ball_row_shapes:
-!byte 0,2,1,1,0
-ball_shapes:
-!byte $70,$f8,$b8
+; Inverted ball rows (the pixels to keep) for alignments 0..7: left byte
+; column, then the right one. Row 1 leaves the highlight pixel set.
+!macro ball_mask_row .shape, .shift, .right {
+!if .right { !byte ((.shape << (8 - .shift)) & $ff) XOR $ff } else { !byte (.shape >> .shift) XOR $ff }
+}
+!macro ball_mask_rows .shift, .right {
+    +ball_mask_row $70, .shift, .right
+    +ball_mask_row $b8, .shift, .right
+    +ball_mask_row $f8, .shift, .right
+    +ball_mask_row $f8, .shift, .right
+    +ball_mask_row $70, .shift, .right
+}
+ball_masks:
+!for ball_shift, 0, 7 { +ball_mask_rows ball_shift, 0 }
+!for ball_shift, 0, 7 { +ball_mask_rows ball_shift, 1 }
 
 ; The cup is a filled round 7-pixel disc; plotting covers x > 255 too.
 draw_cup:
