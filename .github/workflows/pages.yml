@@ -1,0 +1,49 @@
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: ACME 0.97 bauen
+        # Ubuntu liefert ein älteres ACME ohne --strict-segments. Revision wie im Arch-Paket.
+        run: |
+          sudo apt-get update && sudo apt-get install -y subversion
+          svn export -q -r 446 https://svn.code.sf.net/p/acme-crossass/code-0/trunk "$RUNNER_TEMP/acme"
+          make -C "$RUNNER_TEMP/acme/src" CFLAGS="-O2 -w" LIBS="-lm"
+          echo "$RUNNER_TEMP/acme/src" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/acme/src/acme" --version
+      - name: Bauen
+        # Assemblierzeit-Grenzen und tools/check_build.py prüfen das 16-KB-Limit.
+        run: make build/minigolf.prg
+      - name: Seite zusammenstellen
+        run: |
+          mkdir site
+          cp web/index.html build/minigolf.prg preview.png site/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
