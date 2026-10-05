@@ -2,8 +2,8 @@
 
 ![Bahn 18 im Emulator](preview.png)
 
-Minigolf für den Commodore 16 mit 16 KB RAM: monochrome 320×200-Grafik,
-Draufsicht und pixelgenaue Ballphysik. Eine Runde hat 18 Bahnen einige mit Wasser. Joystick an Port 1.
+Minigolf für den Commodore 16 mit 16 KB RAM: 320×200 im Textmodus,
+Draufsicht und pixelgenaue Ballphysik. Eine Runde hat 18 Bahnen, einige mit Wasser. Joystick an Port 1.
 
 ## Bauen und starten
 

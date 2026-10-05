@@ -241,14 +241,93 @@ function draw() {
 }
 function disc(p, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(p[0] + .5, p[1] + .5, r, 0, Math.PI * 2); ctx.fill(); }
 
+// Mirrors tests/course_reference.py: unique inverted cells of rows 1..20,
+// plus the solid glyph. The canvas stroke is not exact enough to count.
+const FRAME_WIDTH = 6;
+function staticCharacterCount() {
+  try {
+    if (!course.cup || !course.outline || course.outline.length < 3) return null;
+    const shapes = [course.outline, ...course.obstacles];
+    const inside = (x, y) => {
+      let hit = false;
+      for (const c of shapes) for (let i = 0; i < c.length; i++) {
+        const a = c[i], b = c[(i + 1) % c.length];
+        if ((a[1] <= y && y < b[1]) || (b[1] <= y && y < a[1]))
+          if (a[0] + (y - a[1]) * (b[0] - a[0]) / (b[1] - a[1]) <= x) hit = !hit;
+      }
+      return hit;
+    };
+    const pix = (row, col) => {
+      const out = [];
+      for (let dy = 0; dy < 8; dy++) for (let dx = 0; dx < 8; dx++) out.push([col * 8 + dx, row * 8 + dy]);
+      return out;
+    };
+    const id = (r, c) => r * 40 + c;
+    const black = new Set(), classes = new Map();
+    for (let row = 1; row <= 20; row++) for (let col = 0; col < 40; col++) {
+      const cell = pix(row, col).map(([x, y]) => inside(x, y));
+      const kind = cell.every(Boolean) ? 'floor' : cell.some(Boolean) ? 'edge' : 'solid';
+      classes.set(id(row, col), kind);
+      pix(row, col).forEach(([x, y], i) => { if (!cell[i] && cell.some(Boolean)) black.add(x + y * 320); });
+    }
+    for (let row = 1; row <= 20; row++) for (let col = 0; col < 40; col++) {
+      if (classes.get(id(row, col)) !== 'edge') continue;
+      const right = !inside(col * 8 + 7, row * 8 + 4), up = !inside(col * 8 + 4, row * 8);
+      for (const [dr, dc] of [[0, right ? 1 : -1], [up ? -1 : 1, 0]]) {
+        const neighbour = classes.get(id(row + dr, col + dc));
+        if (neighbour !== 'solid' && neighbour !== 'outer') continue;
+        classes.set(id(row + dr, col + dc), 'outer');
+        for (const [x, y] of pix(row, col)) {
+          const dx = x - col * 8, dy = y - row * 8;
+          const far = (dc > 0 && dx >= FRAME_WIDTH) || (dc < 0 && dx < 8 - FRAME_WIDTH) ||
+                      (dr < 0 && dy < 8 - FRAME_WIDTH) || (dr > 0 && dy >= FRAME_WIDTH);
+          if (inside(x, y) && !far) black.add((x + dc * 8) + (y + dr * 8) * 320);
+        }
+      }
+    }
+    const band = 8 - FRAME_WIDTH;
+    for (const [cell, kind] of classes) {
+      if (kind !== 'solid') continue;
+      const row = Math.floor(cell / 40), col = cell % 40;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (classes.get(id(row + dr, col + dc)) !== 'floor') continue;
+        for (const [x, y] of pix(row, col)) {
+          const dx = x - col * 8, dy = y - row * 8;
+          if ((dc < 0 && dx >= FRAME_WIDTH) || (dc > 0 && dx < band) ||
+              (dr < 0 && dy >= FRAME_WIDTH) || (dr > 0 && dy < band)) continue;
+          black.add(x + y * 320);
+        }
+      }
+    }
+    const [cx, cy] = course.cup;
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++)
+      if (dx * dx + dy * dy <= 12.25) black.add((cx + dx) + (cy + dy) * 320);
+    const patterns = new Set(['255,255,255,255,255,255,255,255']);
+    for (let row = 1; row <= 20; row++) for (let col = 0; col < 40; col++) {
+      const bytes = [];
+      for (let i = 0; i < 8; i++) {
+        let value = 0;
+        for (let bit = 0; bit < 8; bit++)
+          if (black.has(col * 8 + bit + (row * 8 + i) * 320)) value |= 128 >> bit;
+        bytes.push(value ^ 255);
+      }
+      patterns.add(bytes.join(','));
+    }
+    return patterns.size;
+  } catch (e) { return null; }
+}
+
 function refresh() {
   draw();
   const { errors, segments } = validate();
+  const chars = staticCharacterCount();
+  if (chars != null && chars > 64) errors.push(`Zeichen: ${chars}/64, höchstens 64`);
   document.getElementById('checks').innerHTML = errors.length
     ? errors.slice(0, 12).map(e => `<li class="bad">${e}</li>`).join('')
     : '<li class="ok">Bahn gültig</li>';
   document.getElementById('stats').innerHTML =
     `Segmente: ${segments}/${MAX_SEGMENTS}<br>Wasserflächen: ${(course.hazards || []).length}/${MAX_WATER}<br>` +
+    `Zeichen: <b>${chars == null ? '—' : chars + '/64'}</b><br>` +
     `Gepackt: <b>${packedSize()} Bytes</b> (+2 Zeiger)` +
     (files.length ? `<br>Alle Bahnen im Ordner: ${totalSize()} Bytes` : '');
   const name = document.getElementById('name'), par = document.getElementById('par');

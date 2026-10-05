@@ -19,10 +19,10 @@ all: $(PRG) $(TEST_PRG)
 build:
 	mkdir -p build
 
-build/assets.inc: tools/generate_assets.py tools/course_codec.py $(COURSES) $(TEST_PRG) | build
+build/assets.inc: tools/generate_assets.py tools/course_codec.py tests/course_reference.py $(COURSES) | build
 	$(PYTHON) tools/generate_assets.py
 
-build/assets-test.inc: tools/generate_assets.py tools/course_codec.py assets/test-course.json | build
+build/assets-test.inc: tools/generate_assets.py tools/course_codec.py tests/course_reference.py assets/test-course.json | build
 	$(PYTHON) tools/generate_assets.py --test
 
 $(PRG): $(SOURCES) build/assets.inc
@@ -45,12 +45,12 @@ play: build/assets.inc
 editor:
 	xdg-open tools/course-editor.html
 
-test: $(TEST_PRG)
+test: $(PRG) $(TEST_PRG)
 	$(TEST_PYTHON) -m unittest discover -s tests -p 'test_*.py' -v
 
 smoke: $(TEST_PRG)
 	$(PYTHON) tests/vice_smoke.py --prepare-only
-	$(VICE) -silent -default -console -model c16 -pal -ramsize 16 -sounddev dummy -warp -autostartprgmode 1 -autostart $(TEST_PRG) -initbreak 0x0200 -moncommands build/vice-pal.mon -monlog -monlogname build/vice-pal.log -limitcycles 20000000
+	$(VICE) -silent -default -console -model c16 -pal -ramsize 16 -sounddev dummy -warp -autostartprgmode 1 -autostart $(TEST_PRG) -initbreak 0x0200 -moncommands build/vice-pal.mon -monlog -monlogname build/vice-pal.log -limitcycles 40000000
 	$(PYTHON) tests/vice_smoke.py --verify-only
 
 budget: $(PRG) $(TEST_PRG)

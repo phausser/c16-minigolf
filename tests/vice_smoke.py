@@ -1,4 +1,4 @@
-"""Real C16 PAL/16-KB ROM boot, bitmap, frame timing and control/render smoke.
+"""Real C16 PAL/16-KB ROM boot, text mode, frame timing and control/render smoke.
 
 Control events are injected AFTER the physical scan/debouncer. Keyboard-matrix
 behavior is tested separately in py65; this is not a real hardware key test.
@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'tools'))
 from check_build import symbols
 sys.path.insert(0, str(ROOT/"tests"))
-from course_reference import render
+from course_reference import render, legacy_picture
 
 
 def main():
@@ -27,9 +27,8 @@ def main():
     commands = ['delete 1', f"until ${s['frame_begin']:04x}",
                 f"until ${s['frame_begin']:04x}",
                 f"until ${s['frame_begin']:04x}",
-                f'bsave "{prefix}-attributes.bin" 0 $1800 $1fff',
-                f'bsave "{prefix}-video.bin" 0 $ff06 $ff14',
-                f'bsave "{prefix}-bitmap.bin" 0 $2000 $3f3f',
+                f'bsave "{prefix}-picture.bin" 0 $3000 $3bff',
+                f'bsave "{prefix}-video.bin" 0 $ff06 $ff15',
                 f'screenshot "{prefix}.png" 2',
                 'stopwatch reset', f"until ${s['frame_begin']:04x}", 'stopwatch']
     events = [0,1,2,4,8,16,16,0,16]
@@ -42,7 +41,7 @@ def main():
                      'stopwatch reset',
                      f"until ${s['frame_done']:04x}", 'stopwatch',
                      f'bsave "{prefix}-state-{index}.bin" 0 $0020 $002d',
-                     f'bsave "{prefix}-frame-{index}.bin" 0 $2000 $3f3f']
+                     f'bsave "{prefix}-frame-{index}.bin" 0 $3000 $3bff']
     # Exhaustive dirty renders exercise both signs and all table entries.
     for angle in range(128):
         commands += [f"until ${s['frame_begin']:04x}",
@@ -85,30 +84,44 @@ def main():
         return
     text = log.read_text(encoding='latin1')
     assert 'ERROR' not in text and 'not a valid checkpoint' not in text, log
-    attrs = Path(f'{prefix}-attributes.bin').read_bytes()
+    def composite(path):
+        dump = Path(path).read_bytes()
+        bus = [0]*65536
+        bus[0x3000:0x3000+len(dump)] = dump
+        return legacy_picture(bus, s)
+
     course = json.loads((ROOT/'assets/test-course.json').read_text())
     _, luminance, color = render(course, s)
-    # The 24 bytes after each 1000-byte matrix hold course data.
-    assert attrs[:1000]+attrs[1024:2024] == bytes(luminance[:1000]+color[:1000]), \
-        'hires colors/luminance/checker/frame'
+    # Rows 1..20: ink is the old background. Hidden rows and the HUD: the old foreground.
+    expected_ink = []
+    for cell in range(1000):
+        row = cell//40
+        if 1 <= row <= 20:
+            expected_ink.append((luminance[cell] & 0x70) | (color[cell] & 15))
+        else:
+            expected_ink.append(((luminance[cell] & 7) << 4) | (color[cell] >> 4))
+    raw = Path(f'{prefix}-picture.bin').read_bytes()
+    assert list(raw[:1000]) == expected_ink, 'text-mode foreground/checker/water/HUD'
+    initial = composite(f'{prefix}-picture.bin')
     video = Path(f'{prefix}-video.bin').read_bytes()
-    assert video[0] & 0x7f == 0x3b, 'bitmap/display/25-row configuration'
+    assert video[0] & 0x7f == 0x1b, 'text/display/25-row configuration'
     assert video[1] & 0x7f == 8, 'PAL hires 40-column configuration'
-    assert video[12] & 0x3c == 8, 'RAM bitmap at $2000'
-    assert video[14] & 0xf8 == 0x18, 'attribute matrix at $1800'
+    assert video[12] & 0x04 == 0, 'charset from RAM'
+    assert video[13] & 0xfc == 0x38, 'charset at $3800'
+    assert video[14] & 0xf8 == 0x30, 'screen block at $3000'
+    assert video[15] & 0x7f == 0, 'global background black'
     assert video[4] & 0x5e == 0, 'all TED interrupt sources disabled'
-    initial = Path(f'{prefix}-bitmap.bin').read_bytes()
-    # First 22 bitmap cell rows must be unchanged by power/pause/HUD updates.
+    # Power, pause and angle return must restore the same pixels.
     states = []
     for index in range(len(events)):
         states.append(Path(f'{prefix}-state-{index}.bin').read_bytes())
     expected = [(0,0,0),(127,0,0),(0,0,0),(0,0,0),(0,0,0),
                 (0,0,1),(0,0,0),(0,0,0),(0,0,1)]
     assert [tuple(state[:3]) for state in states] == expected, states
-    assert Path(f'{prefix}-frame-0.bin').read_bytes() == initial, 'redraw changed background'
-    assert Path(f'{prefix}-frame-2.bin').read_bytes() == initial, 'angle restoration failed'
-    assert Path(f'{prefix}-frame-4.bin').read_bytes() == initial, 'power restoration failed'
-    assert Path(f'{prefix}-frame-6.bin').read_bytes() == initial, 'pause restoration failed'
+    initial_pixels = bytes(initial[0])
+    for index, label in ((0, 'redraw changed background'), (2, 'angle restoration failed'),
+                         (4, 'power restoration failed'), (6, 'pause restoration failed')):
+        assert bytes(composite(f'{prefix}-frame-{index}.bin')[0]) == initial_pixels, label
     measurements = [int(v) for v in re.findall(r'Stopwatch:\s+(\d+)', text)]
     assert len(measurements) == 1+len(events)+128+len(shot_cases)*7, f'unexpected timing output: {measurements}'
     period, frames = measurements[0], measurements[1:]
@@ -125,7 +138,7 @@ def main():
                'frame_budget_passed':max(frames) <= budget, 'angles_measured':128, 'hardware':'VICE 3.x C16 PAL, 16 KB'}
     (ROOT/'build/timing.json').write_text(json.dumps(timings,indent=2)+'\n')
     assert max(frames) <= budget, f'frame budget exceeded: {max(frames)} > {budget} (PAL period {period}); measurements saved to build/timing.json'
-    print(f'VICE C16 PAL/16 KB: ROM boot, hires, controls, pause and 128 dirty renders passed; '
+    print(f'VICE C16 PAL/16 KB: ROM boot, text mode, controls, pause and 128 dirty renders passed; '
           f'worst {max(frames)}/{period} ticks ({max(frames)/period:.1%})')
     print(f'Screenshot: {prefix}.png')
 

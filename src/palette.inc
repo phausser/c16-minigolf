@@ -15,7 +15,7 @@ BORDER_COLOR = (0 << 4) + 0
 !if COURSE_MARKER_COLOR = COURSE_SURFACE_COLOR {
     !error "markers must remain visible on the floor"
 }
-; Physics finds water by the background hue of the ball's cell.
+; Physics finds water by the foreground hue of the ball's cell.
 WATER_HUE = WATER_COLOR_EVEN & 15
 !if (WATER_COLOR_ODD & 15) != WATER_HUE { !error "water checker needs one hue" }
 !if (COURSE_SURFACE_COLOR & 15) = WATER_HUE | (CHECKER_COLOR_EVEN & 15) = WATER_HUE | (CHECKER_COLOR_ODD & 15) = WATER_HUE {

@@ -170,15 +170,29 @@ KEY_SHOT = 32
 RELOCATOR_BASE = $0100        ; boot only; overwritten by volatile buffers
 MAX_SEGMENTS = 32
 course_segments = $0100       ; decoded: x1/2, y1/2, x2/2, y2/2, flags
-MAX_DYNAMIC_BYTES = 18
-DYNAMIC_LO = $01a0           ; three arrays of 18 bytes; restore in reverse
-DYNAMIC_HI = $01b2
-DYNAMIC_OLD = $01c4
+; One dynamic character per cell touched by the ball (up to 4) and the
+; aim dots (up to 7). Restore writes the static screen code back.
+MAX_DYNAMIC_CELLS = 12
+DYNAMIC_LO = $01a0           ; cell index, three arrays of 12 bytes
+DYNAMIC_HI = $01ac
+DYNAMIC_OLD = $01b8
 ; Measured call depth is 12 bytes; $01d6-$01ff stay reserved for the stack.
 STACK_FLOOR = $01d6
 RUNTIME_BASE = $0200
-RUNTIME_LIMIT = $1800
-LUMINANCE_BASE = $1800
-COLOR_BASE = $1c00
-BITMAP_BASE = $2000
-BITMAP_END = $4000
+; $2FFF is the class of cell -1 (above-left of the first playfield cell).
+; It is written at runtime and must not hold code.
+CLASS_SENTINEL = $2fff
+RUNTIME_LIMIT = CLASS_SENTINEL
+; TED text mode, 128 characters, reverse off. Screen block is 2 KB:
+; first KB attributes, second KB character codes. Charset is 1 KB.
+ATTR_BASE = $3000
+SCREEN_BASE = $3400
+CHARSET_BASE = $3800
+SCRATCH_BASE = $3c00         ; three cell rows of bitmap while a hole is drawn
+SCRATCH_END = $4000
+COLOR_BASE = ATTR_BASE       ; physics reads the foreground hue here
+; Charset slots. Screen codes 1..21, 32 and 48..57 are ROM glyphs.
+BAR_CHAR = 22                ; nine power-bar shapes, widths 0..8
+DYNAMIC_CHAR = 33            ; twelve cells under the ball and the aim dots
+COURSE_CHAR = 64             ; up to 64 static hole patterns
+COURSE_CHAR_LIMIT = 64

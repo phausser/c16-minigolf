@@ -179,8 +179,8 @@ physics_contact_limit:
     inc CONTACT_LIMIT_HITS
 physics_substep_done:
 physics_steps_finished:
-    ; Water: when the ball centre ends a frame in a blue cell, it goes back
-    ; to where this frame began, at most 4 pixels from the edge, and rests.
+    ; Water: foreground hue of the cell under the ball centre. The ball goes
+    ; back to where this frame began, at most 4 pixels from the edge, and rests.
     lda HAZARD_COUNT
     beq physics_dry
     lda BALL_POS_Y + 1

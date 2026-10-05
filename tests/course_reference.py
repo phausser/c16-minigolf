@@ -10,7 +10,7 @@ faces such a cell, square at corners. The cup is a filled round 7-pixel
 disc. Cells with floor are gray with black ink, other playfield cells black
 ink on the green checker, rows 0 and 21..23 equal checker colors, row 24
 the HUD palette. Water areas are whole floor cells with black ink on a
-blue checker.
+blue checker. Row 24 is entirely the HUD palette.
 """
 
 FRAME_WIDTH = 6
@@ -90,8 +90,6 @@ def render(course, s):
              for row in range(y1//8, y2//8) for col in range(x1//8, x2//8)}
     hud = attribute(s['HUD_FOREGROUND_COLOR'], s['HUD_BACKGROUND_COLOR'])
     luminance, color = [hud[0]]*1024, [hud[1]]*1024
-    for col in [*range(7, 15), *range(25, 31)]:   # course data: black on black
-        luminance[960+col] = color[960+col] = 0
     for row in range(24):
         for col in range(40):
             checker = s['CHECKER_COLOR_ODD'] if (row+col) % 2 else s['CHECKER_COLOR_EVEN']
@@ -107,3 +105,45 @@ def render(course, s):
                                  s['WATER_COLOR_ODD'] if (row+col) % 2 else s['WATER_COLOR_EVEN'])
             luminance[row*40+col], color[row*40+col] = pair
     return bitmap, luminance, color
+
+
+def legacy_picture(bus, s):
+    """Rebuild the old hi-res bitmap and split colour matrices from text mode.
+
+    Rows 1..20 store inverted glyphs (set bit was black). Rows 0 and 21..23
+    ignore the glyph and use one checker colour for both planes. Row 24 keeps
+    the ROM/bar glyph and a black background. Floor and the hidden rows can
+    share the solid glyph; the row number tells them apart.
+    """
+    bitmap = bytearray(8000)
+    luminance, color = [0]*1024, [0]*1024
+    for row in range(25):
+        for col in range(40):
+            cell = row*40+col
+            code = bus[s['SCREEN_BASE']+cell]
+            glyph = bytes(bus[s['CHARSET_BASE']+code*8:s['CHARSET_BASE']+code*8+8])
+            ink = bus[s['ATTR_BASE']+cell] & 0x7f
+            if row == 24:
+                cell_bytes, fg, bg = glyph, ink, 0
+            elif row == 0 or row >= 21:
+                cell_bytes, fg, bg = bytes(8), ink, ink
+            else:
+                cell_bytes, fg, bg = bytes(b ^ 0xff for b in glyph), 0, ink
+            bitmap[row*320+col*8:row*320+col*8+8] = cell_bytes
+            luminance[cell], color[cell] = attribute(fg, bg)
+    return bitmap, luminance, color
+
+
+def static_patterns(course):
+    """Unique text-mode glyphs of one course, including the solid checker cell."""
+    dummy = {name: 0 for name in (
+        'HUD_FOREGROUND_COLOR', 'HUD_BACKGROUND_COLOR', 'CHECKER_COLOR_ODD',
+        'CHECKER_COLOR_EVEN', 'COURSE_MARKER_COLOR', 'COURSE_SURFACE_COLOR',
+        'COURSE_FRAME_COLOR', 'WATER_COLOR_ODD', 'WATER_COLOR_EVEN')}
+    bitmap, _, _ = render(course, dummy)
+    patterns = {bytes([0xff]*8)}
+    for row in range(1, 21):
+        for col in range(40):
+            base = row*320+col*8
+            patterns.add(bytes(bitmap[base+i] ^ 0xff for i in range(8)))
+    return patterns

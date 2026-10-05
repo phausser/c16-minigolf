@@ -129,7 +129,7 @@ start_hole:
     jsr clear_playfield
     jsr initialise_state
     jsr draw_course
-    lda #$3b                  ; bitmap, display on, 25 rows, y-scroll 3
+    lda #$1b                  ; text, display on, 25 rows, y-scroll 3
     sta TED_CONTROL1
     rts
 
@@ -195,6 +195,15 @@ clear_state:
 !source "src/collision.asm"
 !source "src/course_decoder.asm"
 !source "src/sound.asm"
+!source "src/course_renderer.asm"
+!source "src/wide_math.asm"
+!source "src/initialise_video.asm"
+!source "src/circle_diagonal_guard.asm"
+small_square_lo:
+!for square_index, 0, 127 { !byte <(square_index*square_index) }
+small_square_hi:
+!for square_index, 0, 127 { !byte >(square_index*square_index) }
+!source "src/normals.inc"
 !ifdef TEST_BUILD {
 !source "build/assets-test.inc"
 } else {
@@ -206,51 +215,6 @@ clear_state:
 runtime_end:
 }
 payload_end:
-; Exact square tables and normals are installed in the black top bitmap row
-; by startup, before this load-image copy is erased by bitmap clearing.
-* = $3000
-lookup_image:
-!pseudopc $2000 {
-small_square_lo:
-!for square_index, 0, 127 { !byte <(square_index*square_index) }
-small_square_hi:
-!for square_index, 0, 127 { !byte >(square_index*square_index) }
-!source "src/normals.inc"
-!fill $2140 - *, 0
-}
-; Course data for the 24 unused bytes after each 1000-byte attribute
-; matrix; startup copies it there before the playfield is cleared.
-attribute_data_image:
-!pseudopc LUMINANCE_BASE + 1000 {
-!ifdef TEST_BUILD { !source "build/attr-a-data-test.inc" } else { !source "build/attr-a-data.inc" }
-!fill LUMINANCE_BASE + 1023 - *, 0
-; $1BFF is "cell -1" for the classifier's neighbour reads: never floor.
-!byte CLASS_HIDDEN
-}
-!pseudopc COLOR_BASE + 1000 {
-!ifdef TEST_BUILD { !source "build/attr-b-data-test.inc" } else { !source "build/attr-b-data.inc" }
-!fill COLOR_BASE + 1024 - *, 0
-}
-; Hidden rows 21-23 ($3a40-$3dff) form one black/black code block.
-* = $3a40
-!source "src/course_renderer.asm"
-course_renderer_end:
-!source "src/wide_math.asm"
-wide_math_end:
-!ifdef TEST_BUILD { !source "build/hidden-data-test.inc" } else { !source "build/hidden-data.inc" }
-hidden_rows_end:
-!if hidden_rows_end > $3e00 { !error "hidden code exceeds rows 21-23" }
-; Course data in the black-on-black cells of HUD row 24.
-!ifdef TEST_BUILD {
-!source "build/hud-data-test.inc"
-} else {
-!source "build/hud-data.inc"
-}
-; Startup uses otherwise unused bytes after the 8000 visible bitmap bytes.
-* = $3f40
-!source "src/initialise_video.asm"
-!source "src/circle_diagonal_guard.asm"
-!ifdef TEST_BUILD { !source "build/tail-data-test.inc" } else { !source "build/tail-data.inc" }
 load_end:
-!if runtime_end > RUNTIME_LIMIT { !error "runtime overlaps attributes" }
-!if load_end > BITMAP_END { !error "PRG exceeds physical C16 RAM" }
+!if runtime_end > CLASS_SENTINEL { !error "runtime overlaps the class sentinel" }
+!if load_end > $4000 { !error "PRG exceeds physical C16 RAM" }

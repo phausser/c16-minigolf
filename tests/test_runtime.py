@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'tools'))
 from check_build import symbols
 from generate_assets import validate
-from course_reference import render
+from course_reference import render, legacy_picture, static_patterns
 
 S = symbols()
 PRG = (ROOT/'build/minigolf-test.prg').read_bytes()
@@ -75,11 +75,8 @@ class Runtime:
         self.bus[load:load+len(prg)-2] = prg[2:]
         self.cpu.pc = self.S['loader']
         self.run_until(self.S['start'])
-        # Supply the startup-installed lookup row for isolated routine tests.
-        # The actual copy/blanking path is checked separately and in VICE.
-        self.bus[0x2000:0x2140] = self.bus[self.S['lookup_image']:self.S['lookup_image']+320]
 
-    def run_until(self, address, limit=3000000):
+    def run_until(self, address, limit=20000000):
         for _ in range(limit):
             if self.cpu.pc == address:
                 return
@@ -114,6 +111,28 @@ class HardwareTests(unittest.TestCase):
         self.r = Runtime()
         self.r.call('initialise_state')
 
+    def picture(self):
+        return legacy_picture(self.r.bus, self.r.S)
+
+    def assert_picture(self, course):
+        got = self.picture()
+        expected, luminance, color = render(course, self.r.S)
+        self.assertEqual(bytes(got[0]), bytes(expected))
+        self.assertEqual(got[1][:1000], luminance[:1000])
+        self.assertEqual(got[2][:1000], color[:1000])
+        self.assertEqual(self.r.get('pattern_overflow'), 0)
+        self.assertLessEqual(self.r.get('pattern_count'), self.r.S['COURSE_CHAR_LIMIT'])
+        self.assertEqual(self.r.get('pattern_count'), len(static_patterns(course)))
+
+    def install_floor(self):
+        code = self.r.S['COURSE_CHAR']
+        base = self.r.S['CHARSET_BASE']+code*8
+        self.r.bus[base:base+8] = [0xff]*8
+        for cell in range(40, 21*40):
+            self.r.bus[self.r.S['SCREEN_BASE']+cell] = code
+            self.r.bus[self.r.S['ATTR_BASE']+cell] = self.r.S['COURSE_SURFACE_COLOR']
+        self.r.put('DYNAMIC_COUNT', 0)
+
     def test_actual_loader_relocates_runtime(self):
         payload = S['payload_image']-0x1001+2
         self.assertEqual(self.r.bus[S['RUNTIME_BASE']:S['runtime_end']], list(PRG[payload:payload+S['runtime_end']-S['RUNTIME_BASE']]))
@@ -143,57 +162,51 @@ class HardwareTests(unittest.TestCase):
         self.assertGreater(S['RUNTIME_BASE']+len(expected), S['payload_image'])
         self.assertEqual(bus[S['RUNTIME_BASE']:S['RUNTIME_BASE']+len(expected)], list(expected))
 
-    def test_video_registers_attributes_and_clear(self):
-        hidden = self.r.bus[0x3a40:0x3e00]
-        startup = self.r.bus[0x3f40:0x4000]
-        lookup = self.r.bus[S['lookup_image']:S['lookup_image']+320]
-        gap_data = self.r.bus[S['attribute_data_image']:S['attribute_data_image']+48]
-        self.r.bus[0x1800:0x4000] = [255]*(0x4000-0x1800)
-        self.r.bus[S['attribute_data_image']:S['attribute_data_image']+48] = gap_data
-        self.r.bus[0x3a40:0x3e00] = hidden
-        self.r.bus[0x3f40:0x4000] = startup
-        self.r.bus[S['lookup_image']:S['lookup_image']+320] = lookup
+    def test_video_registers_charset_and_screen(self):
+        self.r.bus[S['ATTR_BASE']:S['SCRATCH_END']] = [0x55]*(S['SCRATCH_END']-S['ATTR_BASE'])
         self.r.call('initialise_video')
-        # HUD palette everywhere; draw_course colors rows 0..23 later. The
-        # loaded course data in HUD cells 7..14 and 25..30 is black on black.
-        luma, colors = [7]*1024,[16]*1024
-        for col in [*range(7,15), *range(25,31)]:
-            luma[960+col] = colors[960+col] = 0
-        luma[1000:], colors[1000:] = gap_data[:24], gap_data[24:]   # course data
-        self.assertEqual(gap_data[23], S['CLASS_HIDDEN'])
-        self.assertEqual(self.r.bus[0x1800:0x1c00], luma)
-        self.assertEqual(self.r.bus[0x1c00:0x2000], colors)
-        self.assertEqual(self.r.bus[0x2000:0x2140],lookup)
-        self.assertEqual(self.r.bus[0x2140:0x3a40], [0]*6400)
-        self.assertEqual(self.r.bus[0x3e00:0x3f40], [255]*320)  # not cleared
-        self.assertEqual(self.r.bus[0x3a40:0x3e00],hidden)
-        self.assertEqual(self.r.bus[0x3f40:0x4000],startup)
         self.assertEqual(self.r.bus[0xff06], 0x0b)
-        self.assertEqual(self.r.bus[0xff07], 8)
-        self.assertEqual(self.r.bus[0xff12], 8)
-        self.assertEqual(self.r.bus[0xff14], 0x18)
+        self.assertEqual(self.r.bus[0xff07], 0x08)
+        self.assertEqual(self.r.bus[0xff12], 0x00)
+        self.assertEqual(self.r.bus[0xff13] & 0xfc, 0x38)
+        self.assertEqual(self.r.bus[0xff14] & 0xf8, 0x30)
+        self.assertEqual(self.r.bus[0xff15] & 0x7f, 0)
+        self.assertEqual(self.r.bus[0xff19] & 0x7f, S['BORDER_COLOR'])
+        self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1024], [32]*1024)
+        self.assertEqual(self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+1024], [S['HUD_FOREGROUND_COLOR']]*1024)
+        for code in (1, 2, 5, 8, 11, 13, 14, 16, 18, 19, 20, 21, 32, *range(48, 58)):
+            self.assertEqual(self.r.bus[S['CHARSET_BASE']+code*8:S['CHARSET_BASE']+code*8+8],
+                             self.r.bus[0xd000+code*8:0xd000+code*8+8], code)
+        masks = (0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff)
+        for width, mask in enumerate(masks):
+            address = S['CHARSET_BASE']+(S['BAR_CHAR']+width)*8
+            self.assertEqual(self.r.bus[address:address+8], [0, mask, mask, 0xff, mask, mask, 0, 0])
+        self.assertEqual(self.r.get('TEXT_ROW'), 24)
+        self.r.bus[S['SCREEN_BASE']] = 99
+        self.r.call('clear_playfield')
+        self.assertEqual(self.r.bus[S['SCREEN_BASE']], 99)
 
     def test_pixel_addressing_including_rightmost_column(self):
         for y in range(200):
-            for x in (0,1,7,8,15,127,128,247,248,255,256,257,303,311,312,319):
+            self.r.put('window_row', y//8)
+            for x in (0, 1, 7, 8, 15, 127, 128, 247, 248, 255, 256, 257, 303, 311, 312, 319):
                 self.r.word('PIXEL_X', x)
                 self.r.put('PIXEL_Y', y)
                 self.r.call('point_pixel')
                 pointer = self.r.get('BITMAP_PTR')+256*self.r.bus[S['BITMAP_PTR']+1]
-                self.assertEqual(pointer, 0x2000+bitmap_offset(x,y), (x,y))
-                self.assertEqual(self.r.get('PIXEL_MASK'), 128 >> (x%8))
+                self.assertEqual(pointer, S['SCRATCH_BASE']+(x & ~7)+(y & 7), (x, y))
+                self.assertEqual(self.r.get('PIXEL_MASK'), 128 >> (x % 8))
+        self.r.put('window_row', 3)
+        self.r.word('PIXEL_X', 256)
+        self.r.put('PIXEL_Y', 8*4+3)
+        self.r.call('point_pixel')
+        pointer = self.r.get('BITMAP_PTR')+256*self.r.bus[S['BITMAP_PTR']+1]
+        self.assertEqual(pointer, S['SCRATCH_BASE']+320+256+3)
 
     def test_rendered_course_matches_independent_pixels(self):
         self.r.call('initialise_video')
         self.r.call('draw_course')
-        expected, luminance, color = render(COURSE, S)
-        self.assertEqual(self.r.bus[0x1800:0x1800+960], luminance[:960])
-        self.assertEqual(self.r.bus[0x1c00:0x1c00+960], color[:960])
-        self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
-        # Row 24 keeps the loaded course data in its black-on-black cells.
-        hud = [*range(0,7), *range(15,25), *range(31,40)]
-        self.assertEqual([self.r.bus[0x3e00+c*8:0x3e08+c*8] for c in hud],
-                         [list(expected[7680+c*8:7688+c*8]) for c in hud])
+        self.assert_picture(COURSE)
 
     def test_frame_and_outer_edges_for_all_diagonal_directions(self):
         from course_codec import encode
@@ -217,10 +230,7 @@ class HardwareTests(unittest.TestCase):
             self.r.cpu.x = 0
             self.r.call('decode_course')
             self.r.call('draw_course')
-            expected, luminance, color = render(course, S)
-            self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
-            self.assertEqual(self.r.bus[0x1800:0x1800+960], luminance[:960])
-            self.assertEqual(self.r.bus[0x1c00:0x1c00+960], color[:960])
+            self.assert_picture(course)
 
     def load_course(self, course, address=0x8000):
         from course_codec import encode
@@ -239,11 +249,8 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.get('HAZARD_COUNT'), 2)
         self.r.call('initialise_video')
         self.r.call('draw_course')
-        expected, luminance, color = render(self.WATER_COURSE, S)
-        self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
-        self.assertEqual(self.r.bus[0x1800:0x1800+960], luminance[:960])
-        self.assertEqual(self.r.bus[0x1c00:0x1c00+960], color[:960])
-        self.assertEqual(color[10*40+17] & 15, S['WATER_HUE'])
+        self.assert_picture(self.WATER_COURSE)
+        self.assertEqual(self.r.bus[S['ATTR_BASE']+10*40+17] & 15, S['WATER_HUE'])
 
     def test_ball_rolling_into_water_rests_where_it_fell_in(self):
         self.load_course(self.WATER_COURSE)
@@ -273,27 +280,29 @@ class HardwareTests(unittest.TestCase):
     def test_markers_restore_floor_and_boundary_cells_without_recoloring(self):
         self.r.call('initialise_video')
         self.r.call('draw_course')
-        background = self.r.bus[0x2000:0x3f40].copy()
-        attrs = self.r.bus[0x1800:0x2000].copy()
+        screen = self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1000].copy()
+        attrs = self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+1000].copy()
         # Pure floor, across cell boundaries, straight edge at x=196 and diagonal.
         for x,y in ((64,112),(71,111),(194,88),(294,42),(299,49)):
             self.r.bus[S['BALL_POS_X']:S['BALL_POS_X']+3] = [0,x&255,x>>8]
             self.r.bus[S['BALL_POS_Y']:S['BALL_POS_Y']+2] = [0,y]
             self.r.put('DYNAMIC_COUNT',0)
             self.r.put('PAUSED',0)
+            self.r.put('ROLLING',0)
             self.r.put('ANGLE',17)
             self.r.call('draw_dynamic')
-            self.assertEqual(self.r.bus[0x1800:0x2000],attrs,(x,y))
+            self.assertEqual(self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+1000], attrs, (x,y))
+            self.assertNotEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1000], screen)
             self.r.call('restore_dynamic')
-            self.assertEqual(self.r.bus[0x2000:0x3f40],background,(x,y))
+            self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1000], screen, (x,y))
 
     def test_byte_ball_renderer_matches_every_pixel_alignment(self):
+        self.r.call('initialise_video')
         for x in [*range(18,26),254,255,256,257,317,318,319]:
             for y in (10,26,166):
-                self.r.bus[0x2000:0x3f40] = [0]*8000
+                self.install_floor()
                 self.r.bus[S['BALL_POS_X']:S['BALL_POS_X']+3] = [0,x&255,x>>8]
                 self.r.bus[S['BALL_POS_Y']:S['BALL_POS_Y']+2] = [0,y]
-                self.r.put('DYNAMIC_COUNT',0)
                 self.r.put('PAUSED',1)
                 self.r.call('draw_dynamic')
                 expected = bytearray(8000)
@@ -304,58 +313,62 @@ class HardwareTests(unittest.TestCase):
                             continue
                         if dx*dx+dy*dy <= 5 and 0 <= x+dx < 320 and 8 <= y+dy < 168:
                             expected[bitmap_offset(x+dx,y+dy)] |= 128 >> ((x+dx)%8)
-                self.assertEqual(bytes(self.r.bus[0x2000:0x3f40]),expected,(x,y))
-                self.assertLessEqual(self.r.get('DYNAMIC_COUNT'),10)
+                self.assertEqual(bytes(self.picture()[0]), expected, (x,y))
+                self.assertLessEqual(self.r.get('DYNAMIC_COUNT'), 4)
                 self.r.call('restore_dynamic')
-                self.assertEqual(self.r.bus[0x2000:0x3f40],[0]*8000)
+                self.assertEqual(bytes(self.picture()[0]), bytes(8000))
 
     def test_all_aim_directions_restore_background_exactly(self):
-        pattern = [(i*73+19)%256 for i in range(8000)]
-        self.r.bus[0x2000:0x3f40] = pattern
+        self.r.call('initialise_video')
+        self.r.call('draw_course')
+        screen = self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1000].copy()
+        attrs = self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+1000].copy()
+        course_chars = self.r.bus[S['CHARSET_BASE']+S['COURSE_CHAR']*8:S['CHARSET_BASE']+1024].copy()
         for phase in range(4):
             self.r.put('AIM_PHASE', phase)
             for angle in range(128):
                 self.r.put('ANGLE', angle)
+                self.r.put('PAUSED', 0)
+                self.r.put('ROLLING', 0)
                 self.r.call('draw_dynamic')
-                self.assertEqual(self.r.get('DYNAMIC_COUNT'), 17)
-                self.assertNotEqual(self.r.bus[0x2000:0x3f40], pattern)
+                self.assertNotEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1000], screen)
+                self.assertEqual(self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+1000], attrs)
+                self.assertLessEqual(self.r.get('DYNAMIC_COUNT'), S['MAX_DYNAMIC_CELLS'])
                 self.r.call('restore_dynamic')
-                self.assertEqual(self.r.bus[0x2000:0x3f40], pattern, (phase,angle))
+                self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1000], screen, (phase, angle))
+                self.assertEqual(self.r.bus[S['CHARSET_BASE']+S['COURSE_CHAR']*8:S['CHARSET_BASE']+1024], course_chars)
         self.r.put('PAUSED', 1)
         self.r.call('draw_dynamic')
-        self.assertEqual(self.r.get('DYNAMIC_COUNT'), 10)
+        self.assertNotEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1000], screen)
+        self.assertLessEqual(self.r.get('DYNAMIC_COUNT'), 4)
         self.r.call('restore_dynamic')
-        self.assertEqual(self.r.bus[0x2000:0x3f40], pattern)
+        self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1000], screen)
 
     def test_aim_dots_walk_outwards_one_pixel_per_phase(self):
+        self.r.call('initialise_video')
+        bx = self.r.get('COURSE_START_X')+256*self.r.get('COURSE_START_X_HI')
+        by = self.r.get('COURSE_START_Y')
         for angle in (0, 16, 32, 45, 64, 100):
-            self.r.call('initialise_state')
             self.r.put('ANGLE', angle)
-            bx, by = self.r.get('COURSE_START_X'), self.r.get('COURSE_START_Y')
-            distances = []
+            self.r.put('PAUSED', 0)
+            self.r.put('ROLLING', 0)
             for phase in range(4):
+                self.install_floor()
                 self.r.put('AIM_PHASE', phase)
-                self.r.put('DYNAMIC_COUNT', 0)
                 self.r.call('draw_dynamic')
+                bitmap = self.picture()[0]
                 dots = []
-                for i in range(self.r.get('DYNAMIC_COUNT')-7, self.r.get('DYNAMIC_COUNT')):
-                    address = self.r.bus[S['DYNAMIC_LO']+i]+256*self.r.bus[S['DYNAMIC_HI']+i]-0x2000
-                    # Two dots can share a byte: the later save holds this dot's result.
-                    count = self.r.get('DYNAMIC_COUNT')
-                    later = [j for j in range(i+1, count)
-                             if self.r.bus[S['DYNAMIC_LO']+j]+256*self.r.bus[S['DYNAMIC_HI']+j]-0x2000 == address]
-                    after = self.r.bus[S['DYNAMIC_OLD']+later[0]] if later else self.r.bus[address+0x2000]
-                    mask = after ^ self.r.bus[S['DYNAMIC_OLD']+i]
-                    x = (address%320)//8*8 + 7-(mask.bit_length()-1)
-                    y = address//320*8 + address%8
-                    a = angle*math.pi/64
-                    dots.append((x-bx)*math.cos(a)+(y-by)*math.sin(a))
+                for y in range(8, 168):
+                    for x in range(320):
+                        if bitmap[bitmap_offset(x, y)] & (128 >> (x % 8)):
+                            if (x-bx)*(x-bx)+(y-by)*(y-by) > 25:
+                                a = angle*math.pi/64
+                                dots.append((x-bx)*math.cos(a)+(y-by)*math.sin(a))
                 self.r.call('restore_dynamic')
-                distances.append(dots)
-            for phase in range(4):
-                self.assertEqual(len(distances[phase]), 7)
-                for k, d in enumerate(distances[phase]):
-                    self.assertLessEqual(abs(d-(8+phase+4*k)), 2, (angle, phase, distances))
+                dots.sort()
+                self.assertEqual(len(dots), 7, (angle, phase, dots))
+                for k, d in enumerate(dots):
+                    self.assertLessEqual(abs(d-(8+phase+4*k)), 2, (angle, phase, dots))
 
     def test_joystick_port_one_and_separate_pause_keyboard(self):
         for mask in range(32):
@@ -519,7 +532,7 @@ class HardwareTests(unittest.TestCase):
         def tone():
             n = self.r.bus[0xff0f] + 256*(self.r.bus[0xff10] & 3)
             return round(110840/(1024-n)), self.r.bus[0xff11] & 0x70
-        self.r.bus[0xff12] = 0x08
+        self.r.bus[0xff12] = 0x00
         expected = {'SOUND_SHOT': [(150, 0x20)], 'SOUND_WALL': [(1205, 0x20)],
                     'SOUND_CUP': [(523, 0x20), (786, 0x20)], 'SOUND_WATER': [(277, 0x40)]}
         for name, tones in expected.items():
@@ -535,7 +548,7 @@ class HardwareTests(unittest.TestCase):
                     heard.append(tone())
             self.assertEqual(heard, tones, name)
             self.assertEqual(self.r.bus[0xff11] & 0x70, 0, name)   # voices off
-            self.assertEqual(self.r.bus[0xff12], 0x08)              # bitmap untouched
+            self.assertEqual(self.r.bus[0xff12], 0x00)              # voice 1 / charset source untouched
 
     def test_twelfth_stroke_without_holing_counts_thirteen(self):
         for shots, holed, expected in ((11, 0, (11, 0)), (12, 0, (13, 13)), (12, 1, (12, 1))):
@@ -544,25 +557,29 @@ class HardwareTests(unittest.TestCase):
             self.r.call('stop_ball')
             self.assertEqual((self.r.get('SHOTS'), self.r.get('HOLED')), expected)
 
+    def screen_codes(self, column, count, row=24):
+        base = S['SCREEN_BASE']+row*40+column
+        return self.r.bus[base:base+count]
+
     def test_summary_shows_total_par_left_and_strokes_right(self):
         self.r.call('initialise_video')
-        def text(column, count):
-            return [bytes(self.r.bus[0x3e00+c*8:0x3e00+c*8+8]) for c in range(column, column+count)]
-        def glyph(char):
-            code = ord(char) & 63
-            return bytes(self.r.bus[0xd000+code*8:0xd000+code*8+8])
+        def codes(text):
+            return [(ord(c) & 63) if ord(c) >= 64 else ord(c) for c in text]
         par = json.loads((ROOT/'assets/test-course.json').read_text()).get('par', 0)
         for total, right in ((61, 'SUMME  61'), (123, 'SUMME 123')):
             self.r.put('TOTAL', total)
             self.r.call('draw_summary')
-            self.assertEqual(text(0, 7), [glyph(c) for c in f'PAR {par:<3}'])
-            self.assertEqual(text(31, 9), [glyph(c) for c in right])
+            self.assertEqual(self.screen_codes(0, 7), codes(f'PAR {par:<3}'))
+            self.assertEqual(self.screen_codes(31, 9), codes(right))
+            for code in self.screen_codes(0, 7)+self.screen_codes(31, 9):
+                self.assertEqual(self.r.bus[S['CHARSET_BASE']+code*8:S['CHARSET_BASE']+code*8+8],
+                                 self.r.bus[0xd000+code*8:0xd000+code*8+8])
 
     def test_game_build_plays_the_18_drafts_in_order(self):
         from course_codec import encode
         game = Runtime('minigolf')
         self.assertEqual(game.S['COURSE_COUNT'], 18)
-        game.call('initialise_video')         # copies the attribute-gap courses
+        game.call('initialise_video')
         for hole, path in enumerate(sorted((ROOT/'assets/courses').glob('*.json'))):
             course = json.loads(path.read_text())
             address = game.bus[game.S['course_table_lo']+hole]+256*game.bus[game.S['course_table_hi']+hole]
@@ -635,50 +652,65 @@ class HardwareTests(unittest.TestCase):
 
     def test_power_bar_grows_pixel_by_pixel(self):
         self.r.call('initialise_video')
-        self.r.call('draw_status')
-        base = 0x3e00+S['BAR_COLUMN']*8
+        masks = (0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff)
         for power in (0,1,2,3,7,32,31,16,0,32,0,5,6,5,32):
             self.r.put('POWER', power)
             self.r.call('draw_power')
             filled = 5*power//2
             for cell in range(S['BAR_CELLS']):
                 n = max(0, min(8, filled-cell*8))
-                byte = (0xff00 >> n) & 0xff
-                address = base+cell*8
-                self.assertEqual(self.r.bus[address:address+8], [0,byte,byte,0xff,byte,byte,0,0], (power,cell))
+                code = S['BAR_CHAR']+n
+                self.assertEqual(self.r.bus[S['SCREEN_BASE']+24*40+S['BAR_COLUMN']+cell], code, (power, cell))
+                address = S['CHARSET_BASE']+code*8
+                mask = masks[n]
+                self.assertEqual(self.r.bus[address:address+8], [0, mask, mask, 0xff, mask, mask, 0, 0], (power, cell))
 
     def test_status_shows_hole_left_and_shots_right(self):
         self.r.call('initialise_video')
-        def text(column, count):
-            return [bytes(self.r.bus[0x3e00+c*8:0x3e00+c*8+8]) for c in range(column, column+count)]
-        def glyph(char):
-            code = ord(char) & 63
-            return bytes(self.r.bus[0xd000+code*8:0xd000+code*8+8])
+        def codes(text):
+            return [(ord(c) & 63) if ord(c) >= 64 else ord(c) for c in text]
         for hole, shots, left, right in ((0,0,'BAHN 1 ',' PUNKTE 0'),(17,13,'BAHN 18','PUNKTE 13'),
                                          (8,9,'BAHN 9 ',' PUNKTE 9')):
             self.r.put('HOLE', hole)
             self.r.put('SHOTS', shots)
             self.r.call('draw_status')
-            self.assertEqual(text(0,7), [glyph(c) for c in left])
-            self.assertEqual(text(31,9), [glyph(c) for c in right])
+            self.assertEqual(self.screen_codes(0, 7), codes(left))
+            self.assertEqual(self.screen_codes(31, 9), codes(right))
 
     def test_glyph_cell_above_255_and_hud_stays_outside_course(self):
-        self.r.bus[0x2000:0x4000] = [0x55]*8192
+        self.r.call('initialise_video')
+        playfield = self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+24*40].copy()
+        attrs = self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+24*40].copy()
         self.r.put('TEXT_ROW', 24)
         self.r.put('TEXT_COLUMN', 39)
         self.r.cpu.a = ord('A')
         self.r.call('draw_glyph')
-        pointer = 0x2000+bitmap_offset(312,192)
-        self.assertEqual(self.r.bus[pointer:pointer+8], [24,60,102,126,102,102,102,0])
+        self.assertEqual(self.r.bus[S['SCREEN_BASE']+24*40+39], 1)
         self.r.put('SHOTS', 13)               # widest count: no blank cell
         self.r.call('draw_status')
         for power in range(33):
             self.r.put('POWER', power)
             self.r.call('draw_power')
-        self.assertEqual(self.r.bus[0x2000:0x2000+22*320], [0x55]*(22*320))
-        self.assertEqual(self.r.bus[0x3f40:0x4000], [0x55]*192)
-        self.assertEqual(self.r.bus[0x3b80:0x3cc0], [0x55]*320)
-        self.assertEqual(self.r.bus[pointer:pointer+8], self.r.bus[0xd000+ord('3')*8:0xd000+ord('3')*8+8])
+        self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+24*40], playfield)
+        self.assertEqual(self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+24*40], attrs)
+        self.assertEqual(self.r.bus[S['SCREEN_BASE']+24*40+39], ord('3'))
+
+    def test_drafts_match_reference_within_character_budget(self):
+        game = Runtime('minigolf')
+        game.call('initialise_video')
+        for hole, path in enumerate(sorted((ROOT/'assets/courses').glob('*.json'))):
+            course = json.loads(path.read_text())
+            game.put('HOLE', hole)
+            game.call('initialise_state')
+            game.call('draw_course')
+            got = legacy_picture(game.bus, game.S)
+            expected, luminance, color = render(course, game.S)
+            self.assertEqual(bytes(got[0]), bytes(expected), hole)
+            self.assertEqual(got[1][:1000], luminance[:1000], hole)
+            self.assertEqual(got[2][:1000], color[:1000], hole)
+            self.assertEqual(game.get('pattern_overflow'), 0, hole)
+            self.assertEqual(game.get('pattern_count'), len(static_patterns(course)), hole)
+            self.assertLessEqual(game.get('pattern_count'), game.S['COURSE_CHAR_LIMIT'], hole)
 
 
 class CourseValidationTests(unittest.TestCase):

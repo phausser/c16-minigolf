@@ -1,4 +1,4 @@
-; Immutable wide arithmetic in black bitmap row 23.
+; Immutable wide arithmetic. No TED or bitmap addresses.
 multiply_signed:
     lda M_A + 1
     eor M_B + 1

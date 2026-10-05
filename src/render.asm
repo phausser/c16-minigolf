@@ -51,7 +51,6 @@ ball_right_ok:
     lda #1
 ball_right_flag:
     sta TEMP
-    jsr point_pixel
     lda #0
     sta ROW_INDEX
 ball_next:
@@ -67,7 +66,7 @@ ball_next:
     lda BALL_LEFT,x
     beq ball_second_byte
     sta PIXEL_MASK
-    jsr save_dynamic_byte
+    jsr punch_pixel
 ball_second_byte:
     ldx GLYPH
     lda BALL_RIGHT,x
@@ -75,26 +74,22 @@ ball_second_byte:
     sta PIXEL_MASK
     lda TEMP
     beq ball_row_done
-    ldy #8                    ; next cell to the right
-    jsr save_dynamic_byte
-    ldy #0
+    clc
+    lda PIXEL_X
+    pha
+    adc #8
+    sta PIXEL_X
+    lda PIXEL_X + 1
+    pha
+    adc #0
+    sta PIXEL_X + 1
+    jsr punch_pixel
+    pla
+    sta PIXEL_X + 1
+    pla
+    sta PIXEL_X
 ball_row_done:
     inc PIXEL_Y
-    ; Next scanline: +1 inside a cell row (never carries), else +313.
-    lda PIXEL_Y
-    and #7
-    beq ball_next_cell_row
-    inc BITMAP_PTR
-    bne ball_row_advanced
-ball_next_cell_row:
-    clc
-    lda BITMAP_PTR
-    adc #<313
-    sta BITMAP_PTR
-    lda BITMAP_PTR + 1
-    adc #>313
-    sta BITMAP_PTR + 1
-ball_row_advanced:
     inc ROW_INDEX
     lda ROW_INDEX
     cmp #5
@@ -178,7 +173,12 @@ aim_next:
     cmp #64
     bcs aim_skip_pixel
 aim_x_on_screen:
-    jsr plot_dynamic          ; clips y to the playfield itself
+    lda PIXEL_X
+    and #7
+    tax
+    lda pixel_masks,x
+    sta PIXEL_MASK            ; one pixel; the ball leaves a multi-bit mask
+    jsr punch_pixel           ; clips y to the playfield itself
 aim_skip_pixel:
     lda POINT_INDEX
     cmp #8
@@ -344,9 +344,16 @@ number_units:
     ora #'0'
     rts
 
-; Ten-cell bar centred in row 24: glyph row 3 is a thin line; the first
-; 5 * POWER / 2 pixels (80 at full power) grow to rows 1..5.
+; Ten-cell bar centred in row 24. Each cell is one of nine glyphs:
+; row 3 is always a full line, rows 1, 2, 4 and 5 grow from the left
+; by 5 * POWER / 2 pixels (80 at full power).
 draw_power:
+    lda #24
+    jsr class_row_pointer
+    lda COURSE_PTR + 1
+    clc
+    adc #>(SCREEN_BASE - ATTR_BASE)
+    sta COURSE_PTR + 1
     lda POWER
     lsr
     sta TEMP
@@ -354,20 +361,16 @@ draw_power:
     asl
     adc TEMP                  ; POWER <= 32: carry clear
     sta TEMP
-    ldx #0
+    ldy #BAR_COLUMN
 power_bar_cell:
-    ldy TEMP
-    cpy #8
-    bcc power_bar_mask
-    ldy #8
-power_bar_mask:
-    lda bar_masks,y
-    sta HUD_BAR + 1,x
-    sta HUD_BAR + 2,x
-    sta HUD_BAR + 4,x
-    sta HUD_BAR + 5,x
-    lda #$ff
-    sta HUD_BAR + 3,x
+    lda TEMP
+    cmp #8
+    bcc power_bar_width
+    lda #8
+power_bar_width:
+    clc
+    adc #BAR_CHAR
+    sta (COURSE_PTR),y
     lda TEMP
     sec
     sbc #8
@@ -375,11 +378,8 @@ power_bar_mask:
     lda #0
 power_bar_next:
     sta TEMP
-    txa
-    clc
-    adc #8
-    tax
-    cpx #BAR_CELLS * 8
+    iny
+    cpy #BAR_COLUMN + BAR_CELLS
     bne power_bar_cell
     rts
 
@@ -399,55 +399,22 @@ draw_text:
 text_done:
     rts
 
-; A = ASCII 32..93; aligned bitmap glyphs overwrite only their own cell.
+; A = ASCII 32..93. The screen code selects the ROM glyph copied at startup.
 draw_glyph:
     cmp #64
     bcc glyph_code
     and #63
 glyph_code:
-    sta FONT_PTR
-    lda #0
-    sta FONT_PTR + 1
-    ldx #3
-glyph_offset:
-    asl FONT_PTR
-    rol FONT_PTR + 1
-    dex
-    bne glyph_offset
+    pha
+    lda TEXT_ROW
+    jsr class_row_pointer
+    lda COURSE_PTR + 1
     clc
-    lda FONT_PTR
-    adc #<$d000
-    sta FONT_PTR
-    lda FONT_PTR + 1
-    adc #>$d000
-    sta FONT_PTR + 1
-glyph_address:
-    ldx TEXT_ROW
-    lda bitmap_rows_lo,x
-    sta BITMAP_PTR
-    lda bitmap_rows_hi,x
-    sta BITMAP_PTR + 1
-    lda TEXT_COLUMN
-    ldx #0
-    asl
-    asl
-    asl
-    bcc glyph_column
-    inx
-glyph_column:
-    clc
-    adc BITMAP_PTR
-    sta BITMAP_PTR
-    txa
-    adc BITMAP_PTR + 1
-    sta BITMAP_PTR + 1
-    ldy #0
-glyph_copy:
-    lda (FONT_PTR),y
-    sta (BITMAP_PTR),y
-    iny
-    cpy #8
-    bne glyph_copy
+    adc #>(SCREEN_BASE - ATTR_BASE)
+    sta COURSE_PTR + 1
+    pla
+    ldy TEXT_COLUMN
+    sta (COURSE_PTR),y
     rts
 
 wall_offsets_x:
@@ -462,7 +429,6 @@ hud_total:
 !text "SUMME ",0
 BAR_COLUMN = 15
 BAR_CELLS = 10
-HUD_BAR = $3e00 + BAR_COLUMN * 8
 bar_masks:
 !byte $00,$80,$c0,$e0,$f0,$f8,$fc,$fe,$ff
 

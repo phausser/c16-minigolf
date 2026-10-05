@@ -29,17 +29,19 @@ def rgb(luminance, hue):
 
 
 def screen(r):
+    """Text mode: a set glyph bit is the cell foreground, a clear bit is black."""
     pixels = []
     for y in range(200):
         row = []
         for x in range(320):
             cell = (y//8)*40+x//8
-            byte = r.bus[0x2000+(y//8)*320+(x//8)*8+y % 8]
-            luminance, color = r.bus[0x1800+cell], r.bus[0x1c00+cell]
+            code = r.bus[S['SCREEN_BASE']+cell]
+            byte = r.bus[S['CHARSET_BASE']+code*8+y % 8]
+            ink = r.bus[S['ATTR_BASE']+cell]
             if (byte >> (7-x % 8)) & 1:
-                row.append(rgb(luminance & 7, color >> 4))
+                row.append(rgb((ink >> 4) & 7, ink & 15))
             else:
-                row.append(rgb((luminance >> 4) & 7, color & 15))
+                row.append((0, 0, 0))
         pixels.append(row)
     return pixels
 
@@ -61,7 +63,9 @@ def render(index, course):
     r.put('ANGLE', round(math.atan2(dy, dx)/math.tau*128) % 128)
     r.put('DYNAMIC_COUNT', 0)
     r.call('draw_dynamic')
-    return screen(r), len(data)
+    if r.get('pattern_overflow'):
+        raise SystemExit(f'course {index+1} exceeds the 64-character budget')
+    return screen(r), len(data), r.get('pattern_count')
 
 
 def write_png(path, pixels):
@@ -83,9 +87,9 @@ def main():
     total = 0
     for i, path in enumerate(files):
         course = json.loads(path.read_text())
-        pixels, size = render(i, course)
+        pixels, size, chars = render(i, course)
         total += size
-        print(f"{i+1:2} {course['name']:28} par {course['par']}  {size:3} bytes")
+        print(f"{i+1:2} {course['name']:28} par {course['par']}  {size:3} bytes  {chars:2}/64 Zeichen")
         top, left = (i//columns)*(200+gap), (i % columns)*(320+gap)
         for y, row in enumerate(pixels):
             sheet[top+y][left:left+320] = row

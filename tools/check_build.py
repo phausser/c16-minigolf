@@ -22,9 +22,9 @@ def check(name='minigolf'):
     load = int.from_bytes(prg[:2], 'little')
     assert load == 0x1001 and s['loader'] == 4109, 'BASIC SYS entry mismatch'
     assert s['RELOCATOR_BASE'] <= s['relocate'] < s['relocator_end'] <= s['RUNTIME_BASE']
-    assert s['runtime_end'] <= s['RUNTIME_LIMIT'] == s['LUMINANCE_BASE']
+    assert s['runtime_end'] <= s['RUNTIME_LIMIT'] == s['CLASS_SENTINEL']
     assert s['relocator_end'] <= s['STACK_FLOOR']
-    assert s['DYNAMIC_OLD']+s['MAX_DYNAMIC_BYTES'] <= s['STACK_FLOOR']
+    assert s['DYNAMIC_OLD']+s['MAX_DYNAMIC_CELLS'] <= s['STACK_FLOOR']
     assert load+len(prg)-2 == s['load_end'] <= 0x4000
     assert s['payload_image'] >= s['RUNTIME_BASE']+s['relocator_end']-s['RELOCATOR_BASE']
     assert s['payload_end']-s['payload_image'] == s['runtime_end']-s['RUNTIME_BASE']
@@ -33,16 +33,13 @@ def check(name='minigolf'):
         'runtime_start': s['RUNTIME_BASE'], 'runtime_end_exclusive': s['runtime_end'],
         'runtime_bytes': s['runtime_end']-s['RUNTIME_BASE'],
         'runtime_free_bytes': s['RUNTIME_LIMIT']-s['runtime_end'],
-        'stack_page_buffer_bytes': s['DYNAMIC_OLD']+s['MAX_DYNAMIC_BYTES']-s['DYNAMIC_LO'],
-        'stack_page_free_bytes': s['STACK_FLOOR']-s['DYNAMIC_OLD']-s['MAX_DYNAMIC_BYTES'],
+        'stack_page_buffer_bytes': s['DYNAMIC_OLD']+s['MAX_DYNAMIC_CELLS']-s['DYNAMIC_LO'],
+        'stack_page_free_bytes': s['STACK_FLOOR']-s['DYNAMIC_OLD']-s['MAX_DYNAMIC_CELLS'],
         'stack_reserved_bytes': 0x200-s['STACK_FLOOR'],
-        'attribute_bytes': 2048,
-        'hidden_rows_code_bytes': s['hidden_rows_end']-0x3a40,
-        'hidden_rows_free_bytes': 0x3e00-s['hidden_rows_end'],
-        'bitmap_tail_init_bytes': s['circle_diagonal_guard']-0x3f40,
-        'bitmap_tail_guard_and_data_bytes': s['load_end']-s['circle_diagonal_guard'],
-        'bitmap_tail_free_bytes': 0x4000-s['load_end'],
-        'bitmap_reserved_bytes': 8192,
+        'attribute_bytes': 1024,
+        'screen_bytes': 1024,
+        'charset_bytes': 1024,
+        'scratch_bytes': s['SCRATCH_END']-s['SCRATCH_BASE'],
     }
     suffix = '' if name == 'minigolf' else '-test'
     (ROOT/f'build/memory{suffix}.json').write_text(json.dumps(report, indent=2)+'\n')
