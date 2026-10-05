@@ -449,7 +449,6 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.get('COURSE_START_Y'), COURSE['start'][1])
         self.assertEqual(self.r.get('COURSE_CUP_X')+256*self.r.get('COURSE_CUP_X_HI'), COURSE['cup'][0])
         self.assertEqual(self.r.get('COURSE_CUP_Y'), COURSE['cup'][1])
-        self.assertEqual(self.r.get('COURSE_CUP_HALF_X'), COURSE['cup'][0]//2)
 
     def test_decoder_flags_for_varied_contours(self):
         from course_codec import encode

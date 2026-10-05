@@ -384,6 +384,9 @@ projection_invalid:
 ; Circle sweeps examine the closest point along the entire displacement,
 ; then bisect the entry interval. Checking only the end position would miss
 ; a grazing entry-and-exit within a single subinterval.
+circle_far:
+    clc
+    rts
 try_circle:
     ; Frame-origin bounds reject remote vertices before wide subtraction.
     lda POINT_X + 2
@@ -392,66 +395,44 @@ try_circle:
     ror
     sta M_A
     lda BOUNDS_X
-    sec
-    sbc M_A
-    bpl circle_packed_x
-    eor #$ff
-    clc
-    adc #1
-circle_packed_x:
-    cmp #4
-    bcc circle_packed_y_test
-    clc
-    rts
-circle_packed_y_test:
+    jsr packed_far
+    bcs circle_far
     lda POINT_Y + 1
     lsr
     sta M_A
     lda BOUNDS_Y
-    sec
-    sbc M_A
-    bpl circle_packed_y
-    eor #$ff
-    clc
-    adc #1
-circle_packed_y:
-    cmp #4
-    bcc circle_vertex_near
-    clc
-    rts
-circle_vertex_near:
+    jsr packed_far
+    bcs circle_far
     jsr relative_point
     lda DX_WIDE + 2
     beq circle_x_positive
     cmp #$ff
-    beq collision_branch_6
-    jmp circle_no_contact
-collision_branch_6:
+    bne circle_far
 circle_x_positive:
     +copy16 DX_WIDE, QX
     +copy16 DY_WIDE, QY
-    +copy16 QX, M_A
-    lda M_A + 1
-    bpl circle_x_absolute
-    jsr negate_math_a
-circle_x_absolute:
-    lda M_A + 1
+    ; Reject |QX| or |QY| >= 1792 (high byte of the magnitude >= 7).
+    ldx #2
+circle_axis_near:
+    lda QX + 1,x
+    bpl circle_axis_magnitude
+    lda #0
+    sec
+    sbc QX,x
+    lda #0
+    sbc QX + 1,x
+circle_axis_magnitude:
     cmp #7
-    bcc collision_branch_7
-    jmp circle_no_contact
-collision_branch_7:
-    +copy16 QY, M_A
-    lda M_A + 1
-    bpl circle_y_absolute
-    jsr negate_math_a
-circle_y_absolute:
-    lda M_A + 1
-    cmp #7
-    bcc collision_branch_8
-    jmp circle_no_contact
-collision_branch_8:
-    +copy16 QX, SAVED_X
-    +copy16 QY, SAVED_Y
+    bcs circle_far
+    dex
+    dex
+    bpl circle_axis_near
+    ldx #3
+circle_save_q:
+    lda QX,x
+    sta SAVED_X,x
+    dex
+    bpl circle_save_q
     lda RADIUS_SQUARED + 2
     cmp #9
     bne circle_start_outside
@@ -524,15 +505,23 @@ circle_swept_x:
 circle_swept_y:
     lda STEP_SQUARE_VALID
     bne circle_square_ready
-    +copy16 STEP_X, QX
-    +copy16 STEP_Y, QY
+    ldx #3
+circle_step_q:
+    lda STEP_X,x
+    sta QX,x
+    dex
+    bpl circle_step_q
     jsr square_q
     +copy32 M_PRODUCT, STEP_SQUARED
     lda #1
     sta STEP_SQUARE_VALID
 circle_square_ready:
-    +copy16 SAVED_X, QX
-    +copy16 SAVED_Y, QY
+    ldx #3
+circle_restore_q:
+    lda SAVED_X,x
+    sta QX,x
+    dex
+    bpl circle_restore_q
     +copy16 QX, M_A
     +copy16 STEP_X, M_B
     jsr multiply_signed
@@ -913,6 +902,18 @@ contact_record:
     rts
 contact_rejected:
     clc
+    rts
+
+; A = packed ball coordinate - M_A; carry set when |A| >= 4 (far).
+packed_far:
+    sec
+    sbc M_A
+    bpl packed_far_magnitude
+    eor #$ff
+    clc
+    adc #1
+packed_far_magnitude:
+    cmp #4
     rts
 
 test_cup:

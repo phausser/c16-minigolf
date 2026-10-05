@@ -96,7 +96,6 @@ COURSE_CUP_Y = $fb
 COURSE_POS_HI = $fc
 COURSE_START_X_HI = $fc
 COURSE_CUP_X_HI = $fe
-COURSE_CUP_HALF_X = $aa   ; cup x / 2 for the byte broadphase
 SEGMENT_BYTES = $ab       ; 5 * segment count
 COLLECT_X_LOW = $ac       ; broadphase window in packed 2px units
 COLLECT_X_HIGH = $ad      ; exclusive upper limits

@@ -95,15 +95,23 @@ shot_speed:
     sta HUD_DIRTY
     rts                       ; physics_tick derives VELOCITY in this frame
 
+; Y = 2 (y component), then 0 (x); the multiplies preserve Y.
 velocity_from_unit:
+    ldy #2
+velocity_axis:
     +copy16 SPEED, M_A
-    +copy16 UNIT_X, M_B
+    lda UNIT_X,y
+    sta M_B
+    lda UNIT_X + 1,y
+    sta M_B + 1
     jsr multiply_unit
-    +copy16 M_PRODUCT + 1, VELOCITY_X
-    +copy16 SPEED, M_A
-    +copy16 UNIT_Y, M_B
-    jsr multiply_unit
-    +copy16 M_PRODUCT + 1, VELOCITY_Y
+    lda M_PRODUCT + 1
+    sta VELOCITY_X,y
+    lda M_PRODUCT + 2
+    sta VELOCITY_X + 1,y
+    dey
+    dey
+    bpl velocity_axis
     rts
 
 physics_tick:
@@ -139,18 +147,8 @@ physics_remainder:
     jmp physics_substep_done
 physics_has_step:
     jsr find_first_contact
-    ; Frame-origin cup broadphase before the post-bounce speed square.
-    lda BOUNDS_X
-    sec
-    sbc COURSE_CUP_HALF_X
-    bpl cup_distance_absolute
-    eor #$ff
-    clc
-    adc #1
-cup_distance_absolute:
-    cmp #4
-    bcs physics_wall
-    ; Cup is another swept circle, considered only below catch speed.
+    ; Cup is another swept circle; try_circle's packed bounds reject it
+    ; cheaply when far away, considered only below catch speed.
     ; reflect_unit updates SPEED at once, so it is current after a bounce.
     lda SPEED + 1
     bne physics_wall
@@ -172,8 +170,12 @@ physics_hit:
     sta TRIAL_T
     jsr displacement_at_t
     jsr accept_trial
-    +copy16 BEST_NX, NX
-    +copy16 BEST_NY, NY
+    ldx #3
+physics_best_normal:
+    lda BEST_NX,x
+    sta NX,x
+    dex
+    bpl physics_best_normal
     jsr reflect_unit
     ; residual time *= (256 - contact fraction) / 256
     lda BEST_T
@@ -240,23 +242,37 @@ finish_hole:
     rts
 
 make_step:
+    ldx #3
     lda REMAINING_TIME + 1
     beq step_residual
-    +copy16 VELOCITY_X, STEP_X
-    +copy16 VELOCITY_Y, STEP_Y
+step_full:
+    lda VELOCITY_X,x
+    sta STEP_X,x
+    dex
+    bpl step_full
     rts
 step_residual:
-    +copy16 VELOCITY_X, M_A
-    +copy16 REMAINING_TIME, M_B
+    ; STEP = floor(VELOCITY * REMAINING_TIME / 256), y then x.
+    ldy #2
+step_axis:
+    lda VELOCITY_X,y
+    sta M_A
+    lda VELOCITY_X + 1,y
+    sta M_A + 1
+    lda REMAINING_TIME
+    sta M_B
     jsr multiply_fraction
-    +copy16 M_PRODUCT + 1, STEP_X
-    +copy16 VELOCITY_Y, M_A
-    +copy16 REMAINING_TIME, M_B
-    jsr multiply_fraction
-    +copy16 M_PRODUCT + 1, STEP_Y
+    lda M_PRODUCT + 1
+    sta STEP_X,y
+    lda M_PRODUCT + 2
+    sta STEP_X + 1,y
+    dey
+    dey
+    bpl step_axis
     rts
 
 displacement_at_t:
+    ; Unrolled: called for every contact and bisection trial.
     +copy16 STEP_X, M_A
     lda TRIAL_T
     sta M_B
@@ -270,8 +286,12 @@ displacement_at_t:
     rts
 
 accept_full_step:
-    +copy16 STEP_X, TRIAL_X
-    +copy16 STEP_Y, TRIAL_Y
+    ldx #3
+accept_copy:
+    lda STEP_X,x
+    sta TRIAL_X,x
+    dex
+    bpl accept_copy
 accept_trial:
     clc
     lda BALL_POS_X

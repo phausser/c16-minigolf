@@ -17,9 +17,6 @@ decode_header:
     sta COURSE_POS_HI,y
     dey
     bpl decode_header
-    ldy #2
-    lda (COURSE_PTR),y
-    sta COURSE_CUP_HALF_X
     ldy #4
     lda (COURSE_PTR),y
     sta DECODE_CONTOURS
