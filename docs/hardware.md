@@ -393,7 +393,11 @@ werden invertiert (Fläche frei, fester Teil schwarz). Eine Schrägzelle
 kopiert vorher ihr Flächenmuster in die feste Nachbarzelle zur festen Seite,
 waagerecht und senkrecht: die glatte äußere Schräge. Erkannt wird die feste
 Seite an einem freien rechten Pixel der Mittelzeile bzw. mittleren Pixel der
-obersten Zeile. Übrige feste Zellen bekommen für jede ganze Flächenzelle in
+obersten Zeile. Jede Kopie wird auf der von der Fläche abgewandten Seite auf
+FRAME_WIDTH gekappt (senkrecht in Zeilen, waagerecht in Spalten) und per OR
+eingetragen; in mittleren Schrägzellen ergänzen sich beide Kopien zum vollen
+Dreieck, an den Enden schließt die Schräge bündig an die gerade Kante an.
+Übrige feste Zellen bekommen für jede ganze Flächenzelle in
 der 8er-Nachbarschaft ein Band von FRAME_WIDTH = 6 Pixeln auf dieser Seite
 (Tabellen für Zeilenbereich und Spaltenmaske), Ecken also rechtwinklig.
 Attribute aus Klasse × Schachbrettparität: Fläche $61 mit schwarzer Tinte,
@@ -405,4 +409,4 @@ Aufbau eines Lochs (py65): ≈1,03 Mio. Zyklen, davon die Füllung ≈0,49 Mio.
 tests/course_reference.py modelliert Bitmap und Attribute unabhängig und
 prüft Testbahn, Schrägen in allen vier Richtungen, einspringende Schrägen und
 den VICE-Smoke-Test. Bahn-Decoder wieder in der Runtime. Runtime 5264 Bytes,
-368 frei; versteckte Zeilen 826/960. VICE: schlechtester Frame 30418/32000.
+368 frei; versteckte Zeilen 876/960. VICE: schlechtester Frame 30473/32000.

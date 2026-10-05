@@ -2,9 +2,9 @@
 
 Cells of rows 1..20 are whole floor, inner 45-degree edge (floor and solid)
 or solid. Floor pixels are clear; the solid part of floor and edge cells is
-black. Each edge cell repeats its floor pattern, as black pixels, in the
-solid neighbour towards its solid side horizontally and vertically: the
-smooth outer frame edge. Other solid cells next to a whole floor cell
+black. Each edge cell repeats its floor pattern, as black pixels cut to
+FRAME_WIDTH on the far side, in the solid neighbour towards its solid side
+horizontally and vertically: the smooth outer frame edge. Other solid cells next to a whole floor cell
 (8-neighbourhood) get a black band of FRAME_WIDTH pixels on each side that
 faces such a cell, square at corners. The cup is a filled round 7-pixel
 disc. Cells with floor are gray with black ink, other playfield cells black
@@ -54,10 +54,15 @@ def render(course, s):
             right = not playable(col*8+7, row*8+4)
             up = not playable(col*8+4, row*8)
             for dr, dc in ((0, 1 if right else -1), (-1 if up else 1, 0)):
-                if classes.get((row+dr, col+dc)) == 'solid':
+                if classes.get((row+dr, col+dc)) in ('solid', 'outer'):
                     classes[row+dr, col+dc] = 'outer'
-                    black |= {(x+dc*8, y+dr*8) for x, y in pixels(row, col)
-                              if playable(x, y)}
+                    for x, y in pixels(row, col):
+                        dx, dy = x-col*8, y-row*8
+                        # Cut to the frame width on the side away from the floor.
+                        far = (dc > 0 and dx >= FRAME_WIDTH) or (dc < 0 and dx < 8-FRAME_WIDTH) or \
+                              (dr < 0 and dy < 8-FRAME_WIDTH) or (dr > 0 and dy >= FRAME_WIDTH)
+                        if playable(x, y) and not far:
+                            black.add((x+dc*8, y+dr*8))
     band = 8-FRAME_WIDTH
     for (row, col), kind in classes.items():
         if kind != 'solid':

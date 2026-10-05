@@ -188,28 +188,44 @@ shape_cell:
     cmp #CLASS_EDGE
     bne shape_invert
     ; The floor side is set: a clear rightmost middle pixel means solid to
-    ; the right, a clear top centre pixel solid above.
+    ; the right, a clear top centre pixel solid above. Each copy is cut to
+    ; FRAME_WIDTH on its far side, so the diagonal ends flush with the
+    ; straight frame; in mid-diagonal cells both copies add up again.
+    lda #0
+    sta TEMP                  ; first row
+    lda #8
+    sta LINE_LEFT             ; end row
     ldy #4
     lda (BITMAP_PTR),y
     lsr
     ldy #CLASS_SELF + 1
+    lda #FRAME_LEFT
+    sta GLYPH                 ; column mask
     lda #8
     ldx #0
     bcc shape_outer_horizontal
     ldy #CLASS_SELF - 1
+    lda #FRAME_RIGHT
+    sta GLYPH
     lda #<-8
     ldx #>-8
 shape_outer_horizontal:
     jsr course_outer_cell
+    lda #$ff
+    sta GLYPH
     ldy #0
     lda (BITMAP_PTR),y
     and #$08
     bne shape_outer_down
+    lda #8 - FRAME_WIDTH
+    sta TEMP
     ldy #CLASS_SELF - 40
     lda #<-320
     ldx #>-320
     bne shape_outer_vertical
 shape_outer_down:
+    lda #FRAME_WIDTH
+    sta LINE_LEFT
     ldy #CLASS_SELF + 40
     lda #<320
     ldx #>320
@@ -245,19 +261,18 @@ shape_neighbour_next:
     bpl shape_neighbour
 shape_next:
     jsr course_cells_next
-    bne shape_cell
+    beq shape_done
+    jmp shape_cell
+shape_done:
     rts
 
-; Y = class offset of the target, A/X = bitmap distance to it. A solid cell
-; becomes an outer edge with this edge cell's floor pattern (set = black).
+; Y = class offset of the target, A/X = bitmap distance to it. A solid
+; cell becomes an outer edge (cleared first, it may already carry a band);
+; rows [TEMP, LINE_LEFT) of this edge cell's floor pattern, masked with
+; GLYPH, are added as black pixels.
 course_outer_cell:
     sta COPY_TARGET
     stx COPY_TARGET + 1
-    lda (COURSE_PTR),y
-    cmp #CLASS_SOLID
-    bne course_outer_done
-    lda #CLASS_OUTER
-    sta (COURSE_PTR),y
     clc
     lda BITMAP_PTR
     adc COPY_TARGET
@@ -265,12 +280,29 @@ course_outer_cell:
     lda BITMAP_PTR + 1
     adc COPY_TARGET + 1
     sta COPY_TARGET + 1
+    lda (COURSE_PTR),y
+    cmp #CLASS_OUTER
+    beq course_outer_add
+    cmp #CLASS_SOLID
+    bne course_outer_done
+    lda #CLASS_OUTER
+    sta (COURSE_PTR),y
+    lda #0
     ldy #7
-course_outer_copy:
-    lda (BITMAP_PTR),y
+course_outer_clear:
     sta (COPY_TARGET),y
     dey
-    bpl course_outer_copy
+    bpl course_outer_clear
+course_outer_add:
+    ldy TEMP
+course_outer_copy:
+    lda (BITMAP_PTR),y
+    and GLYPH
+    ora (COPY_TARGET),y
+    sta (COPY_TARGET),y
+    iny
+    cpy LINE_LEFT
+    bne course_outer_copy
 course_outer_done:
     rts
 

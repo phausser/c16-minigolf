@@ -59,7 +59,7 @@ Luminanz 5. Klassifizierung aus statischer Bitmap vor den Markierungen.
 47 Tests bestehen, VICE bestätigt Bild und Restaurierung sowie den echten
 emulierten Joystick-Port. Gerade Kanten am 8×8-Raster, Engstelle nun 16 Pixel.
 Nur Stärkeanzeige im HUD; Joystick links/rechts dreht, Feuer halten lädt,
-Loslassen schlägt. Runtime 5264 Bytes, 368 frei; versteckte Zeilen 21–23 826/960.
+Loslassen schlägt. Runtime 5264 Bytes, 368 frei; versteckte Zeilen 21–23 876/960.
 Bahnen liegen gepackt (Format 2) im Kern; decode_course entpackt die aktuelle
 Bahn in die Stackseite, Füllkanten entstehen beim Zeichnen aus den Segmenten.
 Für 17 weitere Bahnen in Testbahngröße fehlen 302 Bytes plus Metadaten.
