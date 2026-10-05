@@ -77,7 +77,7 @@ class Runtime:
         # The actual copy/blanking path is checked separately and in VICE.
         self.bus[0x2000:0x2140] = self.bus[S['lookup_image']:S['lookup_image']+320]
 
-    def run_until(self, address, limit=1000000):
+    def run_until(self, address, limit=3000000):
         for _ in range(limit):
             if self.cpu.pc == address:
                 return

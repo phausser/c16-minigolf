@@ -1,16 +1,15 @@
-; Static course picture. The playfield starts clear. An even/odd fill
-; sets the floor pixels, which are then grown by 3 pixels in x and y
-; (square distance). Cells containing floor become fully set, so their solid
-; part is black too. A second, identical XOR fill clears the floor again:
-; the remaining set pixels are the black frame, 3 px at straight walls and
-; 6 px horizontally (~4.2 px across) at 45-degree walls. Half-open y
-; intervals count shared vertices once; obstacles follow the parity rule.
+; Static course picture. The playfield starts clear and an even/odd fill
+; sets the floor pixels. Cells are then shaped one by one: cells with floor
+; are inverted (floor clear, solid black); an inner 45-degree cell copies its
+; floor pattern one cell outwards as the smooth outer frame edge; other
+; solid cells next to whole floor cells get FRAME_WIDTH black pixels on that
+; side, square at corners. Half-open y intervals count shared vertices once;
+; obstacles follow the parity rule.
+FRAME_WIDTH = 7
 draw_course:
     jsr fill_course
     jsr classify_course_cells
-    jsr dilate_course
-    jsr solidify_floor_cells
-    jsr fill_course
+    jsr shape_course_cells
     jsr colour_course_cells
     jmp draw_cup
 
@@ -123,12 +122,17 @@ fill_done:
     rts
 
 ; Cell classes, kept in the color matrix while the display is off.
-CLASS_FLOOR = 0                 ; cell contains floor: gray, black edges
-CLASS_SOLID = 1                 ; black frame pixels on the green checker
-CLASS_HIDDEN = 2                ; rows 0, 21..23: equal checker colors
+CLASS_FLOOR = 0                 ; whole floor cell
+CLASS_EDGE = 1                  ; inner 45-degree edge: floor and solid
+CLASS_SOLID = 2                 ; frame or green checker
+CLASS_OUTER = 3                 ; outer 45-degree frame edge
+CLASS_HIDDEN = 4                ; rows 0, 21..23: equal checker colors
+; COURSE_PTR addresses the class of cell i - 41: neighbours of i are at
+; Y = 0,1,2 / 40,(41),42 / 80,81,82.
+CLASS_SELF = 41
 
-; Before dilation the bitmap is the floor mask: any set bit means floor.
-; Rows 0 and 21..23 keep CLASS_HIDDEN.
+; The bitmap is the floor mask: classify each cell of rows 1..20 from the
+; OR and AND of its bytes. Rows 0 and 21..23 keep CLASS_HIDDEN.
 classify_course_cells:
     lda #CLASS_HIDDEN
     ldx #240
@@ -139,85 +143,181 @@ course_class_clear:
     sta COLOR_BASE + 719,x
     dex
     bne course_class_clear
-    lda #<$2140
-    sta BITMAP_PTR
-    lda #>$2140
-    sta BITMAP_PTR + 1
-    lda #<(COLOR_BASE + 40)
-    sta COURSE_PTR
-    lda #>(COLOR_BASE + 40)
-    sta COURSE_PTR + 1
+    jsr course_cells_begin
 course_classify:
-    lda #0
     ldy #7
+    lda (BITMAP_PTR),y
+    sta TEMP                  ; AND of all bytes
+    sta GLYPH                 ; OR of all bytes
 course_classify_byte:
-    ora (BITMAP_PTR),y
     dey
-    bpl course_classify_byte
-    cmp #1                    ; C clear only for an empty cell
-    lda #CLASS_FLOOR
-    bcs course_classify_store
-    lda #CLASS_SOLID
+    bmi course_classify_ready
+    lda (BITMAP_PTR),y
+    tax
+    ora GLYPH
+    sta GLYPH
+    txa
+    and TEMP
+    sta TEMP
+    jmp course_classify_byte
+course_classify_ready:
+    ldx #CLASS_SOLID
+    lda GLYPH
+    beq course_classify_store
+    dex                       ; CLASS_EDGE
+    lda TEMP
+    cmp #$ff
+    bne course_classify_store
+    dex                       ; CLASS_FLOOR
 course_classify_store:
-    ldy #0
+    txa
+    ldy #CLASS_SELF
     sta (COURSE_PTR),y
-    inc COURSE_PTR
-    bne course_classify_class
-    inc COURSE_PTR + 1
-course_classify_class:
-    clc
-    lda BITMAP_PTR
-    adc #8
-    sta BITMAP_PTR
-    bcc course_classify_more
-    inc BITMAP_PTR + 1
-course_classify_more:
-    cmp #<$3a40
-    bne course_classify
-    lda BITMAP_PTR + 1
-    cmp #>$3a40
+    jsr course_cells_next
     bne course_classify
     rts
 
-; After dilation: fill every cell that contains floor, so the solid part of
-; an inner 45-degree cell is black and never shows the gray background.
-solidify_floor_cells:
+shape_course_cells:
+    jsr course_cells_begin
+shape_cell:
+    ldy #CLASS_SELF
+    lda (COURSE_PTR),y
+    cmp #CLASS_SOLID
+    beq shape_frame
+    bcs shape_next            ; CLASS_OUTER keeps its copied pattern
+    cmp #CLASS_EDGE
+    bne shape_invert
+    ; The floor side is set: a clear rightmost middle pixel means solid to
+    ; the right, a clear top centre pixel solid above.
+    ldy #4
+    lda (BITMAP_PTR),y
+    lsr
+    ldy #CLASS_SELF + 1
+    lda #8
+    ldx #0
+    bcc shape_outer_horizontal
+    ldy #CLASS_SELF - 1
+    lda #<-8
+    ldx #>-8
+shape_outer_horizontal:
+    jsr course_outer_cell
+    ldy #0
+    lda (BITMAP_PTR),y
+    and #$08
+    bne shape_outer_down
+    ldy #CLASS_SELF - 40
+    lda #<-320
+    ldx #>-320
+    bne shape_outer_vertical
+shape_outer_down:
+    ldy #CLASS_SELF + 40
+    lda #<320
+    ldx #>320
+shape_outer_vertical:
+    jsr course_outer_cell
+shape_invert:
+    ldy #7
+shape_invert_byte:
+    lda (BITMAP_PTR),y
+    eor #$ff
+    sta (BITMAP_PTR),y
+    dey
+    bpl shape_invert_byte
+    bmi shape_next
+shape_frame:
+    ; OR the band of each whole floor neighbour into the clear cell.
+    ldx #7
+shape_neighbour:
+    ldy course_neighbours,x
+    lda (COURSE_PTR),y
+    bne shape_neighbour_next  ; not CLASS_FLOOR
+    ldy frame_row_first,x
+shape_frame_row:
+    lda (BITMAP_PTR),y
+    ora frame_columns,x
+    sta (BITMAP_PTR),y
+    iny
+    tya
+    cmp frame_row_end,x
+    bne shape_frame_row
+shape_neighbour_next:
+    dex
+    bpl shape_neighbour
+shape_next:
+    jsr course_cells_next
+    bne shape_cell
+    rts
+
+; Y = class offset of the target, A/X = bitmap distance to it. A solid cell
+; becomes an outer edge with this edge cell's floor pattern (set = black).
+course_outer_cell:
+    sta COPY_TARGET
+    stx COPY_TARGET + 1
+    lda (COURSE_PTR),y
+    cmp #CLASS_SOLID
+    bne course_outer_done
+    lda #CLASS_OUTER
+    sta (COURSE_PTR),y
+    clc
+    lda BITMAP_PTR
+    adc COPY_TARGET
+    sta COPY_TARGET
+    lda BITMAP_PTR + 1
+    adc COPY_TARGET + 1
+    sta COPY_TARGET + 1
+    ldy #7
+course_outer_copy:
+    lda (BITMAP_PTR),y
+    sta (COPY_TARGET),y
+    dey
+    bpl course_outer_copy
+course_outer_done:
+    rts
+
+; Walk cells 40..839 (rows 1..20): BITMAP_PTR = cell bitmap,
+; COURSE_PTR = class of cell - 41. Z clear while cells remain.
+course_cells_begin:
     lda #<$2140
     sta BITMAP_PTR
     lda #>$2140
     sta BITMAP_PTR + 1
-    lda #<(COLOR_BASE + 40)
+    lda #<(COLOR_BASE + 40 - CLASS_SELF)
     sta COURSE_PTR
-    lda #>(COLOR_BASE + 40)
+    lda #>(COLOR_BASE + 40 - CLASS_SELF)
     sta COURSE_PTR + 1
-solidify_cell:
-    ldy #0
-    lda (COURSE_PTR),y
-    bne solidify_next         ; not CLASS_FLOOR
-    lda #$ff
-    ldy #7
-solidify_byte:
-    sta (BITMAP_PTR),y
-    dey
-    bpl solidify_byte
-solidify_next:
-    inc COURSE_PTR
-    bne solidify_class
-    inc COURSE_PTR + 1
-solidify_class:
+    rts
+course_cells_next:
     clc
     lda BITMAP_PTR
     adc #8
     sta BITMAP_PTR
-    bcc solidify_more
+    bcc course_cells_bitmap
     inc BITMAP_PTR + 1
-solidify_more:
-    cmp #<$3a40
-    bne solidify_cell
+course_cells_bitmap:
+    inc COURSE_PTR
+    bne course_cells_class
+    inc COURSE_PTR + 1
+course_cells_class:
     lda BITMAP_PTR + 1
     cmp #>$3a40
-    bne solidify_cell
+    bne course_cells_more
+    lda BITMAP_PTR
+    cmp #<$3a40
+course_cells_more:
     rts
+
+; Neighbour class offsets with the frame band each whole floor neighbour
+; adds: rows [first, end) and a column mask (bit 7 = left pixel).
+FRAME_LEFT = ($ff << (8 - FRAME_WIDTH)) & $ff
+FRAME_RIGHT = $ff >> (8 - FRAME_WIDTH)
+course_neighbours:
+!byte 0,1,2,40,42,80,81,82
+frame_row_first:
+!byte 0,0,0,0,0,8-FRAME_WIDTH,8-FRAME_WIDTH,8-FRAME_WIDTH
+frame_row_end:
+!byte FRAME_WIDTH,FRAME_WIDTH,FRAME_WIDTH,8,8,8,8,8
+frame_columns:
+!byte FRAME_LEFT,$ff,FRAME_RIGHT,FRAME_LEFT,FRAME_RIGHT,FRAME_LEFT,$ff,FRAME_RIGHT
 
 ; Attributes for rows 0..23 from class and checker parity.
 colour_course_cells:
@@ -268,6 +368,10 @@ course_attribute_ready:
 course_luminance:
     +attribute_luminance COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
     +attribute_luminance COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_luminance COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_luminance COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_luminance COURSE_FRAME_COLOR, CHECKER_COLOR_EVEN
+    +attribute_luminance COURSE_FRAME_COLOR, CHECKER_COLOR_ODD
     +attribute_luminance COURSE_FRAME_COLOR, CHECKER_COLOR_EVEN
     +attribute_luminance COURSE_FRAME_COLOR, CHECKER_COLOR_ODD
     +attribute_luminance CHECKER_COLOR_EVEN, CHECKER_COLOR_EVEN
@@ -275,6 +379,10 @@ course_luminance:
 course_color:
     +attribute_color COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
     +attribute_color COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_color COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_color COURSE_MARKER_COLOR, COURSE_SURFACE_COLOR
+    +attribute_color COURSE_FRAME_COLOR, CHECKER_COLOR_EVEN
+    +attribute_color COURSE_FRAME_COLOR, CHECKER_COLOR_ODD
     +attribute_color COURSE_FRAME_COLOR, CHECKER_COLOR_EVEN
     +attribute_color COURSE_FRAME_COLOR, CHECKER_COLOR_ODD
     +attribute_color CHECKER_COLOR_EVEN, CHECKER_COLOR_EVEN

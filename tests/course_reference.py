@@ -1,12 +1,18 @@
-"""Independent pixel model of the static course picture (bitmap and colors).
+"""Independent model of the static course picture (bitmap and colors).
 
-Floor pixels are clear. A non-floor pixel is set (black frame) when a floor
-pixel lies within 3 pixels in x and y (7x7 square) or in the same 8x8 cell;
-all other pixels are clear. The cup is a filled round 7-pixel disc.
-Cells containing floor are gray with black ink; other playfield cells show
-black ink on the green checker. Rows 0 and 21..23 use equal checker
-colors so hidden data stays invisible; row 24 keeps the HUD palette.
+Cells of rows 1..20 are whole floor, inner 45-degree edge (floor and solid)
+or solid. Floor pixels are clear; the solid part of floor and edge cells is
+black. Each edge cell repeats its floor pattern, as black pixels, in the
+solid neighbour towards its solid side horizontally and vertically: the
+smooth outer frame edge. Other solid cells next to a whole floor cell
+(8-neighbourhood) get a black band of FRAME_WIDTH pixels on each side that
+faces such a cell, square at corners. The cup is a filled round 7-pixel
+disc. Cells with floor are gray with black ink, other playfield cells black
+ink on the green checker, rows 0 and 21..23 equal checker colors, row 24
+the HUD palette.
 """
+
+FRAME_WIDTH = 7
 
 
 def bitmap_offset(x, y):
@@ -18,7 +24,7 @@ def attribute(foreground, background):
             ((foreground & 15) << 4) + (background & 15))
 
 
-def render(course, s, frame=3):
+def render(course, s):
     contours = [course['outline'], *course['obstacles']]
 
     def playable(x, y):
@@ -30,16 +36,45 @@ def render(course, s, frame=3):
                         inside = not inside
         return inside
 
-    floor = {(x, y) for y in range(8, 168) for x in range(320) if playable(x, y)}
-    near = {(x+dx, y+dy) for x, y in floor
-            for dx in range(-frame, frame+1) for dy in range(-frame, frame+1)}
-    floor_cells = {(y//8, x//8) for x, y in floor}
-    near |= {(col*8+dx, row*8+dy) for row, col in floor_cells
-             for dx in range(8) for dy in range(8)}
+    def pixels(row, col):
+        return [(col*8+dx, row*8+dy) for dy in range(8) for dx in range(8)]
+
+    black = set()
+    classes = {}
+    for row in range(1, 21):
+        for col in range(40):
+            cell = [playable(x, y) for x, y in pixels(row, col)]
+            classes[row, col] = 'floor' if all(cell) else 'solid' if not any(cell) else 'edge'
+            black |= {p for p, floor in zip(pixels(row, col), cell)
+                      if not floor and any(cell)}
+    for row in range(1, 21):
+        for col in range(40):
+            if classes[row, col] != 'edge':
+                continue
+            right = not playable(col*8+7, row*8+4)
+            up = not playable(col*8+4, row*8)
+            for dr, dc in ((0, 1 if right else -1), (-1 if up else 1, 0)):
+                if classes.get((row+dr, col+dc)) == 'solid':
+                    classes[row+dr, col+dc] = 'outer'
+                    black |= {(x+dc*8, y+dr*8) for x, y in pixels(row, col)
+                              if playable(x, y)}
+    band = 8-FRAME_WIDTH
+    for (row, col), kind in classes.items():
+        if kind != 'solid':
+            continue
+        for dr in (-1, 0, 1):
+            for dc in (-1, 0, 1):
+                if classes.get((row+dr, col+dc)) != 'floor':
+                    continue
+                for x, y in pixels(row, col):
+                    dx, dy = x-col*8, y-row*8
+                    if ((dc < 0 and dx >= FRAME_WIDTH) or (dc > 0 and dx < band) or
+                            (dr < 0 and dy >= FRAME_WIDTH) or (dr > 0 and dy < band)):
+                        continue
+                    black.add((x, y))
     bitmap = bytearray(8000)
-    for x, y in near - floor:
-        if 0 <= x < 320 and 8 <= y < 168:
-            bitmap[bitmap_offset(x, y)] |= 128 >> (x % 8)
+    for x, y in black:
+        bitmap[bitmap_offset(x, y)] |= 128 >> (x % 8)
     cx, cy = course['cup']
     for dy in range(-3, 4):
         for dx in range(-3, 4):
@@ -50,9 +85,10 @@ def render(course, s, frame=3):
     for row in range(24):
         for col in range(40):
             checker = s['CHECKER_COLOR_ODD'] if (row+col) % 2 else s['CHECKER_COLOR_EVEN']
-            if (row, col) in floor_cells:
+            kind = classes.get((row, col))
+            if kind in ('floor', 'edge'):
                 pair = attribute(s['COURSE_MARKER_COLOR'], s['COURSE_SURFACE_COLOR'])
-            elif 1 <= row <= 20:
+            elif kind:
                 pair = attribute(s['COURSE_FRAME_COLOR'], checker)
             else:
                 pair = attribute(checker, checker)

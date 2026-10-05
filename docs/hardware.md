@@ -378,27 +378,31 @@ Ergebnis: Runtime 4979 Bytes, 653 frei; schlechtester Frame 30173/32000.
 
 ## Rahmen, Schrägen und grünes Schachbrett (2026-10-05)
 
-draw_course (versteckte Zeilen): Die Spielfläche startet leer. Die Even/Odd-
-Füllung setzt die Flächenpixel; classify_course_cells merkt Zellen mit Fläche
-(Klassen vorübergehend in der Farbmatrix, Anzeige aus). dilate_course
-(Runtime) dehnt die gesetzten Pixel in place um DILATE_RADIUS = 3 Pixel aus: waagerecht pro
-Pixelzeile mit 16-Bit-Schiebefenstern aus den Originalnachbarn, senkrecht in
-einem Abwärts- und einem Aufwärtsdurchgang mit vier Originalbytes Gedächtnis.
-Volle und leere Bytes ohne Nachbarn werden übersprungen. Danach werden alle
-Zellen mit Fläche ganz gesetzt (solidify_floor_cells), damit der feste Teil
-einer Schrägzelle schwarz ist und nie grau durchscheint. Eine zweite,
-identische XOR-Füllung löscht die Fläche wieder; übrig bleibt der Rahmen
-(3 px gerade, 6 px waagerecht an Schrägen mit einer Pixelstufe je Zelle,
-rechtwinklige Ecken). Das Loch ist eine gefüllte Scheibe (draw_cup, Zeilen-
-halbbreiten 1,2,3,3,3,2,1) statt eines Rings. Attribute
-aus Klasse × Schachbrettparität: Fläche $61 mit schwarzer Tinte, übrige
-Spielfeldzellen Schwarz auf Grün $35/$45, Zeilen 0 und 21–23 Grün auf Grün.
-Ball mit Zeilenformen $70, $f8, $b8 (Glanzpunkt).
+Nach mehreren Nutzer-Iterationen (8-px-Zellrahmen, 4 px und 3 px per
+Pixel-Ausdehnung) gilt: gerade Kanten 7 px, Schrägen glatt bis zur
+Zellkante. Rahmen schmaler als eine Zelle erzeugen an 45°-Schrägen
+zwangsläufig Stufen, weil die Grau/Schwarz-Zellen der inneren Schräge keine
+dritte Farbe (Grün) aufnehmen können; das wurde mit Vorschaubildern geklärt.
 
-Aufbau eines Lochs (py65): Füllung 2 × 488k, Klassen 106k, Ausdehnung
-~1,27 Mio., Farben 66k Zyklen, zusammen ~2,4 Mio. (≈1,4 s bei
-abgeschalteter Anzeige). tests/course_reference.py ist ein unabhängiges
-Pixelmodell (9×9-Nachbarschaft) für Testbahn, Schrägen in allen vier
-Richtungen, einspringende Schrägen und den VICE-Smoke-Test. Bahn-Decoder
-liegt jetzt vollständig in den versteckten Zeilen (925/960), Runtime 5288
-Bytes, 344 frei. VICE: schlechtester Frame 30371/32000 Ticks.
+draw_course (versteckte Zeilen): Die Spielfläche startet leer, die Even/Odd-
+Füllung setzt die Flächenpixel. classify_course_cells teilt die Zellen der
+Zeilen 1–20 aus OR/AND ihrer Bytes in ganze Fläche, innere Schräge und fest
+ein (Klassen vorübergehend in der Farbmatrix, Anzeige aus).
+shape_course_cells geht die Zellen einmal durch: Flächen- und Schrägzellen
+werden invertiert (Fläche frei, fester Teil schwarz). Eine Schrägzelle
+kopiert vorher ihr Flächenmuster in die feste Nachbarzelle zur festen Seite,
+waagerecht und senkrecht: die glatte äußere Schräge. Erkannt wird die feste
+Seite an einem freien rechten Pixel der Mittelzeile bzw. mittleren Pixel der
+obersten Zeile. Übrige feste Zellen bekommen für jede ganze Flächenzelle in
+der 8er-Nachbarschaft ein Band von FRAME_WIDTH = 7 Pixeln auf dieser Seite
+(Tabellen für Zeilenbereich und Spaltenmaske), Ecken also rechtwinklig.
+Attribute aus Klasse × Schachbrettparität: Fläche $61 mit schwarzer Tinte,
+übrige Spielfeldzellen Schwarz auf Grün $35/$45, Zeilen 0 und 21–23 Grün
+auf Grün. Loch: gefüllte 7-px-Scheibe (draw_cup, Runtime). Ball mit
+Zeilenformen $70, $f8, $b8 (Glanzpunkt).
+
+Aufbau eines Lochs (py65): ≈1,03 Mio. Zyklen, davon die Füllung ≈0,49 Mio.
+tests/course_reference.py modelliert Bitmap und Attribute unabhängig und
+prüft Testbahn, Schrägen in allen vier Richtungen, einspringende Schrägen und
+den VICE-Smoke-Test. Bahn-Decoder wieder in der Runtime. Runtime 5264 Bytes,
+368 frei; versteckte Zeilen 826/960. VICE: schlechtester Frame 30418/32000.
