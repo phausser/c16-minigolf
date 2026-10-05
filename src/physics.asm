@@ -12,11 +12,11 @@ reset_ball:
     sta VELOCITY_X + 1
     sta VELOCITY_Y
     sta VELOCITY_Y + 1
-    lda #<START_X
+    lda COURSE_START_X
     sta BALL_POS_X + 1
-    lda #>START_X
+    lda COURSE_START_X_HI
     sta BALL_POS_X + 2
-    lda #START_Y
+    lda COURSE_START_Y
     sta BALL_POS_Y + 1
     lda #1
     sta FIRE_LOCK
@@ -143,7 +143,7 @@ physics_has_step:
     ; Frame-origin cup broadphase before the post-bounce speed square.
     lda BOUNDS_X
     sec
-    sbc #(CUP_X / 2)
+    sbc COURSE_CUP_HALF_X
     bpl cup_distance_absolute
     eor #$ff
     clc
@@ -249,11 +249,11 @@ finish_hole:
     lda #0
     sta BALL_POS_X
     sta BALL_POS_Y
-    lda #<CUP_X
+    lda COURSE_CUP_X
     sta BALL_POS_X + 1
-    lda #>CUP_X
+    lda COURSE_CUP_X_HI
     sta BALL_POS_X + 2
-    lda #CUP_Y
+    lda COURSE_CUP_Y
     sta BALL_POS_Y + 1
     lda #1
     sta HOLED

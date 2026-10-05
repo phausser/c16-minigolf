@@ -220,3 +220,22 @@ Spalten 0 und 39 bleiben auf Nutzerwunsch frei: der ganze Bildschirm soll
 für Bahnen verfügbar bleiben. Keine Daten im Rand verstecken. Weitere Reserve
 aus Codeverkleinerung, Stackseite, Attributlücken ($1BE8/$1FE8, je 24 Bytes)
 und Zero Page gewinnen.
+
+## ACME-Bahn-Decoder (2026-10-05)
+
+Format 2 ohne Versionsbyte: Start/Loch halbiert, Konturanzahl, je Kontur
+x/2, y/2 mit Bit 7 = Normalenseite, Laufanzahl, Läufe. decode_course
+(src/course_decoder.asm, X = Bahnindex) entpackt nach course_segments
+$0100–$019F, berechnet Normalen und versteckte Endpunkte aus Richtungswechseln
+(Vorgänger der ersten Kante = letzter Lauf). Start/Loch in $f8–$ff
+(Low-/High-Bytes getrennt), COURSE_CUP_HALF_X $aa, SEGMENT_BYTES $ab.
+DYNAMIC-Arrays jetzt $01A0–$01D5, Stack ab $01D6 (42 Bytes, Tiefe 12).
+initialise_state ruft decode_course für Bahn 0. Füllkanten werden im
+Zeichner aus Segmenten abgeleitet, keine gespeicherten Füllkanten mehr.
+Python-decode lehnt nichtkanonische Streams ab (Re-Encode-Vergleich).
+50 Tests (Decoder gegen expanded_segments, auch Diagonalen/Hindernisse/
+konkave Ecken), VICE-Grafik und Joystick bestehen; Physik 38811 > 32000.
+Runtime 5288 Bytes, 344 frei; Decoder ca. 270 Bytes. make budget: 17 weitere
+Testbahn-Größen brauchen 646 Bytes, es fehlen 302 plus Metadaten.
+Nächste Reserven ohne Bildrand: Codeverkleinerung (collision.asm ~2 KB),
+Attributlücken $1BE8/$1FE8, Rest in versteckten Zeilen (59) und Bitmap-Ende.

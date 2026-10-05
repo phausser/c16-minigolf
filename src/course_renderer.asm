@@ -3,28 +3,48 @@
 ; Requires a freshly initialized $ff-filled playfield. Half-open y intervals
 ; count shared vertices once, and obstacles follow the same parity rule.
 draw_course:
-    lda #<course_fill_edges
-    sta COURSE_PTR
-    lda #>course_fill_edges
-    sta COURSE_PTR + 1
-    lda #COURSE_FILL_COUNT
-    sta SEGMENTS_LEFT
+    lda #0
+    sta SEGMENTS_LEFT         ; byte offset of the current segment
 fill_edge:
-    ldy #0
-    lda (COURSE_PTR),y
+    ; Every non-horizontal wall is one fill edge, walked from its top end.
+    ldx SEGMENTS_LEFT
+    txa
+    tay
+    lda course_segments + 3,x
+    cmp course_segments + 1,x
+    bne fill_sloped
+    jmp fill_next_edge
+fill_sloped:
+    bcc fill_upward
+    iny                       ; top x, bottom y+2
+    iny
+    bne fill_ordered
+fill_upward:
+    inx
+    inx
+fill_ordered:
+    lda course_segments,x
     asl
     sta LINE_X
     lda #0
     rol
     sta LINE_X + 1
-    iny
-    lda (COURSE_PTR),y
+    lda course_segments + 1,x
+    asl
     sta LINE_Y
-    iny
-    lda (COURSE_PTR),y
+    lda course_segments + 1,y
+    sec
+    sbc course_segments + 1,x
+    asl
     sta LINE_LEFT
-    iny
-    lda (COURSE_PTR),y
+    lda course_segments,y
+    sec
+    sbc course_segments,x
+    beq fill_slope            ; vertical
+    lda #1
+    bcs fill_slope
+    lda #$ff
+fill_slope:
     sta LINE_X_STEP
 fill_scanline:
     lda LINE_X
@@ -79,15 +99,13 @@ fill_step_positive:
     inc LINE_Y
     dec LINE_LEFT
     bne fill_scanline
+fill_next_edge:
+    lda SEGMENTS_LEFT
     clc
-    lda COURSE_PTR
-    adc #4
-    sta COURSE_PTR
-    bcc fill_pointer_ready
-    inc COURSE_PTR + 1
-fill_pointer_ready:
-    dec SEGMENTS_LEFT
-    beq fill_done
+    adc #5
+    sta SEGMENTS_LEFT
+    cmp SEGMENT_BYTES
+    bcs fill_done
     jmp fill_edge
 fill_done:
     jsr initialise_course_colors
@@ -98,7 +116,7 @@ cup_next:
     ldx POINT_INDEX
     lda cup_dx,x
     clc
-    adc #<CUP_X
+    adc COURSE_CUP_X
     sta PIXEL_X
     lda cup_dx,x
     bpl cup_positive_x
@@ -107,11 +125,11 @@ cup_next:
 cup_positive_x:
     lda #0
 cup_x_sign:
-    adc #>CUP_X
+    adc COURSE_CUP_X_HI
     sta PIXEL_X + 1
     lda cup_dy,x
     clc
-    adc #CUP_Y
+    adc COURSE_CUP_Y
     sta PIXEL_Y
     jsr plot_pixel
     inc POINT_INDEX

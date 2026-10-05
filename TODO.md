@@ -32,13 +32,13 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] Code-, Daten- und Scratchbedarf messen; 18-Bahnen-Budget mit dem echten Testexport hochrechnen (`make budget`: 18 gleich große Exporte als ausdrückliche Annahme).
 - [x] Schlechteste Framezeit mit Anzeige messen, einschließlich Engstellen und Mehrfachkontakten.
 - [ ] Allgemeine schräge Eckentreffer von 38873 auf höchstens 32000 PAL-Ticks optimieren; `make smoke` muss bestehen.
-- [ ] Speicher erweitern (Stand: 535 Runtime-Bytes, 138 im Stackpuffer, 87 in versteckten Zeilen frei) und echtes 18-Bahnen-Budget nachweisen.
+- [ ] Speicher erweitern (Stand: 344 Runtime-Bytes frei, Decoder und aktuelle Bahn resident; 17 weitere Testbahn-Größen brauchen 646 Bytes) und echtes 18-Bahnen-Budget nachweisen.
 - [x] Start innerhalb des Fangradius und Lochfang unmittelbar nach einem Abpraller gezielt absichern.
 - [x] Wand-Kontakt-Epsilon gegen Rundungsreste von ein bis zwei Festkommaeinheiten prüfen.
 - [ ] Gleichzeitige Kontakte und schrägere Endpunktfälle vollständig absichern.
 - [x] Ball zeilenweise bytegenau zeichnen; Pixelbild aller acht Ausrichtungen, x=255/256 und rechte Bildkante vergleichen.
 - [x] Verlustfreien Richtungs-/Längenexport samt Host-Decoder und Fehlerprüfungen implementieren (Testbahn 85 → 39 Bytes).
-- [ ] Komprimierten Export im ACME-Kern dekodieren und die entpackte aktuelle Bahn separat vom Kursbestand halten.
+- [x] Komprimierten Export im ACME-Kern dekodieren und die entpackte aktuelle Bahn separat vom Kursbestand halten (`decode_course`, Puffer $0100–$019F, Host-Referenz bitgenau geprüft).
 
 Abnahme: spielbarer Kern erfüllt Speicher- und Zeitbudget mit begründeter Reserve. Bei Überschreitung zuerst Architektur/Daten optimieren; Bahnproduktion erst nach erneutem Nachweis fortsetzen.
 
@@ -53,9 +53,11 @@ Luminanz 5. Klassifizierung aus statischer Bitmap vor den Markierungen.
 47 Tests bestehen, VICE bestätigt Bild und Restaurierung sowie den echten
 emulierten Joystick-Port. Gerade Kanten am 8×8-Raster, Engstelle nun 16 Pixel.
 Nur Stärkeanzeige im HUD; Joystick links/rechts dreht, Feuer halten lädt,
-Loslassen schlägt. Runtime 5097 Bytes, 535 frei; versteckte Zeilen 21–23 873/960.
-Kurs-Hochrechnung benötigt 505 weitere Bytes plus Decoder, aktuelle Bahn,
-Füllkanten und Metadaten. Laufzeitabnahme offen: 38873 >32000 PAL-Ticks
+Loslassen schlägt. Runtime 5288 Bytes, 344 frei; versteckte Zeilen 21–23 901/960.
+Bahnen liegen gepackt (Format 2) im Kern; decode_course entpackt die aktuelle
+Bahn in die Stackseite, Füllkanten entstehen beim Zeichnen aus den Segmenten.
+Für 17 weitere Bahnen in Testbahngröße fehlen 302 Bytes plus Metadaten.
+Laufzeitabnahme offen: 38811 >32000 PAL-Ticks
 auf der veränderten Testbahn. Historische Physik-Replays verwenden ihre
 ursprüngliche Geometrie in fixtures/course-before-cell-grid.json.
 

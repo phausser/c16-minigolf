@@ -407,6 +407,42 @@ class HardwareTests(unittest.TestCase):
         self.tick(32)
         self.assertEqual(self.r.get('CHARGING'),1)
 
+    def test_decoder_matches_host_reference_segments(self):
+        from generate_assets import expanded_segments
+        expected = expanded_segments(COURSE)
+        self.assertEqual(self.r.get('SEGMENT_BYTES'), len(expected))
+        self.assertEqual(self.r.bus[S['course_segments']:S['course_segments']+len(expected)], expected)
+        self.assertEqual(self.r.get('COURSE_START_X')+256*self.r.get('COURSE_START_X_HI'), COURSE['start'][0])
+        self.assertEqual(self.r.get('COURSE_START_Y'), COURSE['start'][1])
+        self.assertEqual(self.r.get('COURSE_CUP_X')+256*self.r.get('COURSE_CUP_X_HI'), COURSE['cup'][0])
+        self.assertEqual(self.r.get('COURSE_CUP_Y'), COURSE['cup'][1])
+        self.assertEqual(self.r.get('COURSE_CUP_HALF_X'), COURSE['cup'][0]//2)
+
+    def test_decoder_flags_for_varied_contours(self):
+        from course_codec import encode
+        from generate_assets import expanded_segments
+        courses = [
+            {'start':[40,40],'cup':[272,112],'obstacles':[],
+             'outline':[[16,24],[304,24],[304,152],[16,152]]},
+            {'start':[40,40],'cup':[200,120],'obstacles':[[[96,64],[128,96],[96,128],[64,96]]],
+             'outline':[[16,152],[304,152],[304,48],[280,24],[16,24]]},
+            {'start':[40,40],'cup':[200,120],
+             'obstacles':[[[160,64],[160,96],[192,96],[192,64]]],
+             'outline':[[16,24],[64,24],[96,56],[136,56],[136,24],[304,24],
+                        [304,152],[200,152],[168,120],[128,120],[96,152],[16,152]]},
+        ]
+        address = 0x3000             # spare bitmap bytes in this isolated test
+        self.r.bus[S['course_table_lo']] = address & 255
+        self.r.bus[S['course_table_hi']] = address >> 8
+        for course in courses:
+            data = encode(course)
+            self.r.bus[address:address+len(data)] = list(data)
+            self.r.cpu.x = 0
+            self.r.call('decode_course')
+            expected = expanded_segments(course)
+            self.assertEqual(self.r.get('SEGMENT_BYTES'), len(expected))
+            self.assertEqual(self.r.bus[S['course_segments']:S['course_segments']+len(expected)], expected)
+
     def test_frame_stack_stays_above_volatile_buffers(self):
         # Each call pushes the return address exactly like main_loop's JSR.
         lowest = [255]
@@ -429,8 +465,8 @@ class HardwareTests(unittest.TestCase):
                 for label in frame:
                     self.r.call(label)
         depth = 255-lowest[0]
-        self.assertLessEqual(depth, 32, depth)
-        self.assertGreaterEqual(0x100+lowest[0]-32, S['STACK_FLOOR'])
+        self.assertLessEqual(depth, 24, depth)
+        self.assertGreaterEqual(0x100+lowest[0]-16, S['STACK_FLOOR'])
 
     def test_glyph_cell_above_255_and_hud_stays_outside_course(self):
         self.r.bus[0x2000:0x4000] = [0x55]*8192

@@ -38,12 +38,12 @@ class CourseCodecTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             encode(self.course)
 
-    def test_bad_version_and_open_contour_are_rejected(self):
+    def test_wrong_side_flag_and_open_contour_are_rejected(self):
         packed = bytearray(encode(self.course))
-        packed[0] = 2
+        packed[6] ^= 128            # outline side flag
         with self.assertRaises(ValueError):
             decode(packed)
-        packed[0] = 1
+        packed[6] ^= 128
         packed[-1] ^= 1
         with self.assertRaises(ValueError):
             decode(packed)

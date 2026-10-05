@@ -14,15 +14,15 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 
 | Bereich | Verwendung |
 |---|---|
-| $0100–$0135 | 54 Bytes Hintergrundrestaurierung (nach dem Start; vorher Kopierer) |
-| $0136–$01BF | 138 freie Bytes für flüchtige Puffer |
-| $01C0–$01FF | Stack, 64 Bytes reserviert; gemessene Tiefe 12 Bytes |
-| $0200–$15E8 | Laufzeitcode und Daten: 5097 Bytes |
-| $15E9–$17FF | 535 freie Bytes |
+| $0100–$019F | Entpackte aktuelle Bahn, bis 32 Segmente (beim Start vorher Kopierer) |
+| $01A0–$01D5 | 54 Bytes Hintergrundrestaurierung |
+| $01D6–$01FF | Stack, 42 Bytes reserviert; gemessene Tiefe 12 Bytes |
+| $0200–$14A7 | Laufzeitcode und gepackte Bahnen: 5288 Bytes |
+| $14A8–$17FF | 344 freie Bytes |
 | $1800–$1FFF | TED-Luminanz und Farbe |
 | $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
 | $2140–$3A3F | Sichtbares Spielfeld |
-| $3A40–$3DFF | Unsichtbare Zeilen 21–23: Bahnzeichner, weite Mathematik, Normierung, Eingabe; 873 Bytes, 87 frei |
+| $3A40–$3DFF | Unsichtbare Zeilen 21–23: Bahnzeichner, weite Mathematik, Normierung, Eingabe; 901 Bytes, 59 frei |
 | $3E00–$3F3F | Stärke, HUD-Zeile 24 |
 | $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 140 Bytes und Diagonal-Guard 42 Bytes |
 
@@ -52,9 +52,11 @@ Bitmap-Adresse: $2000 + floor(y/8)×320 + floor(x/8)×8 + (y mod 8).
 Die Tests prüfen alle 200 Zeilen, insbesondere x=255/256/319. Text liest
 den eingebauten ROM-Zeichensatz direkt, ohne ROM-Routinen aufzurufen.
 
-17 Kontursegmente belegen 85 Bytes einschließlich Normalenindex. Neun
-zusätzliche Füllkanten belegen 36 Bytes; sie sind aus denselben Konturen
-abgeleitet. Ein byteweiser Even/Odd-Scanline-Füller öffnet die glatte Fläche
+Die Testbahn liegt gepackt (Format 2, tools/course_codec.py) in 36 Bytes vor.
+decode_course entpackt 17 Kontursegmente zu 85 Bytes einschließlich
+Normalenindex und Endpunkt-Flag; Start und Loch stehen in der Zero Page.
+Der Zeichner leitet die Füllkanten direkt aus den nicht waagerechten
+Segmenten ab. Ein byteweiser Even/Odd-Scanline-Füller öffnet die glatte Fläche
 in einer schwarzen Bitmap, mit halboffenen y-Intervallen. Renderer und
 Kollision nutzen dieselbe Innenkante. Die Flächenfarbe ist
 gleichmäßig; Zellschatten wurden auf Nutzerwunsch wieder entfernt. Der Generator prüft Grenzen, Segmentlimit,

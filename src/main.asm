@@ -124,6 +124,9 @@ clear_state:
     sta STATE_BEGIN,x
     dex
     bpl clear_state
+    ; X = $ff after the loop; the only course so far is index 0.
+    inx
+    jsr decode_course
     jmp reset_ball
 
 !source "src/video.asm"
@@ -131,6 +134,7 @@ clear_state:
 !source "src/render.asm"
 !source "src/physics.asm"
 !source "src/collision.asm"
+!source "src/course_decoder.asm"
 !source "build/assets.inc"
 ; Test-only stress image: verify the safe copier even after the destination
 ; grows over the original SYS loader and part of its source image.

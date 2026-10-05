@@ -235,7 +235,7 @@ class MovementTests(unittest.TestCase):
             r = Runtime()
             r.call('initialise_state')
             if not hidden_caps:
-                for i in range(S['COURSE_SEGMENT_COUNT']):
+                for i in range(r.get('SEGMENT_BYTES')//5):
                     r.bus[S['course_segments']+i*5+4] &= 7
             x,y,angle = scene
             position(r,x,y)
@@ -321,11 +321,12 @@ class MovementTests(unittest.TestCase):
 
     def test_slow_ball_already_inside_cup_is_caught_moving_away(self):
         isolate_segments(self.r,[])
-        position(self.r,S['CUP_X']+2.5,S['CUP_Y'])
+        cup = self.r.get('COURSE_CUP_X')+256*self.r.get('COURSE_CUP_X_HI'),self.r.get('COURSE_CUP_Y')
+        position(self.r,cup[0]+2.5,cup[1])
         self.shoot(0,2)
         self.r.call('physics_tick')
         self.assertEqual(self.r.get('HOLED'),1)
-        self.assertEqual(point(self.r),(S['CUP_X'],S['CUP_Y']))
+        self.assertEqual(point(self.r),cup)
 
     def test_cup_uses_reduced_velocity_immediately_after_bounce(self):
         isolate_segments(self.r,[((274,80),(274,140),4)])
@@ -357,6 +358,7 @@ class MovementTests(unittest.TestCase):
             r = Runtime()
             r.call('initialise_state')
             r.bus[S['course_segments']:S['course_segments']+len(encoded)] = encoded
+            r.put('SEGMENT_BYTES', len(encoded))
             position(r, case['x'], case['y'])
             r.put('ANGLE', case['angle'])
             r.put('POWER', 32)

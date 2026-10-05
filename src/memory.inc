@@ -85,6 +85,18 @@ CIRCLE_BIT = $d5
 
 ; Dedicated 32-byte zero-page candidate list, separate from math scratch.
 CANDIDATES = $d8
+; Current course in pixels, written by decode_course: four low bytes,
+; then the matching high bytes ($fd and $ff stay zero).
+COURSE_POS_LO = $f8
+COURSE_START_X = $f8
+COURSE_START_Y = $f9
+COURSE_CUP_X = $fa
+COURSE_CUP_Y = $fb
+COURSE_POS_HI = $fc
+COURSE_START_X_HI = $fc
+COURSE_CUP_X_HI = $fe
+COURSE_CUP_HALF_X = $aa   ; cup x / 2 for the byte broadphase
+SEGMENT_BYTES = $ab       ; 5 * segment count
 STEP_X = $70              ; signed Q8.8 residual displacement
 STEP_Y = $72
 REMAINING_TIME = $78       ; Q0.8, 256 = complete frame
@@ -118,6 +130,17 @@ M_DEN = $c0              ; 24-bit positive denominator
 M_QUOT = $c3             ; 16-bit division/sqrt result
 M_TRIAL = $c5            ; 24-bit sqrt trial
 M_COUNT = $c8
+; decode_course scratch shares math scratch; decoding precedes physics.
+DECODE_X = M_A            ; current vertex, 2px units
+DECODE_Y = M_A + 1
+DECODE_SX = M_B           ; segment start
+DECODE_SY = M_B + 1
+DECODE_DIR = M_PRODUCT    ; current segment direction, $ff = none
+DECODE_PREV = M_PRODUCT + 1
+DECODE_SIDE = M_PRODUCT + 2 ; $80 = normal is direction + 2
+DECODE_RUNS = M_PRODUCT + 3
+DECODE_CONTOURS = M_SIGN
+DECODE_LENGTH = M_COUNT
 
 BALL_RADIUS = 512
 DIAGONAL_RADIUS = 725       ; ceil(2 * sqrt(2) * 256), never inside the wall
@@ -132,12 +155,14 @@ KEY_PAUSE = 16
 KEY_SHOT = 32
 
 RELOCATOR_BASE = $0100        ; boot only; overwritten by volatile buffers
-; Measured call depth is 12 bytes; $01c0-$01ff stay reserved for the stack.
+MAX_SEGMENTS = 32
+course_segments = $0100       ; decoded: x1/2, y1/2, x2/2, y2/2, flags
 MAX_DYNAMIC_BYTES = 18
-DYNAMIC_LO = $0100           ; three arrays of 18 bytes; restore in reverse
-DYNAMIC_HI = $0112
-DYNAMIC_OLD = $0124
-STACK_FLOOR = $01c0
+DYNAMIC_LO = $01a0           ; three arrays of 18 bytes; restore in reverse
+DYNAMIC_HI = $01b2
+DYNAMIC_OLD = $01c4
+; Measured call depth is 12 bytes; $01d6-$01ff stay reserved for the stack.
+STACK_FLOOR = $01d6
 RUNTIME_BASE = $0200
 RUNTIME_LIMIT = $1800
 LUMINANCE_BASE = $1800

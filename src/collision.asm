@@ -88,7 +88,7 @@ collect_skip:
     lda SEG_OFFSET
     adc #5
     sta SEG_OFFSET
-    cmp #COURSE_SEGMENT_COUNT * 5
+    cmp SEGMENT_BYTES
     bcc collect_next
     rts
 
@@ -894,11 +894,11 @@ test_cup:
     lda #0
     sta POINT_X
     sta POINT_Y
-    lda #<CUP_X
+    lda COURSE_CUP_X
     sta POINT_X + 1
-    lda #>CUP_X
+    lda COURSE_CUP_X_HI
     sta POINT_X + 2
-    lda #CUP_Y
+    lda COURSE_CUP_Y
     sta POINT_Y + 1
     lda #9                    ; (3 * 256)^2
     sta RADIUS_SQUARED + 2
