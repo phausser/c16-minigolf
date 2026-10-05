@@ -171,7 +171,12 @@ Für Frequenzwert N gilt ungefähr f = 110840,45/(1024−N) Hz bei PAL,
 Wichtig für Hi-Res: Sound darf beim Schreiben von $FF12 nur Bits 0–1
 ändern; Bitmap- und ROM/RAM-Auswahl bleiben erhalten. Dafür verwendet das
 spätere Soundmodul einen gemeinsamen Register-Schatten mit der Grafik.
-Der aktuelle Start schaltet Sound über $FF11=0 aus.
+Der Start schaltet Sound über $FF11=0 aus. Das Soundmodul
+(src/sound.asm) nutzt nur Stimme 2: ein Steuerbyte geht nach $FF10
+(Bits 0–1 Frequenz) und nach $FF11 (Bit 3 gesetzt: volle Lautstärke,
+Bit 5 Rechteck, Bit 6 Rauschen); $FF12 wird nie geschrieben. VICE-Aufnahme
+(2026-10-05, `-sounddev wav`): Schlag und Bandentreffer als getrennte
+Tonstöße nachgewiesen.
 
 $FF07 Bit 6 wählt NTSC (1) oder PAL (0). Eine Moduserkennung muss **vor**
 der Videoinitialisierung erfolgen: diese setzt derzeit ausdrücklich PAL.
