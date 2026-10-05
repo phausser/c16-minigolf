@@ -141,28 +141,23 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(bus[S['RUNTIME_BASE']:S['RUNTIME_BASE']+len(expected)], list(expected))
 
     def test_video_registers_attributes_and_clear(self):
-        renderer = self.r.bus[0x3a40:0x3b80]
-        wide = self.r.bus[0x3cc0:0x3e00]
+        hidden = self.r.bus[0x3a40:0x3e00]
         startup = self.r.bus[0x3f40:0x4000]
         lookup = self.r.bus[S['lookup_image']:S['lookup_image']+320]
         self.r.bus[0x1800:0x4000] = [255]*(0x4000-0x1800)
-        self.r.bus[0x3a40:0x3b80] = renderer
-        self.r.bus[0x3cc0:0x3e00] = wide
+        self.r.bus[0x3a40:0x3e00] = hidden
         self.r.bus[0x3f40:0x4000] = startup
         self.r.bus[S['lookup_image']:S['lookup_image']+320] = lookup
         self.r.call('initialise_video')
         luma, colors = [7]*1024,[16]*1024
-        luma[840:880] = colors[840:880] = [0]*40
+        luma[840:960] = colors[840:960] = [0]*120
         luma[:40] = colors[:40] = [0]*40
-        luma[920:960] = colors[920:960] = [0]*40
         self.assertEqual(self.r.bus[0x1800:0x1c00], luma)
         self.assertEqual(self.r.bus[0x1c00:0x2000], colors)
         self.assertEqual(self.r.bus[0x2000:0x2140],lookup)
         self.assertEqual(self.r.bus[0x2140:0x3a40], [255]*6400)
-        self.assertEqual(self.r.bus[0x3b80:0x3cc0], [0]*320)
         self.assertEqual(self.r.bus[0x3e00:0x3f40], [0]*320)
-        self.assertEqual(self.r.bus[0x3cc0:0x3e00],wide)
-        self.assertEqual(self.r.bus[0x3a40:0x3b80],renderer)
+        self.assertEqual(self.r.bus[0x3a40:0x3e00],hidden)
         self.assertEqual(self.r.bus[0x3f40:0x4000],startup)
         self.assertEqual(self.r.bus[0xff06], 0x0b)
         self.assertEqual(self.r.bus[0xff07], 8)
@@ -214,7 +209,6 @@ class HardwareTests(unittest.TestCase):
             y = cy+round(math.sin(i*math.tau/32)*5)
             expected[bitmap_offset(x,y)] |= 128 >> (x%8)
         self.assertEqual(bytes(self.r.bus[0x2140:0x3a40]), expected[320:6720])
-        self.assertEqual(bytes(self.r.bus[0x3b80:0x3cc0]), expected[7040:7360])
         self.assertEqual(bytes(self.r.bus[0x3e00:0x3f40]), expected[7680:])
 
     def test_markers_restore_floor_and_boundary_cells_without_recoloring(self):
@@ -412,6 +406,31 @@ class HardwareTests(unittest.TestCase):
         self.tick(32)
         self.tick(32)
         self.assertEqual(self.r.get('CHARGING'),1)
+
+    def test_frame_stack_stays_above_volatile_buffers(self):
+        # Each call pushes the return address exactly like main_loop's JSR.
+        lowest = [255]
+        step = self.r.cpu.step
+        def tracked_step():
+            step()
+            lowest[0] = min(lowest[0], self.r.cpu.sp)
+        self.r.cpu.step = tracked_step
+        for label in ('initialise_video','draw_course','draw_static_hud',
+                      'draw_dynamic','draw_power'):
+            self.r.call(label)
+        frame = ('scan_keyboard','debounce_keyboard','apply_controls',
+                 'physics_tick','restore_dynamic','draw_dynamic','draw_power')
+        for angle in (0,40,88):
+            self.r.call('initialise_state')
+            self.r.put('ANGLE', angle)
+            self.r.put('POWER', 32)
+            self.r.call('start_shot')
+            for _ in range(60):
+                for label in frame:
+                    self.r.call(label)
+        depth = 255-lowest[0]
+        self.assertLessEqual(depth, 32, depth)
+        self.assertGreaterEqual(0x100+lowest[0]-32, S['STACK_FLOOR'])
 
     def test_glyph_cell_above_255_and_hud_stays_outside_course(self):
         self.r.bus[0x2000:0x4000] = [0x55]*8192

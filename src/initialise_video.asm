@@ -56,17 +56,18 @@ video_clear_page:
     inc BITMAP_PTR + 1
     dex
     bne video_clear_page
-    ; The static renderer lives in hidden row 21 ($3a40-$3b7f).
+    ; Hidden code rows 21-23 ($3a40-$3dff) and lookup row 0.
     ; Fixed black/black attributes hide instruction bits without multicolor.
-    ldx #39
+    ldx #119
     lda #0
 video_hide_code:
-    sta LUMINANCE_BASE,x
-    sta COLOR_BASE,x
     sta LUMINANCE_BASE + 21*40,x
     sta COLOR_BASE + 21*40,x
-    sta LUMINANCE_BASE + 23*40,x
-    sta COLOR_BASE + 23*40,x
+    cpx #40
+    bcs video_hide_next
+    sta LUMINANCE_BASE,x
+    sta COLOR_BASE,x
+video_hide_next:
     dex
     bpl video_hide_code
     jmp clear_hud_bitmap

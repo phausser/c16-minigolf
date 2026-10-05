@@ -131,14 +131,15 @@ KEY_DOWN = 8
 KEY_PAUSE = 16
 KEY_SHOT = 32
 
-RELOCATOR_BASE = $0100
-RUNTIME_BASE = $0200
-RUNTIME_LIMIT = $17ca
+RELOCATOR_BASE = $0100        ; boot only; overwritten by volatile buffers
+; Measured call depth is 12 bytes; $01c0-$01ff stay reserved for the stack.
 MAX_DYNAMIC_BYTES = 18
-DYNAMIC_LO = $17ca           ; three arrays of 18 bytes; restore in reverse
-DYNAMIC_HI = $17dc
-DYNAMIC_OLD = $17ee
-SCRATCH_END = $1800
+DYNAMIC_LO = $0100           ; three arrays of 18 bytes; restore in reverse
+DYNAMIC_HI = $0112
+DYNAMIC_OLD = $0124
+STACK_FLOOR = $01c0
+RUNTIME_BASE = $0200
+RUNTIME_LIMIT = $1800
 LUMINANCE_BASE = $1800
 COLOR_BASE = $1c00
 BITMAP_BASE = $2000

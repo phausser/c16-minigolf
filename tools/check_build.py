@@ -18,8 +18,9 @@ def check():
     load = int.from_bytes(prg[:2], 'little')
     assert load == 0x1001 and s['loader'] == 4109, 'BASIC SYS entry mismatch'
     assert s['RELOCATOR_BASE'] <= s['relocate'] < s['relocator_end'] <= s['RUNTIME_BASE']
-    assert s['runtime_end'] <= s['RUNTIME_LIMIT'] <= s['DYNAMIC_LO']
-    assert s['DYNAMIC_OLD']+s['MAX_DYNAMIC_BYTES'] <= s['SCRATCH_END'] == s['LUMINANCE_BASE']
+    assert s['runtime_end'] <= s['RUNTIME_LIMIT'] == s['LUMINANCE_BASE']
+    assert s['relocator_end'] <= s['STACK_FLOOR']
+    assert s['DYNAMIC_OLD']+s['MAX_DYNAMIC_BYTES'] <= s['STACK_FLOOR']
     assert load+len(prg)-2 == s['load_end'] <= 0x4000
     assert s['payload_image'] >= s['RUNTIME_BASE']+s['relocator_end']-s['RELOCATOR_BASE']
     assert s['payload_end']-s['payload_image'] == s['runtime_end']-s['RUNTIME_BASE']
@@ -28,16 +29,18 @@ def check():
         'runtime_start': s['RUNTIME_BASE'], 'runtime_end_exclusive': s['runtime_end'],
         'runtime_bytes': s['runtime_end']-s['RUNTIME_BASE'],
         'runtime_free_bytes': s['RUNTIME_LIMIT']-s['runtime_end'],
-        'renderer_scratch_reserved_bytes': s['SCRATCH_END']-s['DYNAMIC_LO'],
+        'stack_page_buffer_bytes': s['DYNAMIC_OLD']+s['MAX_DYNAMIC_BYTES']-s['DYNAMIC_LO'],
+        'stack_page_free_bytes': s['STACK_FLOOR']-s['DYNAMIC_OLD']-s['MAX_DYNAMIC_BYTES'],
+        'stack_reserved_bytes': 0x200-s['STACK_FLOOR'],
         'attribute_bytes': 2048,
-        'hidden_row_renderer_bytes': s['course_renderer_end']-0x3a40,
-        'hidden_hud_math_bytes': s['wide_math_end']-0x3cc0,
+        'hidden_rows_code_bytes': s['hidden_rows_end']-0x3a40,
+        'hidden_rows_free_bytes': 0x3e00-s['hidden_rows_end'],
         'bitmap_tail_init_bytes': s['circle_diagonal_guard']-0x3f40,
         'bitmap_tail_guard_bytes': s['load_end']-s['circle_diagonal_guard'],
         'bitmap_reserved_bytes': 8192,
     }
     (ROOT/'build/memory.json').write_text(json.dumps(report, indent=2)+'\n')
-    print(f"Runtime: {report['runtime_bytes']} bytes, {report['runtime_free_bytes']} bytes free before scratch; PRG: {len(prg)} bytes")
+    print(f"Runtime: {report['runtime_bytes']} bytes, {report['runtime_free_bytes']} bytes free before attributes; PRG: {len(prg)} bytes")
 
 
 if __name__ == '__main__':

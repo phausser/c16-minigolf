@@ -202,3 +202,21 @@ Neue Szenarien Ecke124,84 / schräg124,83 / flach123,84, Engstelle160,80.
 Profil-Szenarien angepasst. Keine Physikbeschleunigung behaupten, da Kurs und
 HUD geändert. Speicherarchitektur und kompakter ACME-Decoder bleiben nächste
 Arbeit; 18-Geometrien-Schätzung702,505 fehlen plus Decoder/Metadaten.
+
+## Speicherarchitektur, Phase A/B (2026-10-05)
+
+Zeile 22 (frühere Bedienhilfe) ist jetzt schwarz/schwarz versteckt; Zeilen
+21–23 bilden einen Codeblock $3A40–$3DFF mit Renderer, weiter Mathematik,
+Normierung und Eingabemodul (873/960 Bytes). clear_hud_bitmap löscht nur
+noch Zeile 24. Die drei DYNAMIC-Arrays liegen in $0100–$0135 (Kopierer wird
+nur beim Start gebraucht), Stack ab $01C0 reserviert, gemessene Tiefe
+12 Bytes, Test erzwingt höchstens 32. RUNTIME_LIMIT = $1800.
+Runtime 5097 Bytes, 535 frei (vorher 197); dazu 138 Bytes Stackseite für
+flüchtige Puffer (z. B. entpackte aktuelle Bahn) und 87 versteckte Bytes.
+48 Tests, VICE-Grafik und Joystick bestehen; Bild unverändert. Physik
+38821 > 32000 Ticks weiter offen. make budget: Geometrie allein braucht noch
+167 Bytes plus Decoder/Metadaten.
+Nächste Reserve: Spalten 0 und 39 liegen laut SPEC außerhalb des Spielfelds
+(x 8…311). Je Zeile ergeben Spalte 39 von Zeile r und Spalte 0 von r+1
+16 zusammenhängende Bytes (19 Blöcke), $3A38–$3A3F verlängert den versteckten
+Block. Dafür Löschroutine, Klassifizierung und Attributschwärzung anpassen.

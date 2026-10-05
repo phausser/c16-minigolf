@@ -79,10 +79,8 @@ def main():
     assert 'ERROR' not in text and 'not a valid checkpoint' not in text, log
     attrs = Path(f'{prefix}-attributes.bin').read_bytes()
     expected_attrs = bytearray(bytes([7])*1024+bytes([16])*1024)
-    expected_attrs[840:880] = bytes(40)
-    expected_attrs[1024+840:1024+880] = bytes(40)
-    expected_attrs[920:960] = bytes(40)
-    expected_attrs[1024+920:1024+960] = bytes(40)
+    expected_attrs[840:960] = bytes(120)
+    expected_attrs[1024+840:1024+960] = bytes(120)
     expected_attrs[:40] = bytes(40)
     expected_attrs[1024:1024+40] = bytes(40)
     course = json.loads((ROOT/'assets/test-course.json').read_text())

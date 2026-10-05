@@ -14,20 +14,20 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 
 | Bereich | Verwendung |
 |---|---|
-| $0200–$1704 | Laufzeitcode und Daten: 5381 Bytes |
-| $1705–$17C9 | 197 freie Bytes |
-| $17CA–$17FF | 54 Bytes Hintergrundrestaurierung |
+| $0100–$0135 | 54 Bytes Hintergrundrestaurierung (nach dem Start; vorher Kopierer) |
+| $0136–$01BF | 138 freie Bytes für flüchtige Puffer |
+| $01C0–$01FF | Stack, 64 Bytes reserviert; gemessene Tiefe 12 Bytes |
+| $0200–$15E8 | Laufzeitcode und Daten: 5097 Bytes |
+| $15E9–$17FF | 535 freie Bytes |
 | $1800–$1FFF | TED-Luminanz und Farbe |
 | $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
 | $2140–$3A3F | Sichtbares Spielfeld |
-| $3A40–$3B7F | Unsichtbare Trennzeile: statischer Bahnzeichner mit Zellklassifizierung, 287 Bytes |
-| $3B80–$3CBF | Bedienhilfe, HUD-Zeile 22 |
-| $3CC0–$3DFF | Unsichtbare HUD-Zeile: weite Mathematik und Komponentennormierung, 308 Bytes |
-| $3E00–$3F3F | Stärke/Status, HUD-Zeile 24 |
+| $3A40–$3DFF | Unsichtbare Zeilen 21–23: Bahnzeichner, weite Mathematik, Normierung, Eingabe; 873 Bytes, 87 frei |
+| $3E00–$3F3F | Stärke, HUD-Zeile 24 |
 | $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 140 Bytes und Diagonal-Guard 42 Bytes |
 
-Die drei versteckten Bitmap-Zeilen haben identische schwarze Vorder- und
-Hintergrundfarbe. Zeichner und Clear-Routinen schützen diese Bereiche.
+Die vier versteckten Bitmap-Zeilen (0, 21–23) haben identische schwarze
+Vorder- und Hintergrundfarbe. Zeichner und Clear-Routinen schützen diese Bereiche.
 Der Loader transportiert die oberen Tabellen zunächst ab $3000; die
 Initialisierung installiert sie vor dem Löschen der sichtbaren Bitmap.
 Zero Page enthält Zustand, temporäre Mathematik und die 32-Byte-
@@ -66,9 +66,9 @@ zehn Bitmap-Bytes und acht Zielpunkte sichern Adresse und ursprünglichen
 Bytewert. Rückwärtsrestaurierung erhält überlappende Ball-/Ziel-/Wandbytes.
 Alle acht horizontalen Pixel-Ausrichtungen, x=255/256 und die rechte
 Bildkante sind gegen ein unabhängiges Pixelbild geprüft. Die Form und
-Subpixel-Rundung sind identisch zur vorherigen Darstellung. Die Bedienhilfe
-steht jetzt in Zeile 22; die vorherige Titelzeile entfällt zugunsten des
-Mathematikbereichs. Stärke und Status bleiben in Zeile 24.
+Subpixel-Rundung sind identisch zur vorherigen Darstellung. Bedienhilfe und
+Titelzeile entfallen; Zeile 22 ist jetzt versteckter Codebereich. Die Stärke
+steht allein in Zeile 24.
 
 Tastaturmatrix: A=(1,2), D=(2,2), W=(1,1), S=(1,5), P=(5,1),
 SPACE=(7,4). $FD30 wählt aktive niedrige Zeilen, $FF08 liest Spalten.
