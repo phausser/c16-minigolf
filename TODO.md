@@ -67,6 +67,21 @@ Laufzeitabnahme bestanden: 30173 ≤ 32000 PAL-Ticks
 auf der veränderten Testbahn. Historische Physik-Replays verwenden ihre
 ursprüngliche Geometrie in fixtures/course-before-cell-grid.json.
 
+### Nächster großer Schritt: Textmodus (geplant 2026-10-05)
+
+Plan: [docs/textmode-plan.md](docs/textmode-plan.md). Machbarkeit gemessen
+(`tools/textmode_census.py`): keine Zelle braucht zwei Farben ohne Schwarz,
+höchstens 25 statische Zeichen je Bahn. Erwarteter Gewinn ~5,5 KB RAM.
+
+- [ ] Entscheidung in der SPEC festhalten.
+- [ ] Referenzbilder aller Bahnen sichern; Test-Helfer Text → Pixel.
+- [ ] Speicherumbau ohne versteckte Bitmap-Bereiche.
+- [ ] Statischer Renderer auf Zeichen, mit Zeichenbudget.
+- [ ] HUD auf Zeichen.
+- [ ] Ball und Zielpunkte über dynamische Zeichen.
+- [ ] VICE-Smoke, Joystick-Test, Zeitbudget, Screenshot.
+- [ ] Editor/Generator: Zeichenzahl je Bahn.
+
 ### Nächste Umsetzung innerhalb von Schritt 2
 
 `make profile` misst jetzt die Teilkosten der drei Eckenszenarien. Der

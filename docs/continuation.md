@@ -306,3 +306,17 @@ bis zur Zellkante, Schrägkopien an den Enden auf die Rahmenbreite gekappt
 Joystick bestanden. Runtime 5264 Bytes, 368 frei; versteckte Zeilen 876/960.
 Nächster Schritt: Speicher für Par-Werte/Ergebnisse und 17 weitere Bahnen
 (make budget: 302 Bytes fehlen bei Testbahn-Größe), dann Kontakt-Grenzfälle.
+
+## Stand 2026-10-05 abends
+
+Spielbar: 18 Bahnen (Entwürfe, nicht spielgetestet), Wasser, Wertung,
+Schlaglimit, Endanzeige, Sound (Stimme 2), Bahneditor (`make editor`),
+`make play HOLE=n`. Spiel-Build hat 20 Bytes frei; Testläufe und VICE-
+Messungen nutzen `build/minigolf-test.prg` (Testbahn), schlechtester Frame
+31269/32000 Ticks. 60 Tests bestehen.
+
+Nächster Schritt laut Nutzer: Umstieg auf den Textmodus nach
+[textmode-plan.md](textmode-plan.md); mit Schritt 1 (Entscheidung in der
+SPEC) und 2 (Referenzbilder sichern, Text→Pixel-Helfer) beginnen.
+Bildschirm verkleinern (Zeile 20) bleibt die letzte Option und ist damit
+vorerst vom Tisch. Eigener Zeichensatz ist zurückgestellt.
