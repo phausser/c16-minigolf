@@ -93,28 +93,33 @@ Der Kreis-Sweep sucht Kontaktzeitbits mit exakten 24-Bit-Positionen
 (Q8.16). Additionen ersetzen die wiederholten Bruchmultiplikationen, ohne
 das Ergebnis zu vergröbern. Zusätzliche Tests vergleichen zufällige
 Streifkontakte mit einer unabhängigen diskreten Geometrie-Referenz.
-Ein spezieller Einheitvektor-Multiplizierer und eine verkürzte exakte
-Geschwindigkeitswurzel sparen weitere Zyklen. Die Hauptschleife synchronisiert an Rasterzeile 205. Gemessener PAL-Abstand:
-35573 Ticks; teuerster Ziel-/HUD-Redraw: 16751 Ticks.
+Abpraller spiegeln den Einheitsvektor direkt und ziehen den Verlust von
+SPEED ab; Wurzel und Divisionen nach einem Kontakt entfallen. Die Kreis-
+Bitsuche endet bei 1/16 Frame. Die Hauptschleife synchronisiert an
+Rasterzeile 205. Gemessener PAL-Abstand: 35568 Ticks; teuerster Ziel-/HUD-
+Redraw: 6508 Ticks. Stand 2026-10-05, Schuss-Frame jeweils inklusive Start
+des Schlags, HUD-Balken und Ball neu zeichnen:
 
 | Bewegungsszenario, höchste Stärke | Schlechtester Frame, TED-Ticks |
 |---|---:|
-| Gerade | 6445 |
-| Senkrechte Bande | 9558 |
-| 45°-Bande | 14045 |
-| Radiale Diagonalecke | 25880 |
-| Doppelkontakt in Ecke | 23038 |
-| Engstelle | 6515 |
-| Schräger Eckanflug | 40247 |
-| Flacher Eckanflug | 36550 |
+| Gerade | 4020 |
+| Senkrechte Bande | 7334 |
+| 45°-Bande | 7146 |
+| Radiale Diagonalecke (Winkel 16) | 19560 |
+| Doppelkontakt in Ecke | 16449 |
+| Engstelle | 4121 |
+| Schräger Eckanflug (Winkel 17) | 22182 |
+| Flacher Eckanflug (Winkel 14) | 18822 |
+| Schräger Eckanflug, Winkel 100 | 29817 |
+| Flacher Eckanflug, Winkel 102 | 24953 |
+| Radiale Ecke, Winkel 100 | 28294 |
+| Radiale Ecke, Winkel 12 | 30173 |
 
-**Die Framebudget-Abnahme scheitert.** Eckentreffer überschreiten ein
-PAL-Bild. Die Physik bleibt
-reproduzierbar, läuft bei diesen Spitzen aber langsamer als die beabsichtigte
-50-Hz-Zeitbasis. `make smoke` meldet dies als Fehler und schreibt auch bei
-Überschreitung `build/timing.json`. Die Grenze wird nicht gelockert. Vor
-Bahnproduktion und Effekten müssen diese Spitzen sowie der RAM-Verbrauch
-reduziert werden. Die geprüften Einlochgrenzfälle umfassen jetzt den Start innerhalb des
+**Die Framebudget-Abnahme besteht** (Grenze 32000 Ticks, 1827 Reserve).
+Die zusätzlichen Winkel sind die teuersten eines py65-Sweeps über alle
+128 Richtungen an den acht Startpunkten. Das ist kein Beweis für jede
+mögliche Position; weitere Bahnen müssen erneut gemessen werden.
+Die geprüften Einlochgrenzfälle umfassen jetzt den Start innerhalb des
 Fangradius und die reduzierte Geschwindigkeit unmittelbar nach einem
 Abpraller. Die Wand-Gap-Toleranz von 2/256 Pixel ist gegen ein und zwei
 Einheiten Überlappung geprüft. Gleichzeitige Kontakte und weitere

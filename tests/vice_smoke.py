@@ -49,6 +49,9 @@ def main():
         ('diagonal-wall',292,40,0), ('rounded-corner',124,84,16),
         ('double-corner',18.5,26.5,80), ('neck',160,80,0),
         ('oblique-corner',124,83,17), ('shallow-corner',123,84,14),
+        # Most expensive angles of a py65 sweep over all 128 directions.
+        ('oblique-corner-100',124,83,100), ('shallow-corner-102',123,84,102),
+        ('rounded-corner-100',124,84,100), ('rounded-corner-12',124,84,12),
     ]
     for index,(name,x,y,angle) in enumerate(shot_cases):
         commands += [f"until ${s['apply_controls']:04x}",

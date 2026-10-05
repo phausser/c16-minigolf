@@ -11,8 +11,8 @@ from test_runtime import Runtime, S
 ROUTINES = ('physics_tick', 'collect_candidates', 'find_first_contact', 'try_line',
             'try_circle', 'square_circle', 'square_q', 'square_small', 'multiply_signed',
             'multiply_unit', 'multiply_fraction', 'divide_fraction',
-            'circle_at_trial', 'reflect_velocity', 'normalize_velocity',
-            'sqrt_speed', 'normalize_component', 'displacement_at_t')
+            'circle_at_trial', 'reflect_unit', 'reflect_speed_loss',
+            'velocity_from_unit', 'displacement_at_t')
 NAMES = {S[name]:name for name in ROUTINES}
 
 

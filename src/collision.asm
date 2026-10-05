@@ -646,8 +646,12 @@ circle_save_outside:
     dex
     bpl circle_save_outside
 circle_next_bit:
+    ; Stop at 1/16 frame: at most 4 px per frame leaves a gap <= 1/4 px,
+    ; and the result is still the last tested position outside the circle.
     lsr CIRCLE_BIT
-    bne circle_bit_search
+    lda CIRCLE_BIT
+    cmp #CIRCLE_MIN_BIT
+    bcs circle_bit_search
     ; CIRCLE_OUT holds the last outside time exactly: its high 16 bits are
     ; SAVED + floor(STEP * t / 256), identical to circle_at_trial at t.
     ; Without a found bit it is the frame-origin offset at t = 0.
@@ -656,16 +660,29 @@ circle_next_bit:
     +copy16 CIRCLE_OUT + 1, TRIAL_X
     +copy16 CIRCLE_OUT + 4, TRIAL_Y
 circle_entry_outside:
-    +copy16 TRIAL_X, NX
-    +copy16 TRIAL_Y, NY
-    lda NX + 1
-    asl
-    ror NX + 1
-    ror NX
-    lda NY + 1
-    asl
-    ror NY + 1
-    ror NY
+    ; n = Q * 127/256 = Q/2 - Q/256 in Q1.8. The last outside offset has
+    ; |Q| < 516, so |n| < 1: a reflection about it cannot gain speed.
+    ldx #2
+circle_normal:
+    lda TRIAL_X + 1,x
+    cmp #$80
+    ror
+    sta NX + 1,x
+    lda TRIAL_X,x
+    ror
+    sec
+    sbc TRIAL_X + 1,x
+    sta NX,x
+    lda NX + 1,x
+    sbc #0
+    sta NX + 1,x
+    lda TRIAL_X + 1,x
+    bpl circle_normal_next
+    inc NX + 1,x              ; minus sign extension $ff
+circle_normal_next:
+    dex
+    dex
+    bpl circle_normal
     jmp record_contact
 circle_no_contact:
     clc

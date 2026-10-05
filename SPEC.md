@@ -66,7 +66,7 @@ Kollision basiert auf geometrischen Daten, niemals auf Bildschirm-Pixeln. Der Ba
 
 Ein kontinuierlicher Sweep prüft den vollständigen Frame-Weg von höchstens 4 Pixeln. Er bestimmt die früheste Berührung entlang des Bewegungsweges: Kreis gegen Segment einschließlich Endpunkt. Zeit des Kontakts, verbleibende Bewegung und Rundungsregeln sind Teil der Implementierung, damit der Ball keine Wand durchquert.
 
-Reflexion am Kontakt: v' = v − (1 + e) · (v · n) · n. Einheitliche, leicht verlustbehaftete Bande mit vorläufig e = 15/16; kein künstlicher seitlicher Schub. Kontakt nur auflösen, wenn die Geschwindigkeit in die Fläche zeigt. Segmentenden werden als Kreis-Punkt-Kontakt behandelt; bloßes Spiegeln beider Achsen ist dort unzulässig.
+Reflexion am Kontakt (Laufzeitmodell seit 2026-10-05): Der Einheitsvektor wird gespiegelt, u' = u − 2 · (u · n) · n; der Banden-Verlust wirkt auf den Betrag: SPEED −= SPEED · (u · n)² · 31/512 + SPEED/128 + 1. Das nähert e = 15/16 auf der Normalkomponente; der kleine Zusatz ist Kontaktreibung und schließt Energiegewinn durch Rundung aus. Achsen- und 45°-Banden spiegeln exakt (Vorzeichen bzw. Komponententausch); Eckennormalen haben |n| ≤ 1. Kein künstlicher seitlicher Schub. Kontakt nur auflösen, wenn die Geschwindigkeit in die Fläche zeigt. Segmentenden werden als Kreis-Punkt-Kontakt behandelt; bloßes Spiegeln beider Achsen ist dort unzulässig.
 
 Gleichzeitige Kontakte erhalten eine stabile Reihenfolge und eine gemeinsame Auflösung ohne Energiegewinn. Ein kleines fest definiertes Abstandsepsilon verhindert Wiederkollision durch Rundungsreste. Maximal vier Kontaktauflösungen pro Simulationsschritt. Bei ausgeschöpftem Limit wird die Restbewegung verworfen, kein Durchtritt erlaubt; dieser Fall muss im Test sichtbar werden und darf in freigegebenen Bahnen nicht auftreten.
 
@@ -169,14 +169,15 @@ Kontaktzeiten haben acht Nachkommabits; bei maximaler Geschwindigkeit
 entspricht eine Zeiteinheit höchstens 1/64 Pixel Weg. Kreis-Endpunkte
 verwenden eine Prüfung des nächsten Wegpunkts und anschließende Suche der Kontaktzeitbits
 mit exakten 24-Bit-Positionen (Q8.16), damit auch Streifkontakte mit beiden Wegenden außerhalb
-erkannt werden. Geradensegment-Projektionen rechnen mit 1/64-Pixel-Präzision.
+erkannt werden. Die Suche endet bei 1/16 Frame (CIRCLE_MIN_BIT = 16): Der Ball
+stoppt am letzten geprüften Punkt außerhalb, höchstens 1/4 Pixel vor der Ecke. Geradensegment-Projektionen rechnen mit 1/64-Pixel-Präzision.
 Gleichzeitige Kontakte werden nach stabiler Segmentreihenfolge aufgelöst.
 Die Kontaktgrenze zählt Überschreitungen und verwirft die Restbewegung.
 
 Der Prototyp erfüllt noch nicht sämtliche Abnahmekriterien: offene
 Kontaktgrenzfälle, 50-Hz-Worst-Case und Platz für alle 18 Bahnen stehen in
-TODO.md. Der umfangreiche Physikkern benötigt derzeit 5480 Runtime-Bytes;
-98 bleiben im Hauptbereich frei. Exakte Speicher- und Laufzeitmessungen
+TODO.md. Speicherstand und Laufzeit stehen in build/memory.json und
+build/timing.json. Exakte Speicher- und Laufzeitmessungen
 stehen in docs/hardware.md. Das 50-Hz-Ziel bleibt bestehen.
 
 ### Rundung, Optimierungen und kompakter Export
@@ -186,11 +187,10 @@ höchstens zwei Q8.8-Einheiten (2/256 Pixel auf Achsen) als Kontaktzeit null.
 Größere negative Abstände werden nicht durch diese Rundungstoleranz
 verdeckt. Bei Kreis-Sweeps bleibt der letzte äußere Wegpunkt maßgeblich.
 
-Für exakt diagonale Geschwindigkeiten wird der Betrag mit 362/256 ≈ √2
-berechnet. Die Abweichung zur exakten ganzzahligen Wurzel beträgt im
-legalen Geschwindigkeitsbereich höchstens eine Q8.8-Einheit nach unten;
-alle Vorzeichenkombinationen sind geprüft. Diagonalreflexion verwendet
-31/32·(vx±vy), entsprechend e=15/16. Der spezielle radiale Diagonalfall
+Nach einem Abprall gibt es keine Wurzel- oder Divisionsnormierung mehr:
+SPEED und UNIT werden direkt fortgeschrieben. Bei Achsen- und 45°-Banden
+spiegelt der Rest des Frames die alte Geschwindigkeit; ab dem nächsten
+Schritt gilt VELOCITY = SPEED · UNIT. Der spezielle radiale Diagonalfall
 bestimmt die erste innere ganzzahlige Kreisposition direkt und liefert
 denselben letzten äußeren Kontaktzeitpunkt wie die diskrete Geometrie.
 Alle anderen Endpunkte verwenden weiterhin den allgemeinen Sweep.

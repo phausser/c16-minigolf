@@ -48,58 +48,6 @@ negate_math_b:
     sta .target + 1
 }
 
-!macro root_shift {
-    asl M_PRODUCT
-    rol M_PRODUCT + 1
-    rol M_PRODUCT + 2
-    rol M_REM
-    rol M_REM + 1
-}
-; Exact restoring root for bounded speed squares: input < 2^22.
-; The 11-bit root keeps remainder and trial within 16 bits. Two initial
-; shifts put the first bit pair at the top of the 24-bit input.
-; M_PRODUCT, M_REM and M_TRIAL are clobbered; the root is M_QUOT.
-sqrt_speed:
-    asl M_PRODUCT
-    rol M_PRODUCT + 1
-    rol M_PRODUCT + 2
-    asl M_PRODUCT
-    rol M_PRODUCT + 1
-    rol M_PRODUCT + 2
-    lda #0
-    sta M_QUOT
-    sta M_QUOT + 1
-    sta M_REM
-    sta M_REM + 1
-    ldx #11
-sqrt_pair:
-    +root_shift
-    +root_shift
-    asl M_QUOT
-    rol M_QUOT + 1
-    ; Trial 4 * old root + 1 = 2 * shifted root + 1.
-    lda M_QUOT
-    asl
-    ora #1
-    sta M_TRIAL
-    lda M_QUOT + 1
-    rol
-    sta M_TRIAL + 1
-    sec
-    lda M_REM
-    sbc M_TRIAL
-    tay
-    lda M_REM + 1
-    sbc M_TRIAL + 1
-    bcc sqrt_next
-    sta M_REM + 1
-    sty M_REM
-    inc M_QUOT
-sqrt_next:
-    dex
-    bne sqrt_pair
-    rts
-
 ; Sum the two square products. QX/QY are unchanged.
 square_q:
     +copy16 QX, M_A
@@ -191,14 +139,22 @@ fraction_absolute:
     stx M_COUNT
     ldx M_A
     beq fraction_low_done
-    ldx #8
+    ldx #4
 fraction_multiply_bit:
     ; The running high byte stays in A; adc's carry is its ninth bit.
+    ; Two multiplier bits per pass halve the loop overhead.
     lsr M_B
     bcc fraction_no_add
     clc
     adc M_A
 fraction_no_add:
+    ror
+    ror M_PRODUCT
+    lsr M_B
+    bcc fraction_no_add_odd
+    clc
+    adc M_A
+fraction_no_add_odd:
     ror
     ror M_PRODUCT
     dex

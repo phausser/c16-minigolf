@@ -70,29 +70,6 @@ class ArithmeticTests(unittest.TestCase):
             self.r.call('multiply_unit')
             self.assertEqual(signed(self.r,'M_PRODUCT',4),a*b,(a,b))
 
-    def test_optimized_speed_root_is_exact(self):
-        rng = random.Random(264)
-        values = [0,1,65536,1048576,2097152,4194303]
-        values += [rng.randrange(4194304) for _ in range(200)]
-        values += [n for k in (1,2,255,256,1023,1024,2047) for n in (k*k-1,k*k,k*k+1)]
-        for value in values:
-            put(self.r,'M_PRODUCT',value,4)
-            self.r.call('sqrt_speed')
-            self.assertEqual(unsigned(self.r,'M_QUOT'),math.isqrt(value),value)
-
-    def test_diagonal_normalization_error_is_bounded_without_energy_gain(self):
-        for value in range(1,725):
-            for sx,sy in ((1,1),(-1,1),(1,-1),(-1,-1)):
-                put(self.r,'VELOCITY_X',sx*value)
-                put(self.r,'VELOCITY_Y',sy*value)
-                self.r.call('normalize_velocity')
-                exact = math.isqrt(2*value*value)
-                speed = unsigned(self.r,'SPEED')
-                self.assertLessEqual(speed,exact)
-                self.assertLessEqual(exact-speed,1)
-                self.assertEqual(signed(self.r,'UNIT_X'),sx*181)
-                self.assertEqual(signed(self.r,'UNIT_Y'),sy*181)
-
     def test_fraction_matches_exact_division(self):
         rng = random.Random(18)
         for den in [1,2,3,256,511,32767,32768,32769,65535,65536,0x600000,0x800000]+[rng.randrange(1,0x700000) for _ in range(60)]:
@@ -124,31 +101,65 @@ class ArithmeticTests(unittest.TestCase):
                 self.assertEqual(signed(self.r,'QX'),x)
                 self.assertEqual(signed(self.r,'QY'),y)
 
-    def test_cardinal_normalization_and_axis_restitution(self):
-        for axis, other, unit, other_unit, normal in (
-            ('VELOCITY_X', 'VELOCITY_Y', 'UNIT_X', 'UNIT_Y', 'NX'),
-            ('VELOCITY_Y', 'VELOCITY_X', 'UNIT_Y', 'UNIT_X', 'NY')):
-            for velocity in (-1024, -257, -256, -1, 1, 255, 256, 1024):
-                put(self.r, axis, velocity)
-                put(self.r, other, 0)
-                put(self.r, 'UNIT_X', 123)
-                put(self.r, 'UNIT_Y', 456)
-                self.r.call('normalize_velocity')
-                self.assertEqual(unsigned(self.r, 'SPEED'), abs(velocity))
-                self.assertEqual(signed(self.r, unit), 256 if velocity > 0 else -256)
-                self.assertEqual(signed(self.r, other_unit), 0)
-                put(self.r, 'NX', 0)
-                put(self.r, 'NY', 0)
-                put(self.r, normal, 256 if velocity < 0 else -256)
-                self.r.call('reflect_velocity')
-                self.assertEqual(signed(self.r, axis), velocity//16-velocity)
-                self.assertEqual(signed(self.r, other), 0)
+    def reflect(self, angle, nx, ny, speed=1024):
+        self.r.call('initialise_state')
+        put(self.r,'SPEED',speed)
+        self.r.put('ANGLE',angle)
+        self.r.put('POWER',32)
+        self.r.call('start_shot')
+        self.r.call('velocity_from_unit')
+        put(self.r,'SPEED',speed)
+        put(self.r,'NX',nx)
+        put(self.r,'NY',ny)
+        ux,uy = signed(self.r,'UNIT_X'),signed(self.r,'UNIT_Y')
+        self.r.call('reflect_unit')
+        return (ux,uy),(signed(self.r,'UNIT_X'),signed(self.r,'UNIT_Y')),unsigned(self.r,'SPEED')
+
+    def test_axis_reflection_mirrors_unit_exactly_and_loses_normal_speed(self):
+        for nx,ny in ((256,0),(-256,0),(0,256),(0,-256)):
+            for angle in range(0,128,3):
+                (ux,uy),(rx,ry),speed = self.reflect(angle,nx,ny)
+                d = (ux*nx+uy*ny)/65536
+                if d >= 0:
+                    continue
+                self.assertEqual((rx,ry),(-ux,uy) if nx else (ux,-uy),(angle,nx,ny))
+                expected = 1024*(1-d*d*31/512)-1024//128-1   # plus contact friction
+                self.assertLessEqual(abs(speed-expected),2,(angle,nx,ny,speed,expected))
+                # The frame remainder mirrors the old velocity (4 * unit).
+                self.assertEqual(signed(self.r,'VELOCITY_X'),4*rx)
+                self.assertEqual(signed(self.r,'VELOCITY_Y'),4*ry)
+
+    def test_reflection_never_gains_speed_and_follows_the_mirror(self):
+        normals = [(181,181),(-181,181),(181,-181),(-181,-181)]
+        # Corner normals come from offsets 512 <= |Q| < 516 scaled by 127/256.
+        for i in range(24):
+            a = i*math.tau/24
+            q = 512+i % 4
+            qx,qy = math.floor(q*math.cos(a)),math.floor(q*math.sin(a))
+            normals.append(((qx >> 1)-(qx >> 8),(qy >> 1)-(qy >> 8)))
+        for nx,ny in normals:
+            n = math.hypot(nx,ny)/256
+            self.assertLessEqual(n,1)
+            for angle in range(128):
+                (ux,uy),(rx,ry),speed = self.reflect(angle,nx,ny)
+                dot = (ux*nx+uy*ny)/65536
+                if dot >= 0:
+                    continue
+                self.assertLessEqual(speed,1024)
+                self.assertLessEqual(max(abs(rx),abs(ry)),256)
+                # Effective speed |SPEED * u| must not grow through rounding.
+                self.assertLessEqual(speed*math.hypot(rx,ry),1024*math.hypot(ux,uy),(nx,ny,angle))
+                ex = ux/256-2*dot*nx/256
+                ey = uy/256-2*dot*ny/256
+                error = abs((math.atan2(ry,rx)-math.atan2(ey,ex)+math.pi)%math.tau-math.pi)
+                self.assertLess(error,math.pi/180,(nx,ny,angle))
 
     def test_all_128_unit_vectors(self):
         for angle in range(128):
             self.r.put('ANGLE',angle)
             self.r.put('POWER',32)
             self.r.call('start_shot')
+            self.r.call('velocity_from_unit')
             vx,vy = signed(self.r,'VELOCITY_X'),signed(self.r,'VELOCITY_Y')
             self.assertLessEqual(abs(vx/256-4*math.cos(angle*math.tau/128)),1/128)
             self.assertLessEqual(abs(vy/256-4*math.sin(angle*math.tau/128)),1/128)
@@ -287,7 +298,7 @@ class MovementTests(unittest.TestCase):
         self.shoot(0,32)
         self.r.call('physics_tick')
         vx,vy = signed(self.r,'VELOCITY_X'),signed(self.r,'VELOCITY_Y')
-        expected = math.atan2(992,32)
+        expected = math.pi/2           # mirror of a rightward shot
         actual = math.atan2(vy,vx)
         self.assertLess(abs(actual-expected),math.pi/180,(vx,vy))
         self.assertGreater(vy,0)
@@ -318,7 +329,9 @@ class MovementTests(unittest.TestCase):
         t = self.r.get('BEST_T')/256
         y = point(self.r)[1]
         expected = (.5-math.sqrt(4-(y-100)**2))
-        self.assertLessEqual(abs(t-expected),.02,(t,expected))
+        # Last outside time at CIRCLE_MIN_BIT resolution, never after entry.
+        self.assertLessEqual(t,expected,(t,expected))
+        self.assertLessEqual(expected-t,S['CIRCLE_MIN_BIT']/256+.005,(t,expected))
 
     def test_slow_ball_already_inside_cup_is_caught_moving_away(self):
         isolate_segments(self.r,[])
@@ -338,7 +351,7 @@ class MovementTests(unittest.TestCase):
         self.assertEqual(self.r.get('HOLED'),1)
         self.assertEqual(self.r.get('CONTACT_LIMIT_HITS'),0)
 
-    def test_corner_replays_preserve_preoptimization_states(self):
+    def test_corner_replays_match_recorded_states(self):
         import json
         from pathlib import Path
         fixture = json.loads((Path(__file__).parent/'fixtures/corner-replays.json').read_text())
@@ -393,7 +406,11 @@ class MovementTests(unittest.TestCase):
             put(self.r,'RADIUS_SQUARED',512*512,4)
             self.r.call('try_circle')
             self.assertEqual(self.r.get('HIT'),1,(qx,qy,sx,sy))
-            self.assertLessEqual(abs(self.r.get('BEST_T')-(inside[0]-1)),1)
+            t = self.r.get('BEST_T')
+            step = S['CIRCLE_MIN_BIT']
+            self.assertLess(t,inside[0],(qx,qy,sx,sy,t))
+            self.assertGreaterEqual(t,inside[0]-step,(qx,qy,sx,sy,t))
+            self.assertGreaterEqual((qx+sx*t//256)**2+(qy+sy*t//256)**2,512*512)
             hits += 1
         self.assertGreater(hits,10)
 

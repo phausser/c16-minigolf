@@ -263,25 +263,50 @@ power_digits:
     lda TEMP
     jsr draw_glyph
 
+    ; Redraw only changed bar cells. Cells are contiguous in row 24 from
+    ; column 15; only glyph rows 2..4 are ever nonzero.
     lda POWER
     clc
     adc #1
     lsr
-    sta BAR_LEFT
-    lda #15
-    sta TEXT_COLUMN
-power_bar:
-    lda #' '
-    ldx BAR_LEFT
-    beq power_empty
-    dec BAR_LEFT
-    lda #'#'
-power_empty:
-    jsr draw_glyph
-    inc TEXT_COLUMN
-    lda TEXT_COLUMN
-    cmp #31
-    bne power_bar
+    sta BAR_LEFT              ; new length in cells
+    ldy #$7c
+    cmp BAR_FILLED
+    beq power_bar_done
+    bcs power_bar_grow
+    ldy #0                    ; erase BAR_LEFT .. BAR_FILLED-1
+    asl
+    asl
+    asl
+    tax
+    lda BAR_FILLED
+    jmp power_bar_end
+power_bar_grow:
+    lda BAR_FILLED            ; fill BAR_FILLED .. BAR_LEFT-1
+    asl
+    asl
+    asl
+    tax
+    lda BAR_LEFT
+power_bar_end:
+    asl
+    asl
+    asl
+    sta TEMP
+power_bar_cell:
+    tya
+    sta HUD_BAR + 2,x
+    sta HUD_BAR + 3,x
+    sta HUD_BAR + 4,x
+    txa
+    clc
+    adc #8
+    tax
+    cpx TEMP
+    bne power_bar_cell
+    lda BAR_LEFT
+    sta BAR_FILLED
+power_bar_done:
     rts
 
 draw_status:
@@ -302,14 +327,6 @@ text_done:
 
 ; A = ASCII 32..93; aligned bitmap glyphs overwrite only their own cell.
 draw_glyph:
-    cmp #'#'
-    bne glyph_rom
-    lda #<power_glyph
-    sta FONT_PTR
-    lda #>power_glyph
-    sta FONT_PTR + 1
-    jmp glyph_address
-glyph_rom:
     cmp #64
     bcc glyph_code
     and #63
@@ -365,8 +382,7 @@ wall_offsets_y:
 !byte 0,$ff,$ff,$ff,0,1,1,1
 hud_power:
 !text "KRAFT 00/32  [                ]",0
-power_glyph:
-!byte 0,0,$7c,$7c,$7c,0,0,0
+HUD_BAR = $3e00 + 15 * 8      ; bar cell rows 2..4 hold $7c when filled
 
 ball_row_shapes:
 !byte 0,1,1,1,0

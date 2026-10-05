@@ -255,3 +255,19 @@ mit 22619 Physikzyklen, dort zwei vollständige Kreis-Suchen (~4800 je).
 Grob: 32000 Ticks entsprechen ~18800 Physikzyklen; es fehlen ~3800.
 Runtime 5309 Bytes, 323 frei. Messskripte: Histogramm nach Label und
 Winkel-Sweep (nicht im Repo; profile_sweep.profile_call wiederverwenden).
+
+## Neue Abprallphysik und bestandenes Zeitbudget (2026-10-05)
+
+Nutzer hat Abweichung von der bitgenauen Physik erlaubt und testet das
+Spielgefühl selbst. reflect_unit spiegelt UNIT (Achse/45° exakt, sonst
+allgemein mit Klemmung auf ±256), SPEED-Verlust d²·31/512 + SPEED/128 + 1.
+normalize_velocity, sqrt_speed, normalize_component entfernt. Eckennormale
+n = Q/2 − Q/256 (|n| ≤ 1). Lochfang nutzt immer SPEED. Kreis-Bitsuche endet
+bei CIRCLE_MIN_BIT = 16 (≤ 1/4 px vor der Ecke). start_shot setzt VELOCITY
+nicht mehr (physics_tick tut es). Stärkebalken inkrementell (BAR_FILLED,
+nur Glyphzeilen 2–4), '#'-Glyph entfernt. multiply_fraction zweifach entrollt.
+corner-replays.json neu aufgezeichnet (Regressionsschutz, nicht mehr
+Vor-Optimierungs-Zustand). VICE: schlechtester Frame 30173/32000 Ticks
+inkl. Winkel 100/102/12 (Sweep-Spitzen); make smoke besteht. Runtime 4979
+Bytes, 653 frei. Offen: Nutzerurteil zum Abprallgefühl; dann 18-Bahnen-
+Speicher (Metadaten) und Kontakt-Grenzfälle.

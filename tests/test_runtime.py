@@ -468,6 +468,18 @@ class HardwareTests(unittest.TestCase):
         self.assertLessEqual(depth, 24, depth)
         self.assertGreaterEqual(0x100+lowest[0]-16, S['STACK_FLOOR'])
 
+    def test_incremental_power_bar_matches_full_redraw(self):
+        self.r.call('initialise_video')
+        self.r.call('draw_static_hud')
+        for power in (0,1,2,7,32,31,16,0,32,0,5,6,5,32):
+            self.r.put('POWER', power)
+            self.r.call('draw_power')
+            cells = (power+1)//2
+            for cell in range(16):
+                glyph = [0,0,0x7c,0x7c,0x7c,0,0,0] if cell < cells else [0]*8
+                address = 0x3e00+(15+cell)*8
+                self.assertEqual(self.r.bus[address:address+8], glyph, (power,cell))
+
     def test_glyph_cell_above_255_and_hud_stays_outside_course(self):
         self.r.bus[0x2000:0x4000] = [0x55]*8192
         self.r.put('TEXT_ROW', 24)

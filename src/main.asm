@@ -159,7 +159,6 @@ small_square_hi:
 !source "src/course_renderer.asm"
 course_renderer_end:
 !source "src/wide_math.asm"
-!source "src/normalize_component.asm"
 wide_math_end:
 !source "src/input.asm"
 hidden_rows_end:

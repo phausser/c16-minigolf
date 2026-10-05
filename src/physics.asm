@@ -92,7 +92,7 @@ shot_speed:
     sta ROLLING
     lda #2
     sta HUD_DIRTY
-    jmp velocity_from_unit
+    rts                       ; physics_tick derives VELOCITY in this frame
 
 velocity_from_unit:
     +copy16 SPEED, M_A
@@ -121,8 +121,6 @@ physics_branch_2:
     ; Contacts split time, not pixels; no endpoint sampling or tunneling.
     lda #1
     sta DIRTY
-    lda #0
-    sta CONTACT_CHANGED
 physics_substep:
     lda #0
     sta REMAINING_TIME
@@ -152,22 +150,7 @@ cup_distance_absolute:
     cmp #4
     bcs physics_wall
     ; Cup is another swept circle, considered only below catch speed.
-    lda CONTACT_CHANGED
-    beq physics_scalar_cup_speed
-    +copy16 VELOCITY_X, QX
-    +copy16 VELOCITY_Y, QY
-    jsr square_q
-    lda M_PRODUCT + 2
-    ora M_PRODUCT + 3
-    bne physics_wall
-    lda M_PRODUCT + 1
-    cmp #$90                 ; (0.75 * 256)^2 = $9000
-    bcc physics_cup_ready
-    bne physics_wall
-    lda M_PRODUCT
-    bne physics_wall
-    beq physics_cup_ready
-physics_scalar_cup_speed:
+    ; reflect_unit updates SPEED at once, so it is current after a bounce.
     lda SPEED + 1
     bne physics_wall
     lda SPEED
@@ -190,9 +173,7 @@ physics_hit:
     jsr accept_trial
     +copy16 BEST_NX, NX
     +copy16 BEST_NY, NY
-    jsr reflect_velocity
-    lda #1
-    sta CONTACT_CHANGED
+    jsr reflect_unit
     ; residual time *= (256 - contact fraction) / 256
     lda BEST_T
     beq physics_time_unchanged
@@ -211,10 +192,6 @@ physics_contact_limit:
     inc CONTACT_LIMIT_HITS
 physics_substep_done:
 physics_steps_finished:
-    lda CONTACT_CHANGED
-    beq physics_no_normalization
-    jsr normalize_velocity
-physics_no_normalization:
     ; Constant radial resistance preserves the unit direction. There is
     ; no independent x/y braking and no asymptotic never-ending creep.
     lda SPEED + 1
@@ -314,225 +291,209 @@ accept_x_high:
     +add16 BALL_POS_Y, TRIAL_Y, BALL_POS_Y
     rts
 
-; Generic normal reflection, restitution 15/16. NX/NY unit Q1.8.
-reflect_velocity:
-    lda NX
-    ora NX + 1
-    bne reflect_check_x
-    jmp reflect_axis_y
-reflect_check_x:
+; Mirror UNIT about the contact normal and take the restitution loss from
+; SPEED: e = 15/16 on the normal share gives |v'|/|v| ~= 1 - d^2 * 31/512
+; with d = u.n, plus a small contact friction. Axis and 45-degree walls
+; mirror UNIT and VELOCITY exactly; the frame remainder keeps the old speed
+; there, the next tick rebuilds VELOCITY from SPEED. Corner normals have
+; |n| <= 1, so |u| never grows; components are clamped to +/-256.
+reflect_unit:
     lda NY
     ora NY + 1
+    beq reflect_axis_x
+    lda NX
+    ora NX + 1
+    bne reflect_not_axis
+    ldx #2
+    bne reflect_axis
+reflect_axis_x:
+    ldx #0
+reflect_axis:
+    lda UNIT_X,x
+    sta M_A
+    lda UNIT_X + 1,x
+    sta M_A + 1
+    jsr negate_vector_x
+    txa
+    clc
+    adc #UNIT_X - VELOCITY_X
+    tax
+    jsr negate_vector_x
+    jsr square_small          ; d^2 = u^2 / 256
+    +copy16 M_PRODUCT + 1, M_B
+    jmp reflect_speed_loss
+reflect_not_axis:
+    ldx #2
+reflect_diagonal_check:
+    lda NX,x
+    ldy NX + 1,x
+    bmi reflect_check_negative
+    cmp #181
     bne reflect_general
-    jmp reflect_axis_x
+    cpy #0
+    bne reflect_general
+    beq reflect_check_next
+reflect_check_negative:
+    cmp #<-181
+    bne reflect_general
+reflect_check_next:
+    dex
+    dex
+    bpl reflect_diagonal_check
+    jmp reflect_diagonal
 reflect_general:
     +copy16 NX, M_A
-    +copy16 NY, M_B
-    lda M_A + 1
-    bpl reflect_nx_absolute
-    jsr negate_math_a
-reflect_nx_absolute:
-    lda M_B + 1
-    bpl reflect_ny_absolute
-    jsr negate_math_b
-reflect_ny_absolute:
-    lda M_A
-    cmp M_B
-    bne reflect_oblique
-    lda M_A + 1
-    cmp M_B + 1
-    bne reflect_oblique
-    ; Exact 45-degree normal: 31/32 of (vx +/- vy), no multiplications.
-    lda NX + 1
-    eor NY + 1
-    sta SAVED_SPEED
-    bmi reflect_diagonal_opposite
-    +add16 VELOCITY_X, VELOCITY_Y, SAVED_DOT
-    jmp reflect_diagonal_loss
-reflect_diagonal_opposite:
-    +sub16 VELOCITY_X, VELOCITY_Y, SAVED_DOT
-reflect_diagonal_loss:
-    +copy16 SAVED_DOT, M_A
-    ldx #5
-reflect_diagonal_shift:
-    lda M_A + 1
-    asl
-    ror M_A + 1
-    ror M_A
-    dex
-    bne reflect_diagonal_shift
-    +sub16 SAVED_DOT, M_A, SAVED_DOT
-    +sub16 VELOCITY_X, SAVED_DOT, VELOCITY_X
-    lda SAVED_SPEED
-    bmi reflect_diagonal_add
-    +sub16 VELOCITY_Y, SAVED_DOT, VELOCITY_Y
-    rts
-reflect_diagonal_add:
-    +add16 VELOCITY_Y, SAVED_DOT, VELOCITY_Y
-    rts
-reflect_oblique:
-    +copy16 VELOCITY_X, M_A
-    +copy16 NX, M_B
+    +copy16 UNIT_X, M_B
     jsr multiply_unit
-    +copy32 M_PRODUCT, STEP_SQUARED
-    +copy16 VELOCITY_Y, M_A
-    +copy16 NY, M_B
+    +copy32 M_PRODUCT, DX_WIDE
+    +copy16 NY, M_A
+    +copy16 UNIT_Y, M_B
     jsr multiply_unit
     clc
     lda M_PRODUCT
-    adc STEP_SQUARED
+    adc DX_WIDE
     lda M_PRODUCT + 1
-    adc STEP_SQUARED + 1
+    adc DX_WIDE + 1
     sta SAVED_DOT
     lda M_PRODUCT + 2
-    adc STEP_SQUARED + 2
+    adc DX_WIDE + 2
     sta SAVED_DOT + 1
-    ; dot * 31/16 = dot*2 - dot/16; inward dot is negative.
+    ldx #0
+reflect_component:
+    ; u -= floor(2 * d * n / 256), first x (X = 0), then y (X = 2).
+    stx REFLECT_INDEX
+    lda SAVED_DOT
+    asl
+    sta M_A
+    lda SAVED_DOT + 1
+    rol
+    sta M_A + 1
+    lda NX,x
+    sta M_B
+    lda NX + 1,x
+    sta M_B + 1
+    jsr multiply_unit
+    ldx REFLECT_INDEX
+    sec
+    lda UNIT_X,x
+    sbc M_PRODUCT + 1
+    sta UNIT_X,x
+    lda UNIT_X + 1,x
+    sbc M_PRODUCT + 2
+    sta UNIT_X + 1,x
+    bmi reflect_negative
+    cmp #1
+    bcc reflect_clamped       ; 0..255
+    lda #0                    ; >= 256 becomes exactly 256
+    sta UNIT_X,x
+    lda #1
+    bne reflect_clamp_store
+reflect_negative:
+    cmp #$ff
+    beq reflect_clamped       ; -256..-1
+    lda #0                    ; < -256 becomes exactly -256
+    sta UNIT_X,x
+    lda #$ff
+reflect_clamp_store:
+    sta UNIT_X + 1,x
+reflect_clamped:
+    inx
+    inx
+    cpx #4
+    bne reflect_component
     +copy16 SAVED_DOT, M_A
+    jsr square_small          ; d^2 = dot^2 / 256
+    +copy16 M_PRODUCT + 1, M_B
+    jsr reflect_speed_loss
+    jmp velocity_from_unit
+
+reflect_diagonal:
+    ; n = (sx, sy)/sqrt(2), p = sx*sy: u' = -p * (uy, ux).
+    lda NX + 1
+    eor NY + 1
+    sta SAVED_SPEED
+    bmi reflect_diagonal_difference
+    +add16 UNIT_X, UNIT_Y, M_A
+    jmp reflect_diagonal_swap
+reflect_diagonal_difference:
+    +sub16 UNIT_X, UNIT_Y, M_A
+reflect_diagonal_swap:
+    ldx #UNIT_X - VELOCITY_X
+reflect_diagonal_vector:
+    lda VELOCITY_X,x
+    ldy VELOCITY_Y,x
+    sta VELOCITY_Y,x
+    sty VELOCITY_X,x
+    lda VELOCITY_X + 1,x
+    ldy VELOCITY_Y + 1,x
+    sta VELOCITY_Y + 1,x
+    sty VELOCITY_X + 1,x
+    bit SAVED_SPEED
+    bmi reflect_diagonal_next
+    jsr negate_vector_x
+    inx
+    inx
+    jsr negate_vector_x
+    dex
+    dex
+reflect_diagonal_next:
+    txa
+    sec
+    sbc #UNIT_X - VELOCITY_X
+    tax
+    bcs reflect_diagonal_vector
+    ; d^2 = (ux +/- uy)^2 / 2 in Q1.8: square / 512.
+    jsr square_small
+    lda M_PRODUCT + 2
+    lsr
+    sta M_B + 1
+    lda M_PRODUCT + 1
+    ror
+    sta M_B
+    jmp reflect_speed_loss
+
+; M_B = d^2 in Q1.8: SPEED -= SPEED * d^2 * 31/512 + SPEED/128 + 1.
+reflect_speed_loss:
+    +copy16 SPEED, M_A
+    jsr multiply_unit
+    lda M_PRODUCT + 2
+    lsr
+    sta TEMP
+    lda M_PRODUCT + 1
     ldx #4
 reflect_loss:
-    lda M_A + 1
-    asl
-    ror M_A + 1
-    ror M_A
+    lsr M_PRODUCT + 2
+    ror
     dex
     bne reflect_loss
-    asl SAVED_DOT
-    rol SAVED_DOT + 1
-    +sub16 SAVED_DOT, M_A, SAVED_DOT
-    +copy16 SAVED_DOT, M_A
-    +copy16 NX, M_B
-    jsr multiply_unit
-    +sub16 VELOCITY_X, M_PRODUCT + 1, VELOCITY_X
-    +copy16 SAVED_DOT, M_A
-    +copy16 NY, M_B
-    jsr multiply_unit
-    +sub16 VELOCITY_Y, M_PRODUCT + 1, VELOCITY_Y
-    rts
-reflect_axis_y:
-    ldx #VELOCITY_Y
-    bne reflect_axis
-reflect_axis_x:
-    ldx #VELOCITY_X
-reflect_axis:
-    lda 0,x
-    sta M_A
-    lda 1,x
-    sta M_A + 1
-    ldy #4
-reflect_axis_loss:
-    lda M_A + 1
-    asl
-    ror M_A + 1
-    ror M_A
-    dey
-    bne reflect_axis_loss
-    ; Combine negation and restitution: floor(v/16) - v, modulo 16 bits.
     sec
-    lda M_A
-    sbc 0,x
-    sta 0,x
-    lda M_A + 1
-    sbc 1,x
-    sta 1,x
+    sbc TEMP
+    sta TEMP
+    ; Contact friction SPEED/128 + 1 outweighs unit rounding (< 0.5%),
+    ; so even grazing contacts never gain speed.
+    lda SPEED
+    asl
+    lda SPEED + 1
+    rol
+    sec
+    adc TEMP
+    sta TEMP
+    sec
+    lda SPEED
+    sbc TEMP
+    sta SPEED
+    lda SPEED + 1
+    sbc #0
+    sta SPEED + 1
     rts
 
-normalize_velocity:
-    lda VELOCITY_X
-    ora VELOCITY_X + 1
-    bne normalize_has_x
-    jmp normalize_vertical
-normalize_has_x:
-    lda VELOCITY_Y
-    ora VELOCITY_Y + 1
-    bne normalize_has_y
-    jmp normalize_horizontal
-normalize_has_y:
-    +copy16 VELOCITY_X, M_A
-    +copy16 VELOCITY_Y, M_B
-    lda M_A + 1
-    bpl normalize_dx_absolute
-    jsr negate_math_a
-normalize_dx_absolute:
-    lda M_B + 1
-    bpl normalize_dy_absolute
-    jsr negate_math_b
-normalize_dy_absolute:
-    lda M_A
-    cmp M_B
-    bne normalize_oblique
-    lda M_A + 1
-    cmp M_B + 1
-    bne normalize_oblique
-    lda #181
-    sta M_B
-    jsr multiply_fraction
-    asl M_PRODUCT
-    rol M_PRODUCT + 1
-    rol M_PRODUCT + 2
-    +copy16 M_PRODUCT + 1, SPEED
-    ; sqrt(2) ~= 362/256: downward error < 1 Q8.8 unit at legal speed.
-    ldx #VELOCITY_Y
-normalize_diagonal_unit:
-    ldy #0
-    lda 1,x
-    bpl normalize_diagonal_positive
-    lda #75
-    ldy #$ff
-    bne normalize_diagonal_store
-normalize_diagonal_positive:
-    lda #181
-normalize_diagonal_store:
-    sta 6,x
-    tya
-    sta 7,x
-    dex
-    dex
-    cpx #VELOCITY_X
-    beq normalize_diagonal_unit
-    rts
-normalize_oblique:
-    +copy16 VELOCITY_X, QX
-    +copy16 VELOCITY_Y, QY
-    jsr square_q
-    jsr sqrt_speed
-    +copy16 M_QUOT, SPEED
-    lda SPEED
-    ora SPEED + 1
-    beq normalize_done
-    +copy16 VELOCITY_X, M_A
-    jsr normalize_component
-    +copy16 M_QUOT, UNIT_X
-    +copy16 VELOCITY_Y, M_A
-    jsr normalize_component
-    +copy16 M_QUOT, UNIT_Y
-normalize_done:
-    rts
-normalize_vertical:
-    ldx #VELOCITY_Y
-    bne normalize_axis
-normalize_horizontal:
-    ldx #VELOCITY_X
-!if UNIT_X - VELOCITY_X != 6 { !error "axis unit/velocity layout mismatch" }
-!if UNIT_Y - VELOCITY_Y != 6 { !error "axis unit/velocity layout mismatch" }
-normalize_axis:
-    lda 0,x
-    sta SPEED
-    lda 1,x
-    sta SPEED + 1
+; Negate the word at VELOCITY_X + X.
+negate_vector_x:
+    sec
     lda #0
-    sta UNIT_X
-    sta UNIT_X + 1
-    sta UNIT_Y
-    sta UNIT_Y + 1
-    lda SPEED + 1
-    bpl normalize_axis_positive
-    +negate16 SPEED
-    lda #$ff
-    bne normalize_axis_store
-normalize_axis_positive:
-    lda #1
-normalize_axis_store:
-    ; UNIT_X/Y are exactly six bytes after their velocity component.
-    sta 7,x
+    sbc VELOCITY_X,x
+    sta VELOCITY_X,x
+    lda #0
+    sbc VELOCITY_X + 1,x
+    sta VELOCITY_X + 1,x
     rts
