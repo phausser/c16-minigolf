@@ -269,5 +269,8 @@ nur Glyphzeilen 2–4), '#'-Glyph entfernt. multiply_fraction zweifach entrollt.
 corner-replays.json neu aufgezeichnet (Regressionsschutz, nicht mehr
 Vor-Optimierungs-Zustand). VICE: schlechtester Frame 30173/32000 Ticks
 inkl. Winkel 100/102/12 (Sweep-Spitzen); make smoke besteht. Runtime 4979
-Bytes, 653 frei. Offen: Nutzerurteil zum Abprallgefühl; dann 18-Bahnen-
+Bytes, 653 frei. Nutzer: Abprall „fühlt sich sehr natürlich an“, bleibt vorerst so. Weiter: 18-Bahnen-
 Speicher (Metadaten) und Kontakt-Grenzfälle.
+
+Übersicht aller Optimierungen mit Messwerten: docs/hardware.md, Abschnitt
+„Speicherarchitektur und Laufzeitoptimierung (2026-10-05)“.

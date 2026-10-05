@@ -17,12 +17,12 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 | $0100–$019F | Entpackte aktuelle Bahn, bis 32 Segmente (beim Start vorher Kopierer) |
 | $01A0–$01D5 | 54 Bytes Hintergrundrestaurierung |
 | $01D6–$01FF | Stack, 42 Bytes reserviert; gemessene Tiefe 12 Bytes |
-| $0200–$14A7 | Laufzeitcode und gepackte Bahnen: 5288 Bytes |
-| $14A8–$17FF | 344 freie Bytes |
+| $0200–$1572 | Laufzeitcode und gepackte Bahnen: 4979 Bytes |
+| $1573–$17FF | 653 freie Bytes |
 | $1800–$1FFF | TED-Luminanz und Farbe |
 | $2000–$213F | Unsichtbare Bitmap-Zeile: Quadrattabellen und Normalen |
 | $2140–$3A3F | Sichtbares Spielfeld |
-| $3A40–$3DFF | Unsichtbare Zeilen 21–23: Bahnzeichner, weite Mathematik, Normierung, Eingabe; 901 Bytes, 59 frei |
+| $3A40–$3DFF | Unsichtbare Zeilen 21–23: Bahnzeichner, weite Mathematik, Eingabe; 832 Bytes, 128 frei |
 | $3E00–$3F3F | Stärke, HUD-Zeile 24 |
 | $3F40–$3FFF | Nicht sichtbares Bitmap-Ende: Initialisierung 140 Bytes und Diagonal-Guard 42 Bytes |
 
@@ -317,3 +317,64 @@ HUD/Steuerungsarbeit wurden geändert. 32000-Tick-Abnahme weiterhin offen.
 
 Neuer kompakter Testexport 37 statt 39 Bytes; 18 gleich große Exporte
 plus Verzeichnis: 702 Bytes, 505 fehlen plus Decoder/Metadaten.
+
+## Speicherarchitektur und Laufzeitoptimierung (2026-10-05)
+
+Ziel war, ohne Bildrand-Speicher (Spalten 0/39 bleiben auf Nutzerwunsch
+frei) Platz für 18 Bahnen zu schaffen und das 32000-Tick-Budget einzuhalten.
+
+Speicher:
+
+| Änderung | Wirkung |
+|---|---|
+| HUD-Zeile 22 (frühere Bedienhilfe) versteckt; Zeilen 21–23 ein Codeblock | Eingabemodul aus der Runtime verschoben, +284 Bytes frei |
+| Restaurierungspuffer in die Stackseite (gemessene Stacktiefe 12 Bytes) | +54 Bytes, RUNTIME_LIMIT = $1800 |
+| Gepackte Bahnen (Format 2) + decode_course, aktuelle Bahn in $0100 | Testbahn 36 statt 121 Bytes (Segmente + Füllkanten); Decoder ca. 270 Bytes |
+| Füllkanten aus Segmenten abgeleitet | keine gespeicherten Füllkanten mehr |
+| Abprall ohne Wurzel/Division (siehe unten) | normalize_velocity, sqrt_speed, normalize_component entfallen, −491 Bytes |
+
+Laufzeit, gemessen an Winkel 17 (py65-Physikzyklen) bzw. VICE-Ticks:
+
+| Schritt | Physik | VICE schlechtester Frame |
+|---|---:|---:|
+| Ausgangslage | 23672 | 38811 |
+| Bit-Suche: CIRCLE_OUT ist exakt, Nachprüfung circle_entry entfällt | 22576 | 37673 |
+| Teilprodukt im Akku (multiply_fraction), Broadphase-Grenzen vorberechnet | 21340 | |
+| multiply_signed in zwei Bytedurchläufen | 20760 | |
+| sqrt_speed: 2 statt 10 Vorab-Shifts, 24- statt 32-Bit (−25 Bytes) | 20093 | 34841 |
+| Ballzeichner: eine Adresse, zwei vorgeschobene Masken; save_dynamic_byte mit Y-Offset; kürzere Restaurierung | Zeichnen 1687→1222, Restaurieren 414→305 | |
+| Entrollte Delta-Halbierung, Kreuzterm von square_small im Akku | 19906 | 33210 |
+
+Bis hier waren alle Ballzustände bitgenau unverändert. Verworfen: Vorab-
+Ablehnung in square_circle über das High-Byte (langsamer, 20093→20579).
+
+Der VICE-Test maß jede Ecke nur bei einem Winkel. Ein py65-Sweep über alle
+128 Richtungen an den acht Startpunkten fand teurere Winkel (100, 102, 12);
+diese sind seitdem Teil von `make smoke`. Mit ihnen lag der schlechteste
+Frame zunächst bei 35876 Ticks.
+
+Mit Nutzerfreigabe weicht die Physik seitdem ab (Nutzertest in VICE:
+„fühlt sich sehr natürlich an“, bleibt vorerst so):
+
+| Schritt | VICE schlechtester Frame |
+|---|---:|
+| reflect_unit: UNIT spiegeln, Verlust auf SPEED; exakte Achsen-/45°-Pfade; Lochfang über SPEED | 31429 (nur alte Winkel) |
+| Stärkebalken inkrementell (HUD 4642→1194 Zyklen) | 29190 (alte Winkel) / 35876 (mit Sweep-Winkeln) |
+| Kreis-Bitsuche bis 1/32 Frame | 33472 |
+| start_shot ohne doppelte VELOCITY-Berechnung | 32692 |
+| multiply_fraction zweifach entrollt (+10 Bytes) | 31996 |
+| Kreis-Bitsuche bis 1/16 Frame (Abstand ≤ 1/4 px) | 30173 |
+
+Abprallmodell: u' = u − 2(u·n)n; SPEED −= SPEED·d²·31/512 + SPEED/128 + 1
+mit d = u·n. Die Kontaktreibung deckt Rundungsgewinne von bis zu 0,44 % bei
+streifenden Treffern ab. Eckennormale n = Q/2 − Q/256 (|n| ≤ 1). Achsen-
+und 45°-Banden spiegeln UNIT und VELOCITY exakt; der Rest des Frames läuft
+dort mit der alten Geschwindigkeit, ab dem nächsten Schritt gilt
+VELOCITY = SPEED·UNIT. corner-replays.json wurde neu aufgezeichnet.
+
+Messverfahren: tools/profile_sweep.py (inklusive/exklusive Zyklen je
+Routine) und make smoke. Der 128-Winkel-Sweep und das Label-Histogramm
+waren Wegwerfskripte auf Basis von profile_sweep.profile_call. Ein Zyklus
+entspricht nicht festen Ticks: Arbeit im sichtbaren Bildbereich kostet
+etwa doppelt, daher immer in VICE nachmessen.
+Ergebnis: Runtime 4979 Bytes, 653 frei; schlechtester Frame 30173/32000.
