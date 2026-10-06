@@ -107,7 +107,7 @@ def main():
     assert st['POWER'] == 32 and st['SHOTS'] == 0,st
     # Rows 21-23 are the green checker. The full bar is the widest glyph.
     grass = m.memory(0x3000+21*40, 0x3000+24*40-1)
-    assert all((v & 15) == 5 for v in grass), 'rows 21-23 are not checker green'
+    assert all((v & 15) == s['CHECKER_COLOR_EVEN'] & 15 for v in grass), 'rows 21-23 are not the lawn checker'
     bar = m.memory(0x3400+24*40+s['BAR_COLUMN'], 0x3400+24*40+s['BAR_COLUMN']+s['BAR_CELLS']-1)
     assert list(bar) == [s['BAR_CHAR']+s['BAR_FULL']]*s['BAR_CELLS'], 'charge bar not filled'
     strip = m.memory(0x3800+(s['HUD_CHAR']+s['HUD_LEFT_CELLS'])*8,

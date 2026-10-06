@@ -17,7 +17,8 @@ from course_codec import encode
 from test_runtime import Runtime, S
 
 # Approximate TED colors: hue -> RGB at full brightness, scaled by luminance.
-HUES = {0: (0, 0, 0), 1: (1, 1, 1), 5: (.35, 1, .35), 6: (.45, .45, 1)}
+HUES = {0: (0, 0, 0), 1: (1, 1, 1), 5: (.35, 1, .35), 6: (.45, .45, 1),
+        13: (.55, .75, 1), 15: (.6, 1, .45)}
 
 
 def rgb(luminance, hue):

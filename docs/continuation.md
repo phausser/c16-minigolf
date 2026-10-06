@@ -332,3 +332,16 @@ aus c16-sound-fx, Hörprüfung durch den Nutzer steht aus.
 
 Bahnwechsel danach beschleunigt: 0,89–1,47 Mio. Zyklen (vorher 1,6–3,1).
 Offen: freien Speicher verteilen (Plan, Schritt 9).
+
+## Stand 2026-10-06 abends: HUD, Balken, Farben
+
+- Ladebalken: Rahmen 80×5 Pixel (1 px Umriss, 3 px innen, 1 px Abstand oben),
+  Skalenstriche bei 25/50/75 %; Füllung über alle 5 Zeilen. Fünf feste
+  Zeichen plus ein pro Aufruf neu gebautes für die teilgefüllte Zelle.
+- HUD in eigener 5-px-Schrift (`hud_font` in src/render.asm) als Pixelstreifen
+  über sieben Zeichen (Codes 48–54, Zellen 0–1 und 35–39): links Fähnchen und
+  Bahnnummer, rechts bündig Schläger und Schläge/Par; Endwertung Schläger und
+  Gesamtschläge/Gesamtpar. ROM-Zeichen werden nicht mehr kopiert.
+- Farben (Nutzerwahl): Rasen hellgrün (Farbton 15, Luminanz 4/3) in 2×2-Feldern,
+  Wasser hellblau (Farbton 13, Luminanz 2/3), HUD Luminanz 6.
+- Runtime 9913 Bytes, 1862 frei; 70 Tests, VICE-Smoke bestanden.

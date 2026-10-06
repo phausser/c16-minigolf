@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-06: Schritt 1 ist abgeschlossen. Das Spiel läuft im TED-Textmodus mit allen 18 Bahnentwürfen, Wertung und Endwertung; Runtime 9152 Bytes, 2623 Bytes frei (`make budget`). 66 automatisierte Tests bestehen. VICE bestätigt ROM-Start, Textmodus, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31140 von 32000 Ticks (Test-Build mit Testbahn, ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis Sweep- und Mehrfachkontaktfälle abgesichert sind; der erste Spieltest aller 18 Bahnen ist abgeschlossen. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-06: Schritt 1 ist abgeschlossen. Das Spiel läuft im TED-Textmodus mit allen 18 Bahnentwürfen, Wertung und Endwertung; Runtime 9913 Bytes, 1862 Bytes frei (`make budget`). 70 automatisierte Tests bestehen. VICE bestätigt ROM-Start, Textmodus, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31140 von 32000 Ticks (Test-Build mit Testbahn, ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis Sweep- und Mehrfachkontaktfälle abgesichert sind; der erste Spieltest aller 18 Bahnen ist abgeschlossen. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -129,12 +129,12 @@ Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kante
 ## 5. Vollständiges Spiel
 
 - [ ] Titel, kompakte Bedienhilfe und Rundenstart ergänzen.
-- [ ] Eigener Zeichensatz (zurückgestellt; ROM-Schrift genügt vorerst, eigene Glyphen ~8 Bytes je Zeichen).
-- [ ] HUD mit Loch, Par, Schlägen, Stärke und Gesamtstand fertigstellen (Bahn und Par links, Punkte rechts und pixelweiser Ladebalken in der Mitte umgesetzt; laufender Gesamtstand fehlt).
+- [x] Eigener Zeichensatz: 5 Pixel hohe HUD-Schrift (Ziffern, Schrägstrich, Fähnchen, Schläger) als Pixelstreifen; keine ROM-Zeichen mehr (2026-10-06).
+- [ ] HUD mit Loch, Par, Schlägen, Stärke und Gesamtstand fertigstellen (Fähnchen und Bahnnummer links, Schläger und Schläge/Par rechts, Ladebalken als Rahmen mit Skala 25/50/75 % in der Mitte umgesetzt; laufender Gesamtstand fehlt).
 - [ ] Training mit freier Lochwahl implementieren.
 - [x] Lochbilanz und bestätigten Übergang zum nächsten Loch implementieren (Ergebnis in der Statuszeile, Feuer führt weiter).
-- [x] Schlaglimit mit 13er-Wertung implementieren (Ball verschwindet, PUNKTE 13).
-- [x] Endwertung (PAR links, SUMME rechts) und bestätigten Rundenneustart implementieren; Einzelergebnisse aus Speichergründen nicht gespeichert.
+- [x] Schlaglimit mit 13er-Wertung implementieren (Ball verschwindet, Schlagzahl 13).
+- [x] Endwertung (Schläger und Gesamtschläge/Gesamtpar rechts) und bestätigten Rundenneustart implementieren; Einzelergebnisse aus Speichergründen nicht gespeichert.
 - [x] Joystick Port 1 integriert und im VICE-Port getestet; Tastatur nur noch P. Feuerdauer steuert Stärke.
 - [ ] Grafiküberlappungen, Pausieren und gehaltene Tasten an Zustandsübergängen prüfen.
 

@@ -1,6 +1,6 @@
 # Plan: Umstieg vom Hi-Res-Bitmap- auf den TED-Textmodus
 
-Stand 2026-10-05, **umgesetzt** (Ergebnis siehe TODO.md und docs/hardware.md). Ziel: rund 5–7 KB RAM freimachen, ohne dass sich das Bild
+Stand 2026-10-05, **umgesetzt** (Ergebnis siehe TODO.md und docs/hardware.md). Seit 2026-10-06 nutzt das HUD statt der ROM-Schrift eine eigene 5-px-Schrift und der Balken sechs Zeichen (SPEC.md). Ziel: rund 5–7 KB RAM freimachen, ohne dass sich das Bild
 ändert. Physik, Bahnformat, Editor, Sound und Spielablauf bleiben unverändert.
 Die SPEC verlangt für einen Architekturwechsel eine ausdrückliche
 Entscheidung; dieser Plan ist die Grundlage dafür.

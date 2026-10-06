@@ -85,8 +85,8 @@ python3 tests/vice_joystick.py --verify-only
 
 Der Client aktiviert das VICE-I/O-Simulationsgerät an Port 1 und setzt dessen
 aktive-low Leitungen; er injiziert keine logischen Eingabe- oder Ladezustände.
-Prüft Links/Rechts, 64 Feuerframes, Loslassen sowie leere Anleitung/Status und
-gefüllten Balken. Bericht: `build/joystick-smoke.json`. Protokoll und Ressourcen:
+Prüft Links/Rechts, 64 Feuerframes, Loslassen, Rasenfarbe der Zeilen 21–23,
+gefüllten Balken und Schläge/Par rechts im HUD. Bericht: `build/joystick-smoke.json`. Protokoll und Ressourcen:
 [offizieller VICE-Monitor](https://vice-emu.sourceforge.io/vice_13.html).
 Reale C16-Hardware und ein Host-USB-Joystick sind noch nicht geprüft.
 
