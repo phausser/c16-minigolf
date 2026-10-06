@@ -87,7 +87,7 @@ Lochzentrum und Fangradius sind eigene Daten. Vorläufiger Fangradius der Ballmi
 
 ## 18 Löcher
 
-Dies sind verbindliche Designbriefs; exakte Koordinaten entstehen im Bahneditor und werden erst nach Geometrie- und Spieltests eingefroren. Par ist vorläufig. Alle Bahnen müssen mit den Grundregeln lösbar sein.
+Dies sind verbindliche Designbriefs; exakte Koordinaten entstehen im Bahneditor und werden erst nach Geometrie- und Spieltests eingefroren. Par ist seit 2026-10-06 festgelegt (Summe 49, Herleitung in [docs/par.md](docs/par.md)); die Par-Spalte unten ist der ursprüngliche Entwurf. Alle Bahnen müssen mit den Grundregeln lösbar sein.
 
 | Nr. | Name | Par | Geometrie und Spielidee |
 |---|---|---:|---|

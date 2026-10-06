@@ -1,0 +1,318 @@
+[
+ {
+  "hole": 1,
+  "name": "GERADER GEHT'S NICHT",
+  "par": 2,
+  "strokes": 2,
+  "shots": [
+   [
+    72,
+    26
+   ],
+   [
+    73,
+    6
+   ]
+  ],
+  "last_shot_window": "5/8",
+  "holing_lines": 79
+ },
+ {
+  "hole": 2,
+  "name": "RECHTS AB",
+  "par": 2,
+  "strokes": 1,
+  "shots": [
+   [
+    116,
+    31
+   ]
+  ],
+  "last_shot_window": "0/8",
+  "holing_lines": 1
+ },
+ {
+  "hole": 3,
+  "name": "LINKS AUCH",
+  "par": 2,
+  "strokes": 2,
+  "shots": [
+   [
+    76,
+    31
+   ],
+   [
+    57,
+    6
+   ]
+  ],
+  "last_shot_window": "8/8",
+  "holing_lines": 135
+ },
+ {
+  "hole": 4,
+  "name": "DER FLASCHENHALS",
+  "par": 3,
+  "strokes": 2,
+  "shots": [
+   [
+    8,
+    31
+   ],
+   [
+    104,
+    6
+   ]
+  ],
+  "last_shot_window": "5/8",
+  "holing_lines": 67
+ },
+ {
+  "hole": 5,
+  "name": "ZWEIMAL UM DIE ECKE",
+  "par": 2,
+  "strokes": 1,
+  "shots": [
+   [
+    11,
+    31
+   ]
+  ],
+  "last_shot_window": "0/8",
+  "holing_lines": 1
+ },
+ {
+  "hole": 6,
+  "name": "DIE ABKUERZUNG",
+  "par": 3,
+  "strokes": 2,
+  "shots": [
+   [
+    116,
+    31
+   ],
+   [
+    52,
+    22
+   ]
+  ],
+  "last_shot_window": "0/8",
+  "holing_lines": 6
+ },
+ {
+  "hole": 7,
+  "name": "DICK UND DUENN",
+  "par": 3,
+  "strokes": 2,
+  "shots": [
+   [
+    108,
+    26
+   ],
+   [
+    4,
+    31
+   ]
+  ],
+  "last_shot_window": "0/8",
+  "holing_lines": 2
+ },
+ {
+  "hole": 8,
+  "name": "BILLARDPAUSE",
+  "par": 2,
+  "strokes": 2,
+  "shots": [
+   [
+    52,
+    31
+   ],
+   [
+    27,
+    10
+   ]
+  ],
+  "last_shot_window": "6/8",
+  "holing_lines": 59
+ },
+ {
+  "hole": 9,
+  "name": "RAUTE MIT LAUNE",
+  "par": 2,
+  "strokes": 1,
+  "shots": [
+   [
+    44,
+    26
+   ]
+  ],
+  "last_shot_window": "2/8",
+  "holing_lines": 1
+ },
+ {
+  "hole": 10,
+  "name": "SCHLANGENLINIE",
+  "par": 3,
+  "strokes": 2,
+  "shots": [
+   [
+    120,
+    31
+   ],
+   [
+    72,
+    31
+   ]
+  ],
+  "last_shot_window": "0/8",
+  "holing_lines": 1
+ },
+ {
+  "hole": 11,
+  "name": "INSELHUEPFEN OHNE HUEPFEN",
+  "par": 3,
+  "strokes": 2,
+  "shots": [
+   [
+    8,
+    26
+   ],
+   [
+    0,
+    10
+   ]
+  ],
+  "last_shot_window": "7/8",
+  "holing_lines": 39
+ },
+ {
+  "hole": 12,
+  "name": "SAND IM GETRIEBE",
+  "par": 3,
+  "strokes": 2,
+  "shots": [
+   [
+    0,
+    26
+   ],
+   [
+    32,
+    6
+   ]
+  ],
+  "last_shot_window": "8/8",
+  "holing_lines": 175
+ },
+ {
+  "hole": 13,
+  "name": "GLATTE SACHE",
+  "par": 4,
+  "strokes": 3,
+  "shots": [
+   [
+    126,
+    14
+   ],
+   [
+    120,
+    6
+   ],
+   [
+    3,
+    18
+   ]
+  ],
+  "last_shot_window": "1/8",
+  "holing_lines": 1
+ },
+ {
+  "hole": 14,
+  "name": "DER TRICHTER",
+  "par": 3,
+  "strokes": 2,
+  "shots": [
+   [
+    2,
+    31
+   ],
+   [
+    0,
+    10
+   ]
+  ],
+  "last_shot_window": "3/8",
+  "holing_lines": 31
+ },
+ {
+  "hole": 15,
+  "name": "DIE NADEL",
+  "par": 3,
+  "strokes": 2,
+  "shots": [
+   [
+    60,
+    31
+   ],
+   [
+    116,
+    10
+   ]
+  ],
+  "last_shot_window": "4/8",
+  "holing_lines": 24
+ },
+ {
+  "hole": 16,
+  "name": "BANDENBANDE",
+  "par": 3,
+  "strokes": 2,
+  "shots": [
+   [
+    12,
+    31
+   ],
+   [
+    12,
+    10
+   ]
+  ],
+  "last_shot_window": "5/8",
+  "holing_lines": 30
+ },
+ {
+  "hole": 17,
+  "name": "DAS LABYRINTHCHEN",
+  "par": 3,
+  "strokes": 2,
+  "shots": [
+   [
+    12,
+    31
+   ],
+   [
+    4,
+    22
+   ]
+  ],
+  "last_shot_window": "2/8",
+  "holing_lines": 8
+ },
+ {
+  "hole": 18,
+  "name": "FEIERABEND",
+  "par": 3,
+  "strokes": 2,
+  "shots": [
+   [
+    80,
+    31
+   ],
+   [
+    10,
+    14
+   ]
+  ],
+  "last_shot_window": "1/8",
+  "holing_lines": 13
+ }
+]

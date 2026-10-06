@@ -146,7 +146,9 @@ def generate(test=False):
         lines.append(bytes_section(f'course_data_{i}', data))
     lines.append('course_table_lo:\n!byte ' + ','.join(f'<course_data_{i}' for i in range(len(courses))))
     lines.append('course_table_hi:\n!byte ' + ','.join(f'>course_data_{i}' for i in range(len(courses))))
-    lines.append(f'hud_par_text:\n!text "PAR {total_par:<3}",0')
+    # Wide enough to cover "BAHN nn PAR n" of the last hole.
+    lines.append(f'hud_par_text:\n!text "PAR {total_par:<9}",0')
+    lines.append(bytes_section('course_par', [c.get('par', 0) for c in courses]))
     quarter = [round(math.cos(i*math.tau/128)*256) for i in range(33)]
     lines += [bytes_section('unit_cos_lo',quarter), bytes_section('unit_cos_hi',[v>>8 for v in quarter])]
     ball = [(x,y) for y in range(-2,3) for x in range(-2,3) if x*x+y*y <= 5]

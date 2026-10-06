@@ -13,7 +13,7 @@ SOURCES := $(wildcard src/*.asm src/*.inc)
 COURSES := $(wildcard assets/courses/*.json)
 ACMEFLAGS := --cpu 6502 --format cbm --strict-segments
 
-.PHONY: all run play editor test smoke budget benchmark profile preview screenshot check clean
+.PHONY: all run play editor test smoke budget benchmark profile preview screenshot solve check clean
 all: $(PRG) $(TEST_PRG)
 
 build:
@@ -64,6 +64,10 @@ profile: $(TEST_PRG)
 
 preview: $(TEST_PRG)
 	$(TEST_PYTHON) tools/preview_courses.py
+
+# Best line and par basis per course (docs/par.md); HOLES="3 7" limits it.
+solve: $(TEST_PRG)
+	$(TEST_PYTHON) tools/solve_courses.py $(HOLES)
 
 screenshot: $(PRG)
 	$(TEST_PYTHON) tools/game_screenshot.py

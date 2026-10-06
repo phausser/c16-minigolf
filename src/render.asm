@@ -267,6 +267,15 @@ draw_status:
     inx
     txa
     jsr draw_number
+    lda #8                    ; "BAHN nn PAR n", the power bar from column 15
+    sta TEXT_COLUMN
+    lda #<hud_par_word
+    ldx #>hud_par_word
+    jsr draw_text_at
+    inc TEXT_COLUMN
+    ldx HOLE
+    lda course_par,x
+    jsr draw_number
     ; "PUNKTE n" ends in column 39: one digit gets a leading blank.
     lda #31
     sta TEXT_COLUMN
@@ -428,6 +437,8 @@ hud_hole:
 !text "BAHN",0
 hud_shots:
 !text " PUNKTE ",0
+hud_par_word:
+!text "PAR",0
 hud_total:
 !text "SUMME ",0
 BAR_COLUMN = 15
@@ -491,10 +502,10 @@ cup_pixel_more:
     rts
 
 cup_rows:
-!byte %0011100
-!byte %0111110
-!byte %1111001
-!byte %1110001
-!byte %1100001
-!byte %0100010
-!byte %0011100
+!byte %00011100
+!byte %00111110
+!byte %01111001
+!byte %01110001
+!byte %01100001
+!byte %00100010
+!byte %00011100

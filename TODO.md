@@ -119,9 +119,9 @@ Abnahme: sämtliche Physikkriterien aus SPEC erfüllt; dokumentierte Grenzfälle
 - [x] Löcher 10–12: S, Hindernisse, Sand bauen und spielen (Bahn 12 noch ohne Sand: Material fehlt, siehe Schritt 3).
 - [x] Löcher 13–15: Eis, Trichter, Nadel bauen und spielen (Bahn 13 jetzt Wasser-Mäander statt Eis).
 - [x] Löcher 16–18: Banden, Labyrinth, Finale bauen und spielen.
-- [ ] Für jedes Loch mindestens eine robuste Lösung als Replay sichern.
+- [x] Für jedes Loch mindestens eine Lösung als Replay sichern (`make solve`, tests/fixtures/course-solutions.json, Test im Spiel-Build; Toleranz nur für den letzten Schlag gemessen, siehe docs/par.md).
 - [ ] Engstellen und Einlochen mit benachbarten Richtungs-/Stärkewerten auf Fairness prüfen.
-- [ ] Namen, Schwierigkeit, Par und Gesamtsumme nach Spieltests finalisieren.
+- [x] Par und Gesamtsumme nach Spieltest und Solver festgelegt: Summe 49 (docs/par.md). Namen bleiben vorerst.
 - [x] Alle 18 Exporte gemeinsam gegen das echte RAM-Budget prüfen (`make budget`: 2623 Bytes frei; nach Änderungen erneut prüfen).
 
 Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kanten, kein zwingender einzelner Präzisionsschlag.
@@ -130,7 +130,7 @@ Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kante
 
 - [ ] Titel, kompakte Bedienhilfe und Rundenstart ergänzen.
 - [ ] Eigener Zeichensatz (zurückgestellt; ROM-Schrift genügt vorerst, eigene Glyphen ~8 Bytes je Zeichen).
-- [ ] HUD mit Loch, Par, Schlägen, Stärke und Gesamtstand fertigstellen (Bahn links, Punkte rechts und pixelweiser Ladebalken in der Mitte umgesetzt; Par und Gesamtstand fehlen).
+- [ ] HUD mit Loch, Par, Schlägen, Stärke und Gesamtstand fertigstellen (Bahn und Par links, Punkte rechts und pixelweiser Ladebalken in der Mitte umgesetzt; laufender Gesamtstand fehlt).
 - [ ] Training mit freier Lochwahl implementieren.
 - [x] Lochbilanz und bestätigten Übergang zum nächsten Loch implementieren (Ergebnis in der Statuszeile, Feuer führt weiter).
 - [x] Schlaglimit mit 13er-Wertung implementieren (Ball verschwindet, PUNKTE 13).
