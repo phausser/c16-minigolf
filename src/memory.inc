@@ -74,7 +74,7 @@ PHYS_INDEX = $53
 REFLECT_INDEX = $54       ; 0 = x, 2 = y component in reflect_unit
 CONTACTS_LEFT = $56
 HIT = $57
-BEST_T = $58
+BEST_T = $58              ; contact order key; vertices count late
 TRIAL_T = $59
 NORMAL_CODE = $5a
 BISECT_LO = $5b
@@ -113,6 +113,11 @@ SOUND_TONE = $64           ; its index in the sound tables
 FRAME_START = $6b         ; BALL_POS_X/Y copy at the start of a rolling frame
 HAZARD_COUNT = $74        ; water areas of the current course, 0..3
 HAZARD_PTR = $75          ; word: their cell rectangles in the course stream
+BEST_MOVE = $77           ; time fraction the ball moves to the contact
+BEST_CODE = $d6           ; normal code of the best wall face
+BEST_TIE = $d7            ; 0, or c + 1: joint normal between codes c, c + 1
+MUL_SMALL = $a9           ; multiply_fraction: smaller 8-bit factor
+BEST_VERTEX = $aa         ; 1: BEST_NX/NY hold a vertex offset, not a normal
 STEP_X = $70              ; signed Q8.8 residual displacement
 STEP_Y = $72
 REMAINING_TIME = $78       ; Q0.8, 256 = complete frame

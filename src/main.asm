@@ -202,10 +202,10 @@ clear_state:
 !source "src/initialise_video.asm"
 !source "src/circle_diagonal_guard.asm"
 !source "src/water.asm"
-small_square_lo:
-!for square_index, 0, 127 { !byte <(square_index*square_index) }
-small_square_hi:
-!for square_index, 0, 127 { !byte >(square_index*square_index) }
+square_lo:
+!for square_index, 0, 255 { !byte <(square_index*square_index) }
+square_hi:
+!for square_index, 0, 255 { !byte >(square_index*square_index) }
 !source "src/normals.inc"
 !ifdef TEST_BUILD {
 !source "build/assets-test.inc"

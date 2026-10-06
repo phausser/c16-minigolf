@@ -53,7 +53,7 @@ Fester Simulationsschritt von 1/50 Sekunde. PAL aktualisiert einmal je Bild. X-P
 
 Verbindlich: pixelgenaue Bewegung. Der Ball kann auf jeder einzelnen Pixelposition dargestellt werden; seine Bewegung wird nicht auf Zeichen-, Zell- oder Zweipixelraster eingerastet. Die Physik behält Subpixel-Präzision, nur die Darstellung rundet nach einer festen Regel auf ganze Pixel. Das Raster der kompakten Bahndaten (Eckpunkte 8 Pixel, Abschlag und Loch 2 Pixel) beschränkt ausschließlich die Bahnkoordinaten. Kollisionsprüfungen verfolgen den vollständigen Weg durch einen kontinuierlichen geometrischen Sweep; schnelle Schläge dürfen zwischen zwei dargestellten Bildern mehrere Pixel zurücklegen.
 
-128 normierte Richtungsvektoren über Viertelwellen-Tabelle und Symmetrie. 32 monotone Startgeschwindigkeiten; vorläufig maximal 4 Pixel pro Simulationsschritt. Geschwindigkeit, Rollreibung und Lochfangschwelle werden gemeinsam kalibriert und als feste Konstanten dokumentiert.
+128 normierte Richtungsvektoren über Viertelwellen-Tabelle und Symmetrie. 32 monotone Startgeschwindigkeiten; maximal 4 Pixel pro Simulationsschritt. Die Geschwindigkeit je Achse ist SPEED · Richtung, auf die nächste Q8.8-Einheit gerundet (nicht abgerundet), damit Gegenrichtungen symmetrisch bleiben. Geschwindigkeit, Rollreibung und Lochfangschwelle sind gemeinsam kalibriert und in [docs/physics.md](docs/physics.md) als feste Konstanten dokumentiert.
 
 ### Bewegung und Reibung
 
@@ -69,7 +69,9 @@ Ein kontinuierlicher Sweep prüft den vollständigen Frame-Weg von höchstens 4 
 
 Reflexion am Kontakt (Laufzeitmodell seit 2026-10-05): Der Einheitsvektor wird gespiegelt, u' = u − 2 · (u · n) · n; der Banden-Verlust wirkt auf den Betrag: SPEED −= SPEED · (u · n)² · 31/512 + SPEED/128 + 1. Das nähert e = 15/16 auf der Normalkomponente; der kleine Zusatz ist Kontaktreibung und schließt Energiegewinn durch Rundung aus. Achsen- und 45°-Banden spiegeln exakt (Vorzeichen bzw. Komponententausch); Eckennormalen haben |n| ≤ 1. Kein künstlicher seitlicher Schub. Kontakt nur auflösen, wenn die Geschwindigkeit in die Fläche zeigt. Segmentenden werden als Kreis-Punkt-Kontakt behandelt; bloßes Spiegeln beider Achsen ist dort unzulässig.
 
-Gleichzeitige Kontakte erhalten eine stabile Reihenfolge und eine gemeinsame Auflösung ohne Energiegewinn. Ein kleines fest definiertes Abstandsepsilon verhindert Wiederkollision durch Rundungsreste. Maximal vier Kontaktauflösungen pro Simulationsschritt. Bei ausgeschöpftem Limit wird die Restbewegung verworfen, kein Durchtritt erlaubt; dieser Fall muss im Test sichtbar werden und darf in freigegebenen Bahnen nicht auftreten.
+Eckpunkte (Segmentenden an freiliegenden Ecken): Die Kontaktzeit ist der letzte Zeitpunkt außerhalb des 2-Pixel-Kreises, auf 1/16 Bild genau (höchstens 0,25 Pixel vor der Berührung). Die Normale kommt aus dem Versatz zu diesem Zeitpunkt und wird über |Versatz|² aus einer Tabelle auf 0,98 ≤ |n| < 1 normiert, sodass auch hier kein Energiegewinn entsteht. Eine Wandfläche, die innerhalb dieses 1/16-Bild-Fensters erreicht wird, hat Vorrang vor dem Eckpunkt.
+
+Gleichzeitige Kontakte erhalten eine stabile Reihenfolge und eine gemeinsame Auflösung ohne Energiegewinn. Gleichzeitig heißt: in derselben 1/256-Stufe des restlichen Wegs. Zwei Wandflächen mit 45° Normalenunterschied (135°-Innenecke) werden gemeinsam an der Normalen auf halbem Winkel reflektiert; ein Ball genau in die Ecke prallt so gerade zurück. Senkrechte Wandpaare (90°-Ecken) werden nacheinander aufgelöst, was dort dasselbe Ergebnis gibt. Ein Abstandsepsilon von 2/256 Pixel verhindert Wiederkollision durch Rundungsreste. Maximal vier Kontaktauflösungen pro Simulationsschritt. Bei ausgeschöpftem Limit wird die Restbewegung verworfen, kein Durchtritt erlaubt; dieser Fall ist im Test sichtbar (CONTACT_LIMIT_HITS, erzwungen in einem 4-Pixel-Spalt) und tritt im Sweep über alle 18 Bahnen nicht auf.
 
 ### Einlochen
 
@@ -81,9 +83,10 @@ Lochzentrum und Fangradius sind eigene Daten. Vorläufiger Fangradius der Ballmi
 - Horizontale, vertikale und diagonale Schläge gleicher Stärke unterscheiden sich auf freier Fläche in Reichweite um höchstens 2 %; Richtungsabweichung höchstens 1°.
 - Senkrechte und 45°-Banden reflektieren bei isoliertem Kontakt mit höchstens 1° Winkelfehler; Geschwindigkeit steigt ohne ausdrücklich ausgewiesenen Effekt nicht an.
 - Kein Tunneling bei Höchstgeschwindigkeit, kein Steckenbleiben bei normalen Eckkontakten, kein sichtbares Zittern nach Stillstand.
-- Legale Engstellen sind mindestens 10 Pixel breit, also mit deutlicher Reserve zum Balldurchmesser.
+- Legale Engstellen sind mindestens 10 Pixel breit, also mit deutlicher Reserve zum Balldurchmesser. Validator und Editor lehnen Wände ab, die sich über spielbare Fläche hinweg näher als 10 Pixel gegenüberstehen.
 - Lochfang funktioniert auch dann, wenn der Ball in einem Schritt beide Seiten des Fangbereichs passiert.
 - Physiktests decken Segmentmitte, Segmentende, Innen-/Außenecken, doppelte Kontakte, Wasserränder und Lochfang ab.
+- Nachweis: unabhängige Gleitkomma-Referenz, Bild-für-Bild-Vergleich mit dem echten 6502-Kern, automatische Erkennung von Durchtritt, Energiegewinn, Zittern, Steckenbleiben und Kontaktlimit, Sweep über alle 18 Bahnen; Ergebnisse und Toleranzen in [docs/physics.md](docs/physics.md).
 
 ## 18 Löcher
 

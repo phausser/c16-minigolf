@@ -59,6 +59,44 @@ def validate_hazards(course):
             raise ValueError(f'{key} lies in water')
 
 
+MIN_PASSAGE = 10
+
+
+def segment_distance(a, b, c, d):
+    """Closest points of segments ab and cd (no intersection assumed)."""
+    def closest(p, q, r):
+        dx, dy = r[0]-q[0], r[1]-q[1]
+        t = max(0, min(1, ((p[0]-q[0])*dx+(p[1]-q[1])*dy)/(dx*dx+dy*dy)))
+        return (q[0]+t*dx, q[1]+t*dy)
+    pairs = [(p, closest(p, c, d)) for p in (a, b)]+[(closest(p, a, b), p) for p in (c, d)]
+    return min(pairs, key=lambda pq: math.dist(*pq))
+
+
+def validate_passages(contours, segments):
+    """SPEC: legal narrow passages are at least MIN_PASSAGE pixels wide.
+    Two walls facing each other across playable floor must keep that
+    distance; walls back to back or around solid notches do not count."""
+    def inward(a, b, ci):
+        contour = contours[ci]
+        area = sum(p[0]*q[1]-p[1]*q[0] for p, q in zip(contour, contour[1:]+contour[:1]))
+        nx, ny = -(b[1]-a[1]), b[0]-a[0]
+        return (nx, ny) if (area > 0) == (ci == 0) else (-nx, -ny)
+    for i, (a, b, ci, ei, ni) in enumerate(segments):
+        for c, d, cj, ej, nj in segments[i+1:]:
+            if ci == cj and (ei-ej) % ni in (1, ni-1):
+                continue
+            p, q = segment_distance(a, b, c, d)
+            gap = math.dist(p, q)
+            if not 0 < gap < MIN_PASSAGE:
+                continue
+            m = ((p[0]+q[0])/2, (p[1]+q[1])/2)
+            n1, n2 = inward(a, b, ci), inward(c, d, cj)
+            facing = (n1[0]*(m[0]-p[0])+n1[1]*(m[1]-p[1]) > 0 and
+                      n2[0]*(m[0]-q[0])+n2[1]*(m[1]-q[1]) > 0)
+            if facing and playable(contours, *m):
+                raise ValueError(f'passage narrower than {MIN_PASSAGE} px at {m}')
+
+
 def validate(course):
     contours = [course['outline'], *course['obstacles']]
     segments = []
@@ -96,7 +134,15 @@ def validate(course):
                 continue
             if intersects(a,b,c,d):
                 raise ValueError('nonadjacent edges intersect')
+    validate_passages(contours, segments)
     return segments
+
+
+# Corner normals (collision.asm, vertex_normal): bin i holds the offsets
+# |Q|^2 < (129 + i) * 2048 (Q8.8 units squared, |Q| from 2 to 2.35 px);
+# its factor scales the largest |Q| of the bin to 255/256. The last entry
+# covers |Q| <= 7 px.
+NORMAL_SCALE = [math.floor(255*256/math.sqrt((129+i)*2048)) for i in range(48)] + [255*256//1792]
 
 
 def bytes_section(name, values):
@@ -149,6 +195,7 @@ def generate(test=False):
     lines.append(bytes_section('course_par', [c.get('par', 0) for c in courses]))
     quarter = [round(math.cos(i*math.tau/128)*256) for i in range(33)]
     lines += [bytes_section('unit_cos_lo',quarter), bytes_section('unit_cos_hi',[v>>8 for v in quarter])]
+    lines += [f'NORMAL_SCALES = {len(NORMAL_SCALE)-1}', bytes_section('normal_scale', NORMAL_SCALE)]
     ball = [(x,y) for y in range(-2,3) for x in range(-2,3) if x*x+y*y <= 5]
     lines += [f'BALL_POINTS = {len(ball)}']
     suffix = '-test' if test else ''

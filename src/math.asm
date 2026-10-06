@@ -71,30 +71,19 @@ square_q:
     rts
 
 ; Exact square for the bounded geometry/velocity inputs (|M_A| <= 2048).
-; A 128-entry quarter table replaces a multiply: low-byte values >=128
-; use (u+128)^2 = u^2 + 256*u + 16384. High-byte cross terms are exact.
+; The 256-entry table gives lo^2; the cross term 2*lo*hi*256 is exact.
 square_small:
     lda M_A + 1
     bpl square_absolute
     +negate16 M_A
 square_absolute:
-    lda M_A
-    and #127
-    tax
-    lda small_square_lo,x
+    ldx M_A
+    lda square_lo,x
     sta M_PRODUCT
-    lda small_square_hi,x
+    lda square_hi,x
     sta M_PRODUCT + 1
-    lda M_A
-    bpl square_low_ready
-    txa
-    clc
-    adc #64
-    adc M_PRODUCT + 1
-    sta M_PRODUCT + 1
-square_low_ready:
     ldx M_A + 1
-    lda small_square_lo,x
+    lda square_lo,x
     sta M_PRODUCT + 2
     lda #0
     sta M_PRODUCT + 3
@@ -126,45 +115,54 @@ square_finished:
 
 ; floor(M_A * uint8(M_B) / 256), |M_A| <= 2048. Whole-frame displacements
 ; are bounded by maximum strength, so a full 16x16 multiply is wasteful.
+; The low byte product uses squares: l*B = (a^2 - (a-b)^2 + b^2) / 2 with
+; a = max(l, B), b = min(l, B). Preserves Y and M_B.
 multiply_fraction:
     lda M_A + 1
     sta M_SIGN
     bpl fraction_absolute
     +negate16 M_A
 fraction_absolute:
-    lda #0
-    sta M_PRODUCT
-    sta M_PRODUCT + 2
+    lda M_A
     ldx M_B
-    stx M_COUNT
-    ldx M_A
-    beq fraction_low_done
-    ldx #4
-fraction_multiply_bit:
-    ; The running high byte stays in A; adc's carry is its ninth bit.
-    ; Two multiplier bits per pass halve the loop overhead.
-    lsr M_B
-    bcc fraction_no_add
+    cmp M_B
+    bcs fraction_ordered      ; a = l (A), b = B (X)
+    tax                       ; b = l
+    lda M_B                   ; a = B
+fraction_ordered:
+    stx MUL_SMALL
+    tax
+    lda square_lo,x
+    sta M_PRODUCT
+    lda square_hi,x
+    sta M_PRODUCT + 1
+    txa
+    sec
+    sbc MUL_SMALL
+    tax                       ; a - b
+    sec
+    lda M_PRODUCT
+    sbc square_lo,x
+    sta M_PRODUCT
+    lda M_PRODUCT + 1
+    sbc square_hi,x
+    sta M_PRODUCT + 1
+    ldx MUL_SMALL
     clc
-    adc M_A
-fraction_no_add:
-    ror
+    lda M_PRODUCT
+    adc square_lo,x
+    sta M_PRODUCT
+    lda M_PRODUCT + 1
+    adc square_hi,x
+    ror                       ; 2ab has 17 bits: carry is bit 16
     ror M_PRODUCT
-    lsr M_B
-    bcc fraction_no_add_odd
-    clc
-    adc M_A
-fraction_no_add_odd:
-    ror
-    ror M_PRODUCT
-    dex
-    bne fraction_multiply_bit
-fraction_low_done:
+    ldx #0
+    stx M_PRODUCT + 2
     ldx M_A + 1
     beq fraction_high_done
 fraction_high_loop:
     clc
-    adc M_COUNT
+    adc M_B
     bcc fraction_high_no_carry
     inc M_PRODUCT + 2
 fraction_high_no_carry:

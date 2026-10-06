@@ -146,6 +146,28 @@ function packedSize() {   // format 5, tools/course_codec.py
   return n + 4 * (course.hazards || []).length;
 }
 
+const MIN_PASSAGE = 10;   // SPEC: legal narrow passages
+function closest(p, q, r) {
+  const dx = r[0] - q[0], dy = r[1] - q[1];
+  const t = Math.max(0, Math.min(1, ((p[0] - q[0]) * dx + (p[1] - q[1]) * dy) / (dx * dx + dy * dy)));
+  return [q[0] + t * dx, q[1] + t * dy];
+}
+function inward(s) {   // normal towards the playable side
+  const nx = -(s.b[1] - s.a[1]), ny = s.b[0] - s.a[0];
+  return (area(contours()[s.ci]) > 0) === (s.ci === 0) ? [nx, ny] : [-nx, -ny];
+}
+function narrowPassage(p, q) {   // walls facing each other across floor
+  const pairs = [[p.a, closest(p.a, q.a, q.b)], [p.b, closest(p.b, q.a, q.b)],
+                 [closest(q.a, p.a, p.b), q.a], [closest(q.b, p.a, p.b), q.b]];
+  const [u, v] = pairs.reduce((m, x) => Math.hypot(x[0][0] - x[1][0], x[0][1] - x[1][1]) <
+                                         Math.hypot(m[0][0] - m[1][0], m[0][1] - m[1][1]) ? x : m);
+  const gap = Math.hypot(u[0] - v[0], u[1] - v[1]);
+  if (!(gap > 0 && gap < MIN_PASSAGE)) return null;
+  const m = [(u[0] + v[0]) / 2, (u[1] + v[1]) / 2], n1 = inward(p), n2 = inward(q);
+  const facing = n1[0] * (m[0] - u[0]) + n1[1] * (m[1] - u[1]) > 0 && n2[0] * (m[0] - v[0]) + n2[1] * (m[1] - v[1]) > 0;
+  return facing && playable(m[0], m[1]) ? m : null;
+}
+
 function validate() {
   const errors = [], all = contours();
   let segments = [];
@@ -171,6 +193,8 @@ function validate() {
       continue;
     }
     if (intersects(p.a, p.b, q.a, q.b)) { errors.push(`Kanten schneiden sich bei ${p.a} → ${p.b}`); s = segments.length; break; }
+    const m = narrowPassage(p, q);
+    if (m) { errors.push(`Engstelle unter ${MIN_PASSAGE} px bei ${m.map(Math.round)}`); s = segments.length; break; }
   }
   const hz = course.hazards || [];
   if (hz.length > MAX_WATER) errors.push(`höchstens ${MAX_WATER} Wasserflächen`);

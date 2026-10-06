@@ -13,7 +13,7 @@ SOURCES := $(wildcard src/*.asm src/*.inc)
 COURSES := $(wildcard assets/courses/*.json)
 ACMEFLAGS := --cpu 6502 --format cbm --strict-segments
 
-.PHONY: all run play editor test smoke budget benchmark profile preview screenshot solve check clean
+.PHONY: all run play editor test smoke budget benchmark profile preview screenshot solve physics check clean
 all: $(PRG) $(TEST_PRG)
 
 build:
@@ -68,6 +68,11 @@ preview: $(TEST_PRG)
 # Best line and par basis per course (docs/par.md); HOLES="3 7" limits it.
 solve: $(TEST_PRG)
 	$(TEST_PYTHON) tools/solve_courses.py $(HOLES)
+
+# Physics sweep of all courses against the reference (docs/physics.md);
+# HOLES="3 7", STRIDE=4 (directions), SPACING=16 (start grid in px).
+physics: $(PRG)
+	HOLES="$(HOLES)" $(TEST_PYTHON) tools/physics_sweep.py
 
 screenshot: $(PRG)
 	$(TEST_PYTHON) tools/game_screenshot.py

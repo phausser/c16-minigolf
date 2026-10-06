@@ -794,6 +794,15 @@ class CourseValidationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate(course)
 
+    def test_rejects_passages_narrower_than_ten_pixels(self):
+        room = {'start':[40,40],'cup':[200,120],'outline':[[16,24],[304,24],[304,152],[16,152]]}
+        narrow = [[[96,32],[200,32],[200,96],[96,96]],          # 8 px below the top wall
+                  [[96,40],[104,32],[200,32],[200,96],[96,96]]] # 45-degree corner, 8 px
+        for obstacle in narrow:
+            with self.assertRaises(ValueError):
+                validate({**room, 'obstacles':[obstacle]})
+        validate({**room, 'obstacles':[[[96,40],[200,40],[200,96],[96,96]]]})   # 16 px
+
 
 if __name__ == '__main__':
     unittest.main()

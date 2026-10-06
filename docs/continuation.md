@@ -354,3 +354,20 @@ Offen: freien Speicher verteilen (Plan, Schritt 9).
 - Farbindex = Klasse × 4 + ((Zeile XOR (Spalte AND 1)) AND 3): Bit 1 nur aus
   der Zeile (Streifen), Bit 0 bleibt das Wasser-Schachbrett.
 - Editor zeichnet Streifen und weiße Fläche; 70 Tests, VICE-Smoke bestanden.
+
+## Stand 2026-10-06 nachts: Physik abgesichert (Schritte 2 und 3)
+
+- Werkzeuge: unabhängige Gleitkomma-Referenz (tests/physics_reference.py),
+  Bild-für-Bild-Monitor mit Sicherheitsprüfungen (tests/physics_check.py),
+  `make physics` über alle 18 Bahnen, tests/test_physics_safety.py,
+  Joystick-Replays (tests/replay.py, tools/record_fixtures.py).
+- Kernkorrekturen: Eckennormale normiert (vertex_normal, normal_scale),
+  Eckpunkt gegen Wand (Schlüssel BEST_T, Bewegung BEST_MOVE), Geschwindigkeit
+  gerundet, gemeinsame Normale in 135°-Ecken (BEST_TIE, joint_normal),
+  Rest-Schritt zur Null abgeschnitten, Randdrehung auf ±256 begrenzt,
+  eigener Einsprung record_cup. multiply_fraction über Quadrattabelle.
+- Validator und Editor: Engstellen unter 10 px abgelehnt.
+- Zeit 31028/32000 Ticks; Speicher 1247 Bytes frei.
+- Solver neu: Bahn 2 ohne Hole-in-one (2 Schläge, 8/8); Par bleibt nach
+  Nutzerentscheidung 2. Weiter mit Schritt 5.
+

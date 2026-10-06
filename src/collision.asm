@@ -272,6 +272,7 @@ line_time_ready:
     ldx HIT
     beq line_time_possible
     cmp BEST_T
+    beq line_time_possible    ; a tie may form a joint contact
     bcs line_no_contact
 line_time_possible:
     jsr displacement_at_t
@@ -440,7 +441,7 @@ circle_save_q:
     bcc circle_start_outside
     lda #0
     sta TRIAL_T
-    jmp record_contact
+    jmp record_cup
 circle_start_outside:
     jsr circle_motion_away
     bcc circle_may_approach
@@ -576,11 +577,13 @@ circle_closest_fraction:
     jsr divide_fraction
     lda M_QUOT
 circle_closest_ready:
+    ; Search only before the current best move time: a later vertex would
+    ; lose (same bias), a vertex shortly before a face loses to it anyway.
     ldx HIT
     beq circle_prefix_ready
-    cmp BEST_T
+    cmp BEST_MOVE
     bcc circle_prefix_ready
-    lda BEST_T
+    lda BEST_MOVE
 circle_prefix_ready:
     sta BISECT_HI
     sta TRIAL_T
@@ -648,32 +651,91 @@ circle_next_bit:
     +copy16 CIRCLE_OUT + 1, TRIAL_X
     +copy16 CIRCLE_OUT + 4, TRIAL_Y
 circle_entry_outside:
-    ; n = Q * 127/256 = Q/2 - Q/256 in Q1.8. The last outside offset has
-    ; |Q| < 516, so |n| < 1: a reflection about it cannot gain speed.
-    ldx #2
-circle_normal:
-    lda TRIAL_X + 1,x
-    cmp #$80
-    ror
-    sta NX + 1,x
-    lda TRIAL_X,x
-    ror
-    sec
-    sbc TRIAL_X + 1,x
-    sta NX,x
-    lda NX + 1,x
-    sbc #0
-    sta NX + 1,x
-    lda TRIAL_X + 1,x
-    bpl circle_normal_next
-    inc NX + 1,x              ; minus sign extension $ff
-circle_normal_next:
-    dex
-    dex
-    bpl circle_normal
-    jmp record_contact
+    ; Keep the offset; only the winning vertex gets its normal (physics).
+    +copy16 TRIAL_X, NX
+    +copy16 TRIAL_Y, NY
+    lda RADIUS_SQUARED + 2
+    cmp #9
+    beq circle_cup_contact
+    jmp record_vertex
+circle_cup_contact:
+    jmp record_cup             ; the cup needs no normal
 circle_no_contact:
     clc
+    rts
+
+; NX/NY = Q * f / 256 for the last outside offset Q = NX/NY, truncated
+; towards zero. f = normal_scale[(|Q|^2 >> 11) - 128] is the inverse length
+; of the largest |Q| of that bin, scaled by 255/256: 0.98 < |n| < 1, so a
+; corner reflection never gains speed and hardly under-reflects. Q lies
+; within 2.26 px of the vertex (1/16 frame of at most 4 px). The normal at
+; this outside point is the exact one of a ball whose path is shifted
+; across by |Q| - 2 px <= 1/4 px, and it always turns the ball away.
+vertex_normal:
+    +copy16 NX, QX
+    +copy16 NY, QY
+    jsr square_q              ; M_PRODUCT = |Q|^2, Q8.8 squared
+    lda M_PRODUCT + 3
+    bne vertex_scale_far
+    lda M_PRODUCT + 2
+    cmp #8
+    bcs vertex_scale_far      ; |Q| >= 2.83 px
+    asl
+    asl
+    asl
+    asl
+    asl
+    sta TEMP
+    lda M_PRODUCT + 1
+    lsr
+    lsr
+    lsr
+    ora TEMP
+    sec
+    sbc #128
+    bcs vertex_scale_index
+    lda #0                    ; rounding: just inside 2 px
+vertex_scale_index:
+    cmp #NORMAL_SCALES
+    bcc vertex_scale_ready
+vertex_scale_far:
+    lda #NORMAL_SCALES        ; safe for any |Q| up to 7 px
+vertex_scale_ready:
+    tax
+    lda normal_scale,x
+    sta TEMP
+    ldx #2
+vertex_component:
+    stx REFLECT_INDEX
+    lda QX,x
+    sta M_A
+    lda QX + 1,x
+    sta M_A + 1
+    php                       ; N = sign of the component
+    bpl vertex_magnitude
+    jsr negate_math_a
+vertex_magnitude:
+    lda TEMP
+    sta M_B
+    jsr multiply_fraction     ; floor(|q| * f / 256)
+    ldx REFLECT_INDEX
+    lda M_PRODUCT + 1
+    sta NX,x
+    lda M_PRODUCT + 2
+    sta NX + 1,x
+    plp
+    bpl vertex_component_next
+    sec
+    lda #0
+    sbc NX,x
+    sta NX,x
+    lda #0
+    sbc NX + 1,x
+    sta NX + 1,x
+vertex_component_next:
+    dex
+    dex
+    bpl vertex_component
     rts
 
 incoming_normal:
@@ -884,23 +946,73 @@ swept_near:
     sec
     rts
 
+; A vertex is entered after its last outside time TRIAL_T but at most
+; CIRCLE_MIN_BIT - 1 units later. It competes with that latest time, so a
+; wall face reached inside this window wins; the ball still moves only
+; to the outside time (BEST_MOVE).
+; BEST_VERTEX is set when BEST_NX/NY still hold the vertex offset.
+; Two wall faces whose normals are 45 degrees apart (a 135-degree corner)
+; reached at the same time are one joint contact: BEST_TIE = c + 1 selects
+; the normal halfway between codes c and c + 1. Perpendicular faces need
+; no tie: reflecting at them one after the other gives the same result.
+record_vertex:
+    ldy #1
+    lda TRIAL_T
+    clc
+    adc #CIRCLE_MIN_BIT - 1
+    bcc record_keyed
+    lda #255
+    bne record_keyed
 record_contact:
-    lda HIT
+    ldy #0
+    lda TRIAL_T
+    jmp record_keyed
+; The cup (test_cup) never forms a joint contact with a wall.
+record_cup:
+    ldy #2
+    lda TRIAL_T
+record_keyed:
+    ldx HIT
     beq contact_record
-    lda TRIAL_T
     cmp BEST_T
-    bcs contact_rejected
+    bcc contact_record
+    bne contact_rejected
+    tya
+    ora BEST_VERTEX
+    bne contact_rejected      ; ties with a vertex or the cup keep the first
+    lda NORMAL_CODE
+    sec
+    sbc BEST_CODE
+    and #7
+    cmp #1
+    bne contact_tie_lower
+    lda BEST_CODE             ; new = best + 1: halfway is best + 1/2
+    jmp contact_tie_store
+contact_tie_lower:
+    cmp #7
+    bne contact_rejected
+    lda NORMAL_CODE           ; new = best - 1: halfway is new + 1/2
+contact_tie_store:
+    clc
+    adc #1
+    sta BEST_TIE
+contact_rejected:
+    clc
+    rts
 contact_record:
-    lda TRIAL_T
     sta BEST_T
+    sty BEST_VERTEX
+    lda TRIAL_T
+    sta BEST_MOVE
+    lda NORMAL_CODE
+    sta BEST_CODE
+    lda #0
+    sta BEST_TIE
     +copy16 NX, BEST_NX
     +copy16 NY, BEST_NY
     lda #1
     sta HIT
     sec
-    rts
-contact_rejected:
-    clc
     rts
 
 ; A = packed ball coordinate - M_A; carry set when |A| >= 4 (far).

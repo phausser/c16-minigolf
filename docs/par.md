@@ -44,7 +44,7 @@ gefunden. Vom Nutzer am 2026-10-06 so festgelegt.
 | Bahn | Name | gefunden | Fenster | Par vorher | **Par** |
 |---:|---|---:|---:|---:|---:|
 | 1 | Gerader geht's nicht | 2 | 5/8 | 2 | **2** |
-| 2 | Rechts ab | 1 | 0/8 | 2 | **2** |
+| 2 | Rechts ab | 2* | 8/8 | 2 | **2** |
 | 3 | Links auch | 2 | 8/8 | 2 | **2** |
 | 4 | Der Flaschenhals | 2 | 5/8 | 3 | **3** |
 | 5 | Zweimal um die Ecke | 1 | 0/8 | 3 | **2** |
@@ -53,18 +53,24 @@ gefunden. Vom Nutzer am 2026-10-06 so festgelegt.
 | 8 | Billardpause | 2 | 6/8 | 2 | **2** |
 | 9 | Raute mit Laune | 1 | 2/8 | 3 | **2** |
 | 10 | Schlangenlinie | 2 | 0/8 | 4 | **3** |
-| 11 | Inselhüpfen ohne Hüpfen | 2 | 7/8 | 3 | **3** |
+| 11 | Inselhüpfen ohne Hüpfen | 2 | 6/8 | 3 | **3** |
 | 12 | Sand im Getriebe | 2 | 8/8 | 3 | **3** |
-| 13 | Glatte Sache | 3 | 1/8 | 4 | **4** |
-| 14 | Der Trichter | 2 | 3/8 | 3 | **3** |
-| 15 | Die Nadel | 2 | 4/8 | 4 | **3** |
+| 13 | Glatte Sache | 3 | 8/8 | 4 | **4** |
+| 14 | Der Trichter | 2 | 2/8 | 3 | **3** |
+| 15 | Die Nadel | 2 | 5/8 | 4 | **3** |
 | 16 | Bandenbande | 2 | 5/8 | 3 | **3** |
 | 17 | Das Labyrinthchen | 2 | 2/8 | 4 | **3** |
 | 18 | Feierabend | 2 | 1/8 | 4 | **3** |
-| | **Summe** | 33 | | 57 | **49** |
+| | **Summe** | 35 | | 57 | **49** |
 
-Hole-in-one ist auf den Bahnen 2, 5 und 9 möglich, auf 9 mit etwas
+Hole-in-one ist auf den Bahnen 5 und 9 möglich, auf 9 mit etwas
 Spielraum (2/8).
+
+\* Nach den Physikkorrekturen vom 2026-10-06 (docs/physics.md) findet der
+Solver auf Bahn 2 kein Hole-in-one mehr (vorher 1 Schlag, Fenster 0/8).
+Nach der Regel wäre Par 3; der Nutzer hat am 2026-10-06 entschieden: Par
+bleibt 2.
+Spalte „gefunden“ und „Fenster“ zeigen den neuen Solverlauf.
 
 ## Im Spiel
 

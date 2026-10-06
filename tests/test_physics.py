@@ -131,12 +131,16 @@ class ArithmeticTests(unittest.TestCase):
 
     def test_reflection_never_gains_speed_and_follows_the_mirror(self):
         normals = [(181,181),(-181,181),(181,-181),(-181,-181)]
-        # Corner normals come from offsets 512 <= |Q| < 516 scaled by 127/256.
+        # Corner normals from vertex_normal for last-outside offsets up to
+        # 1/16 frame (0.25 px) outside the 2 px circle.
         for i in range(24):
             a = i*math.tau/24
-            q = 512+i % 4
+            q = 512+(i*11) % 64
             qx,qy = math.floor(q*math.cos(a)),math.floor(q*math.sin(a))
-            normals.append(((qx >> 1)-(qx >> 8),(qy >> 1)-(qy >> 8)))
+            put(self.r,'NX',qx)
+            put(self.r,'NY',qy)
+            self.r.call('vertex_normal')
+            normals.append((signed(self.r,'NX'),signed(self.r,'NY')))
         for nx,ny in normals:
             n = math.hypot(nx,ny)/256
             self.assertLessEqual(n,1)
@@ -149,10 +153,15 @@ class ArithmeticTests(unittest.TestCase):
                 self.assertLessEqual(max(abs(rx),abs(ry)),256)
                 # Effective speed |SPEED * u| must not grow through rounding.
                 self.assertLessEqual(speed*math.hypot(rx,ry),1024*math.hypot(ux,uy),(nx,ny,angle))
-                ex = ux/256-2*dot*nx/256
-                ey = uy/256-2*dot*ny/256
+                # Mirror about n/|n|. Exact 45-degree normals within 1
+                # degree; corner normals (0.978 <= |n| < 1) under-reflect
+                # by at most 4.4 % of the normal share: 2.5 degrees.
+                d = dot/n
+                ex = ux/256-2*d*nx/256/n
+                ey = uy/256-2*d*ny/256/n
                 error = abs((math.atan2(ry,rx)-math.atan2(ey,ex)+math.pi)%math.tau-math.pi)
-                self.assertLess(error,math.pi/180,(nx,ny,angle))
+                limit = 1 if abs(nx) == abs(ny) == 181 else 2.5
+                self.assertLess(error,limit*math.pi/180,(nx,ny,angle))
 
     def test_all_128_unit_vectors(self):
         for angle in range(128):
@@ -279,7 +288,7 @@ class MovementTests(unittest.TestCase):
                 inside = [t for t in range(256) if 2*(q+step*t//256)**2 < 512*512]
                 self.assertEqual(bool(self.r.get('HIT')),bool(inside),(q,step))
                 if inside:
-                    self.assertEqual(self.r.get('BEST_T'),inside[0]-1,(q,step))
+                    self.assertEqual(self.r.get('BEST_MOVE'),inside[0]-1,(q,step))
 
     def test_wall_rounding_epsilon_does_not_drop_incoming_contact(self):
         for deficit in (1,2):
@@ -326,7 +335,7 @@ class MovementTests(unittest.TestCase):
         self.r.call('collect_candidates')
         self.r.call('find_first_contact')
         self.assertEqual(self.r.get('HIT'),1)
-        t = self.r.get('BEST_T')/256
+        t = self.r.get('BEST_MOVE')/256
         y = point(self.r)[1]
         expected = (.5-math.sqrt(4-(y-100)**2))
         # Last outside time at CIRCLE_MIN_BIT resolution, never after entry.
@@ -406,7 +415,7 @@ class MovementTests(unittest.TestCase):
             put(self.r,'RADIUS_SQUARED',512*512,4)
             self.r.call('try_circle')
             self.assertEqual(self.r.get('HIT'),1,(qx,qy,sx,sy))
-            t = self.r.get('BEST_T')
+            t = self.r.get('BEST_MOVE')
             step = S['CIRCLE_MIN_BIT']
             self.assertLess(t,inside[0],(qx,qy,sx,sy,t))
             self.assertGreaterEqual(t,inside[0]-step,(qx,qy,sx,sy,t))

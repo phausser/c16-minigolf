@@ -69,6 +69,8 @@ shot_speed:
     ldx #SOUND_SHOT           ; physics_tick derives VELOCITY in this frame
     jmp play_sound
 
+; VELOCITY = round(SPEED * UNIT / 256) per axis: rounding to the nearest
+; Q8.8 unit (not floor) keeps opposite directions symmetric.
 ; Y = 2 (y component), then 0 (x); the multiplies preserve Y.
 velocity_from_unit:
     ldy #2
@@ -79,9 +81,13 @@ velocity_axis:
     lda UNIT_X + 1,y
     sta M_B + 1
     jsr multiply_unit
+    lda M_PRODUCT
+    cmp #$80                  ; carry = round half up
     lda M_PRODUCT + 1
+    adc #0
     sta VELOCITY_X,y
     lda M_PRODUCT + 2
+    adc #0
     sta VELOCITY_X + 1,y
     dey
     dey
@@ -148,7 +154,7 @@ physics_wall:
     jsr accept_full_step
     jmp physics_substep_done
 physics_hit:
-    lda BEST_T
+    lda BEST_MOVE
     sta TRIAL_T
     jsr displacement_at_t
     jsr accept_trial
@@ -160,14 +166,30 @@ physics_best_normal:
     sta NX,x
     dex
     bpl physics_best_normal
+    lda BEST_VERTEX
+    beq physics_face
+    jsr vertex_normal
+    jmp physics_reflect
+physics_face:
+    ldx BEST_TIE
+    beq physics_reflect
+    lda joint_normal_x_lo - 1,x
+    sta NX
+    lda joint_normal_x_hi - 1,x
+    sta NX + 1
+    lda joint_normal_y_lo - 1,x
+    sta NY
+    lda joint_normal_y_hi - 1,x
+    sta NY + 1
+physics_reflect:
     jsr reflect_unit
     ; residual time *= (256 - contact fraction) / 256
-    lda BEST_T
+    lda BEST_MOVE
     beq physics_time_unchanged
     +copy16 REMAINING_TIME, M_A
     lda #0
     sec
-    sbc BEST_T
+    sbc BEST_MOVE
     sta M_B
     jsr multiply_fraction
     +copy16 M_PRODUCT + 1, REMAINING_TIME
@@ -616,6 +638,23 @@ rim_add_positive:
     tya
     adc UNIT_X + 1,x
     sta UNIT_X + 1,x
+    ; Keep |component| <= 256: multiply_unit requires it.
+    bmi rim_add_negative
+    cmp #1
+    bcc rim_add_done          ; 0..255
+    lda #0
+    sta UNIT_X,x
+    lda #1
+    bne rim_add_clamp
+rim_add_negative:
+    cmp #$ff
+    beq rim_add_done          ; -256..-1
+    lda #0
+    sta UNIT_X,x
+    lda #$ff
+rim_add_clamp:
+    sta UNIT_X + 1,x
+rim_add_done:
     rts
 
 finish_hole:
@@ -651,7 +690,9 @@ step_full:
     bpl step_full
     rts
 step_residual:
-    ; STEP = floor(VELOCITY * REMAINING_TIME / 256), y then x.
+    ; STEP = VELOCITY * REMAINING_TIME / 256 truncated towards zero, y then
+    ; x. Flooring would turn a tiny remainder of a negative component into
+    ; -1/256 and fake an approach to the wall just left.
     ldy #2
 step_axis:
     lda VELOCITY_X,y
@@ -661,6 +702,14 @@ step_axis:
     lda REMAINING_TIME
     sta M_B
     jsr multiply_fraction
+    lda M_PRODUCT + 2
+    bpl step_truncated
+    lda M_PRODUCT
+    beq step_truncated        ; exact: floor is the truncation
+    inc M_PRODUCT + 1
+    bne step_truncated
+    inc M_PRODUCT + 2
+step_truncated:
     lda M_PRODUCT + 1
     sta STEP_X,y
     lda M_PRODUCT + 2

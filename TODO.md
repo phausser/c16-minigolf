@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-06: Schritt 1 ist abgeschlossen. Das Spiel läuft im TED-Textmodus mit allen 18 Bahnentwürfen, Wertung und Endwertung; Runtime 9913 Bytes, 1862 Bytes frei (`make budget`). 70 automatisierte Tests bestehen. VICE bestätigt ROM-Start, Textmodus, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31140 von 32000 Ticks (Test-Build mit Testbahn, ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis Sweep- und Mehrfachkontaktfälle abgesichert sind; der erste Spieltest aller 18 Bahnen ist abgeschlossen. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-06: Schritte 1 bis 4 sind abgeschlossen. Das Spiel läuft im TED-Textmodus mit allen 18 Bahnen, Wertung und Endwertung; Runtime 10528 Bytes, 1247 Bytes frei. Die Physik ist gegen eine unabhängige Referenz abgesichert ([docs/physics.md](docs/physics.md), `make physics`: 188 288 Schläge ohne Verletzung). VICE bestätigt ROM-Start, Textmodus, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31028 von 32000 Ticks, inklusive der teuersten Winkel. Weiter mit Schritt 5. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -27,7 +27,7 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] 128 Richtungen und 32 Stärken erzeugen und normieren.
 - [x] Rollreibung, exakten Stillstand und Wegprüfung am Loch implementieren.
 - [x] Kreis-Segment- und Kreis-Endpunkt-Kontakte mit frühestem Kontakt implementieren.
-- [ ] Kontinuierlichen Sweep, Restbewegung, Doppelkontakte und Kontaktgrenze absichern (Basis implementiert).
+- [x] Kontinuierlichen Sweep, Restbewegung, Doppelkontakte und Kontaktgrenze absichern (2026-10-06: Scheinkontakte im Reststück behoben, Kontaktlimit im 4-px-Spalt sichtbar, Sweep aller Bahnen ohne Limit; docs/physics.md).
 - [x] Zielen, Stärke, Schlag und Einlochen als vollständigen Ablauf verbinden.
 - [x] Code-, Daten- und Scratchbedarf messen; 18-Bahnen-Budget mit dem echten Testexport hochrechnen (`make budget`: 18 gleich große Exporte als ausdrückliche Annahme).
 - [x] Schlechteste Framezeit mit Anzeige messen, einschließlich Engstellen und Mehrfachkontakten.
@@ -35,7 +35,7 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] Speicher erweitern und echtes 18-Bahnen-Budget nachweisen: Textmodus-Umbau, Spiel-Build mit allen 18 echten Exporten (371 Bytes gepackt), 3415 Bytes frei. Par-Metadaten fehlen noch.
 - [x] Start innerhalb des Fangradius und Lochfang unmittelbar nach einem Abpraller gezielt absichern.
 - [x] Wand-Kontakt-Epsilon gegen Rundungsreste von ein bis zwei Festkommaeinheiten prüfen.
-- [ ] Gleichzeitige Kontakte und schrägere Endpunktfälle vollständig absichern.
+- [x] Gleichzeitige Kontakte und schrägere Endpunktfälle vollständig absichern (gemeinsame Normale in 135°-Ecken, Eckennormale normiert, Wand vor Eckpunkt im 1/16-Bild-Fenster).
 - [x] Ball zeilenweise bytegenau zeichnen; Pixelbild aller acht Ausrichtungen, x=255/256 und rechte Bildkante vergleichen.
 - [x] Verlustfreien Richtungs-/Längenexport samt Host-Decoder und Fehlerprüfungen implementieren (Testbahn 85 → 39 Bytes).
 - [x] Komprimierten Export im ACME-Kern dekodieren und die entpackte aktuelle Bahn separat vom Kursbestand halten (`decode_course`, Puffer $0100–$019F, Host-Referenz bitgenau geprüft).
@@ -81,30 +81,51 @@ Plan und Ergebnis: [docs/textmode-plan.md](docs/textmode-plan.md).
 - [x] VICE-Smoke und Zeitbudget: 31142 ≤ 32000 Ticks.
 - [x] Editor: Zeichenzahl je Bahn.
 - [x] README-Screenshot neu erzeugen.
-- [ ] Freien Speicher verteilen (Plan, Schritt 9).
+- [x] Freien Speicher verteilen (Plan, Schritt 9): Verteilung unten unter „Speicherverteilung“.
 - [x] Bahnwechsel beschleunigt: 1,6–3,1 → 0,89–1,47 Mio. Zyklen (Klassifizieren im Zeichenfenster statt eigener Füllung, schnellere Füllschleife, Schnellpfad für das volle Zeichen, ausgerollte Zellschleifen).
+
+### Speicherverteilung (2026-10-06)
+
+Nach der Physikabsicherung bleiben im Spiel-Build 1247 Bytes frei (`make`;
+vorher 1858, davon 256 für die Quadrattabelle der schnelleren
+Multiplikation). Sand und Eis entfallen. Vorschlag für den Rest, grob
+geschätzt; Reihenfolge wie in Schritt 5 und 6:
+
+| Zweck | Schritt | Bytes |
+|---|---|---:|
+| Titel und kompakte Bedienhilfe (ROM-Zeichensatz nur auf dem Titelbild, Text) | 5 | 250 |
+| Laufender Gesamtstand im HUD | 5 | 40 |
+| Training mit freier Lochwahl | 5 | 80 |
+| Tonumschaltung | 6 | 30 |
+| HUD-Kommentare mit Cooldown und Prioritäten | 6 | 250 |
+| Hole-in-one-Sternchen und Abschlussfanfare | 6 | 150 |
+| Reserve für Korrekturen bis zur Freigabe | 7 | 300 |
+| **Summe** | | **1100** |
+
+Übersteigt ein Punkt seine Schätzung, zuerst Code verkleinern, dann den
+Umfang kürzen; die Reserve bleibt bis zur Freigabe unangetastet.
 
 ### Nächste Umsetzung innerhalb von Schritt 2
 
 Speicher (Textmodus, 2623 Bytes frei) und Zeitbudget (31140 ≤ 32000 Ticks) sind nachgewiesen; die früheren Punkte zu Speicherarchitektur, 38873-Tick-Ecken und Decoder-Vergleich sind erledigt. Messstand und Fortsetzungskontext: [docs/continuation.md](docs/continuation.md); Teilkosten mit `make profile`, Rechenfälle mit `make benchmark`.
 
-1. Kontinuierlichen Sweep, Restbewegung, Doppelkontakte und Kontaktgrenze systematisch prüfen; gleichzeitige Kontakte und schräge Endpunktfälle absichern.
+1. Kontinuierlichen Sweep, Restbewegung, Doppelkontakte und Kontaktgrenze systematisch prüfen; gleichzeitige Kontakte und schräge Endpunktfälle absichern. Erledigt 2026-10-06 (docs/physics.md).
 2. Die 18 Entwürfe in VICE spieltesten (`make play HOLE=n`) und Auffälligkeiten festhalten. Erledigt 2026-10-06: alle 18 Bahnen vom Nutzer in VICE gespielt; 1–4, 6, 11 und 13–16 danach überarbeitet, die übrigen ohne Änderungswunsch. Dabei neu: Lochrand lenkt ab, Loch mit Schatten, Startrichtung je Bahn und danach Richtung aufs Loch, Wasser +1 Schlag mit 3 Pixel Abstand zum Ufer, bis zu 7 Wasserflächen.
-3. Danach Schritt 2 schließen und mit Schritt 3/4 fortfahren.
+3. Schritt 2 ist abgeschlossen.
 
 ## 3. Physik absichern
 
-- [ ] Unabhängige hochpräzise Referenz und automatisierte Ausführung des echten 6502-Kerns einrichten.
-- [ ] Deterministische Eingabereplays und bitgenaue Zustandsvergleiche erstellen.
-- [ ] Reichweite und Richtung auf Achsen und Diagonalen gegen SPEC-Grenzen prüfen.
-- [ ] Wandkontakte frontal, flach, an Endpunkten und bei maximaler Stärke testen.
-- [ ] Innen-/Außenecken, gleichzeitige Kontakte und 10-Pixel-Passagen prüfen.
-- [ ] Energiegewinn, Tunneling, Zittern und erschöpfte Kontaktlimits automatisch erkennen.
-- [ ] Lochfang bei geringer/hoher Geschwindigkeit und Durchquerung innerhalb eines Schritts prüfen.
+- [x] Unabhängige hochpräzise Referenz und automatisierte Ausführung des echten 6502-Kerns einrichten (tests/physics_reference.py, tests/physics_check.py, `make physics`).
+- [x] Deterministische Eingabereplays und bitgenaue Zustandsvergleiche erstellen (tests/replay.py, fixtures/input-replays.json: Joystick-Eingaben aller 18 Lösungswege).
+- [x] Reichweite und Richtung auf Achsen und Diagonalen gegen SPEC-Grenzen prüfen (alle 32 Stärken: höchstens 0,17 % und 0,02°; Geschwindigkeit jetzt gerundet).
+- [x] Wandkontakte frontal, flach, an Endpunkten und bei maximaler Stärke testen.
+- [x] Innen-/Außenecken, gleichzeitige Kontakte und 10-Pixel-Passagen prüfen; Validator und Editor lehnen Engstellen unter 10 px ab.
+- [x] Energiegewinn, Tunneling, Zittern und erschöpfte Kontaktlimits automatisch erkennen (dabei Energiegewinn an Ecken gefunden und behoben).
+- [x] Lochfang bei geringer/hoher Geschwindigkeit und Durchquerung innerhalb eines Schritts prüfen.
 - [x] Wasserflächen (blaues Schachbrett, ohne Rahmen): Ball kehrt an den Bildanfang am Rand zurück; Format 4, Erkennung über den Farbton der Zelle unter der Ballmitte; ein Strafschlag.
-- [ ] Physikkonstanten kalibrieren und dokumentieren; Referenz und Zielkern vergleichen.
+- [x] Physikkonstanten kalibrieren und dokumentieren; Referenz und Zielkern vergleichen (docs/physics.md).
 
-Abnahme: sämtliche Physikkriterien aus SPEC erfüllt; dokumentierte Grenzfälle und reproduzierbare Tests vorhanden.
+Abnahme: sämtliche Physikkriterien aus SPEC erfüllt; dokumentierte Grenzfälle und reproduzierbare Tests vorhanden. Erfüllt 2026-10-06; Par von Bahn 2 bleibt nach Nutzerentscheidung 2 (docs/par.md).
 
 ## 4. Bahnwerkzeuge und 18-Loch-Kurs
 

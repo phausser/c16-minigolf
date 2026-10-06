@@ -7,7 +7,8 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r tests/requirements.txt
 make test
 make budget # kompakten Bahnexport und 18-Bahnen-Hochrechnung prüfen
-make smoke # Zeitbudget-Prüfung meldet aktuell den bekannten Eckentreffer-Überlauf
+make smoke # VICE: TED-Konfiguration, Eingabe und Zeitbudget je Bild
+make physics # Physik-Sweep aller 18 Bahnen gegen die Referenz (docs/physics.md)
 ```
 
 `make test` verwendet py65 für Loader, Bitmap-Adressierung, Geometrie,
@@ -62,9 +63,27 @@ Tail-Jumps und Inline-Code bleiben dem jeweiligen Aufruf zugeordnet.
 Unbenannte Helfer erscheinen als Adresse. TED-Wartezeiten und Darstellung
 fehlen: die PAL-Abnahme erfolgt weiterhin mit `make smoke`.
 
-Die Zustandsfixtures in `tests/fixtures/corner-replays.json` stammen aus
-Commit c01f930 vor dem direkten Kreisvergleich. Sie sichern Position,
-Geschwindigkeit, Richtung und Spielzustand der jeweils sieben Frames.
+Die Zustandsfixtures in `tests/fixtures/corner-replays.json` sichern
+Position, Geschwindigkeit, Richtung und Spielzustand von je sieben Frames
+dreier Eckentreffer auf der historischen Geometrie.
+
+## Physik-Nachweis und Fixtures
+
+`make physics` lässt den echten Kern auf allen 18 Bahnen gegen die
+unabhängige Referenz laufen und erkennt Durchtritt, Energiegewinn, Zittern,
+Steckenbleiben und Kontaktlimit (Optionen `HOLES="3 7"`, `STRIDE=4`,
+`SPACING=16`; etwa 20 Minuten auf 12 Kernen). Bericht in
+`build/physics-sweep.json`, Verfahren und Toleranzen in
+[physics.md](physics.md).
+
+Ändert sich die Physik absichtlich, die Regressionsfixtures in dieser
+Reihenfolge neu erzeugen und die Änderung im Commit begründen:
+
+```sh
+make solve                                   # Lösungswege und Par-Basis
+.venv/bin/python tools/record_fixtures.py corners tests/fixtures/corner-replays.json
+.venv/bin/python tools/record_fixtures.py replays tests/fixtures/input-replays.json
+```
 
 ## Joystick-Port und Feuerdauer
 
