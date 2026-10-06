@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-05: Schritt 1 und ein spielbarer Physikkern aus Schritt 2 sind umgesetzt. 61 automatisierte Tests bestehen. VICE bestätigt ROM-Start, Textmodus, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31142 von 32000 Ticks (Test-Build mit Testbahn, ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis das Speicherbudget für 18 Bahnen nachgewiesen ist. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-06: Schritt 1 ist abgeschlossen. Das Spiel läuft im TED-Textmodus mit allen 18 Bahnentwürfen, Wertung und Endwertung; Runtime 8360 Bytes, 3415 Bytes frei (`make budget`). 61 automatisierte Tests bestehen. VICE bestätigt ROM-Start, Textmodus, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31142 von 32000 Ticks (Test-Build mit Testbahn, ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis Sweep- und Mehrfachkontaktfälle abgesichert sind; die Entwürfe sind noch nicht spielgetestet. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -32,7 +32,7 @@ Abnahme im Emulator: PRG startet im 16-KB-Modell, zeigt stabile Hi-Res-Grafik un
 - [x] Code-, Daten- und Scratchbedarf messen; 18-Bahnen-Budget mit dem echten Testexport hochrechnen (`make budget`: 18 gleich große Exporte als ausdrückliche Annahme).
 - [x] Schlechteste Framezeit mit Anzeige messen, einschließlich Engstellen und Mehrfachkontakten.
 - [x] Allgemeine schräge Eckentreffer von 38873 auf höchstens 32000 PAL-Ticks optimieren; `make smoke` besteht mit 30173 Ticks, inklusive der vier teuersten Winkel eines 128-Winkel-Sweeps (neue Abprallphysik vom Nutzer in VICE als natürlich bestätigt).
-- [ ] Speicher erweitern (Stand: alle 18 Entwürfe und der Spielablauf sind im Spiel-Build; 20 Bytes frei im Hauptbereich nach Sound, Bahndaten zusätzlich in HUD-Zeile, Farbtabellen-Lücken, versteckten Zeilen und Bitmap-Ende; Entwürfe noch nicht spielgetestet) und echtes 18-Bahnen-Budget nachweisen.
+- [x] Speicher erweitern und echtes 18-Bahnen-Budget nachweisen: Textmodus-Umbau, Spiel-Build mit allen 18 echten Exporten (371 Bytes gepackt), 3415 Bytes frei. Par-Metadaten fehlen noch.
 - [x] Start innerhalb des Fangradius und Lochfang unmittelbar nach einem Abpraller gezielt absichern.
 - [x] Wand-Kontakt-Epsilon gegen Rundungsreste von ein bis zwei Festkommaeinheiten prüfen.
 - [ ] Gleichzeitige Kontakte und schrägere Endpunktfälle vollständig absichern.
@@ -85,21 +85,11 @@ Plan und Ergebnis: [docs/textmode-plan.md](docs/textmode-plan.md).
 
 ### Nächste Umsetzung innerhalb von Schritt 2
 
-`make profile` misst jetzt die Teilkosten der drei Eckenszenarien. Der
-schräge Worst-Case benötigt 24974 CPU-Zyklen reine Physik: Kreisprüfungen
-10719 inklusive, Bruchmultiplikationen über alle Aufrufer 5511 inklusive,
-Normalisierung 3470 inklusive. Diese überlappenden Werte nicht addieren.
-Direkter Kreisvergleich und vor dem Umbau gespeicherte 7-Frame-Replays
-sind umgesetzt; PAL nach Raster-/Steuerungsänderung 38873 > 32000 Ticks. Die neue Routine kostet
-44 zusätzliche Runtime-Bytes gegenüber c01f930. Nächste Optimierung anhand
-dieses Profils bewerten, inklusive Codegröße und exakten Ballzuständen.
+Speicher (Textmodus, 3415 Bytes frei) und Zeitbudget (31142 ≤ 32000 Ticks) sind nachgewiesen; die früheren Punkte zu Speicherarchitektur, 38873-Tick-Ecken und Decoder-Vergleich sind erledigt. Messstand und Fortsetzungskontext: [docs/continuation.md](docs/continuation.md); Teilkosten mit `make profile`, Rechenfälle mit `make benchmark`.
 
-
-Zusätzlich vorgemerkt: Multiplikation und Division anhand der tatsächlichen Aufrufer und Wertebereiche vergleichen. `make benchmark` prüft jetzt 448 Rechenfälle. Ein exakter 16-Bit-Divisionspfad für kleine Nenner ist umgesetzt; die Routinen sind weiterhin nicht als schnellstmöglich nachgewiesen. Messstand und Fortsetzungskontext: [docs/continuation.md](docs/continuation.md).
-
-1. Speicherarchitektur ändern: mindestens 738 Bytes für die gemessene Kurs-Hochrechnung bereitstellen, zusätzlich Decoder, aktuelle 160-Byte-Bahn und Spielmetadaten einplanen. Garantiert freie Bitmapbereiche als feste Datenbereiche ausweisen und durch Renderer/Clear-Routinen schützen; keine weitere Ansammlung einzelner Sonderfallroutinen im Hauptbereich. Ziel: mindestens 1 KB zusätzlicher nutzbarer Platz, ohne 64 KB oder Multicolor.
-2. Den allgemeinen Kreis-Sweep beschleunigen, insbesondere schräge Anflüge. Messmatrix um variierende Winkel, Positionen und Stärken erweitern; unabhängige Kontaktreferenz und Energieprüfung behalten. Alle geprüften Frames müssen höchstens 32000 TED-Ticks benötigen, mit voller Anzeige. Die schnellere exakte Diagonal-Abkürzung ersetzt diese allgemeine Abnahme nicht.
-3. ACME-Bahn-Decoder mit Host-Export bitgenau vergleichen, Kontakt-/Restbewegungsgrenzen systematisch prüfen und Speicherbericht erneut mit 18 tatsächlichen Bahnexporten rechnen. Erst danach Schritt 2 schließen und mit Bahnproduktion fortfahren.
+1. Kontinuierlichen Sweep, Restbewegung, Doppelkontakte und Kontaktgrenze systematisch prüfen; gleichzeitige Kontakte und schräge Endpunktfälle absichern.
+2. Die 18 Entwürfe in VICE spieltesten (`make play HOLE=n`) und Auffälligkeiten festhalten.
+3. Danach Schritt 2 schließen und mit Schritt 3/4 fortfahren.
 
 ## 3. Physik absichern
 
@@ -118,7 +108,7 @@ Abnahme: sämtliche Physikkriterien aus SPEC erfüllt; dokumentierte Grenzfälle
 
 ## 4. Bahnwerkzeuge und 18-Loch-Kurs
 
-- [ ] Menschenlesbare Bahnquellen, Generator und kompakte Exporte anlegen (Entwürfe 1–18 in assets/courses, 371 Bytes gepackt; noch nicht im Spiel).
+- [ ] Menschenlesbare Bahnquellen, Generator und kompakte Exporte anlegen (Entwürfe 1–18 in assets/courses, 371 Bytes gepackt, im Spiel-Build; Generator und Exporte vorhanden, Bahnen noch nicht spielgetestet).
 - [x] Validator für geschlossene Konturen, ungültige Schnittpunkte und Segmentlimit bauen.
 - [x] Bahneditor im Browser (`make editor`) mit denselben Regeln und Größenanzeige; `make play HOLE=n` zum Ausprobieren.
 - [ ] Ballradius, Engstellen, gültige Start-/Lochpositionen und Erreichbarkeit prüfen.
@@ -132,7 +122,7 @@ Abnahme: sämtliche Physikkriterien aus SPEC erfüllt; dokumentierte Grenzfälle
 - [ ] Für jedes Loch mindestens eine robuste Lösung als Replay sichern.
 - [ ] Engstellen und Einlochen mit benachbarten Richtungs-/Stärkewerten auf Fairness prüfen.
 - [ ] Namen, Schwierigkeit, Par und Gesamtsumme nach Spieltests finalisieren.
-- [ ] Alle 18 Exporte gemeinsam gegen das echte RAM-Budget prüfen.
+- [x] Alle 18 Exporte gemeinsam gegen das echte RAM-Budget prüfen (`make budget`: 3415 Bytes frei; nach Änderungen erneut prüfen).
 
 Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kanten, kein zwingender einzelner Präzisionsschlag.
 
