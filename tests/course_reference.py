@@ -12,7 +12,7 @@ faces such a cell, square at corners. The cup is a round 7-pixel
 hole, shadowed inside at the top left. Cells with floor are white with black
 ink, other playfield cells black ink on green horizontal stripes two cells high, rows 0 and 21..23 equal stripe colors, row 24
 the HUD palette. Water areas are whole floor cells with black ink on a
-blue checker. Row 24 is entirely the HUD palette.
+one blue (WATER_COLOR_EVEN = _ODD). Row 24 is entirely the HUD palette.
 """
 
 FRAME_WIDTH = 6

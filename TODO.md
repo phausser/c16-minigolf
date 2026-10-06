@@ -122,7 +122,7 @@ Speicher (Textmodus, 2623 Bytes frei) und Zeitbudget (31140 ≤ 32000 Ticks) sin
 - [x] Innen-/Außenecken, gleichzeitige Kontakte und 10-Pixel-Passagen prüfen; Validator und Editor lehnen Engstellen unter 10 px ab.
 - [x] Energiegewinn, Tunneling, Zittern und erschöpfte Kontaktlimits automatisch erkennen (dabei Energiegewinn an Ecken gefunden und behoben).
 - [x] Lochfang bei geringer/hoher Geschwindigkeit und Durchquerung innerhalb eines Schritts prüfen.
-- [x] Wasserflächen (blaues Schachbrett, ohne Rahmen): Ball kehrt an den Bildanfang am Rand zurück; Format 4, Erkennung über den Farbton der Zelle unter der Ballmitte; ein Strafschlag.
+- [x] Wasserflächen (einheitlich hellblau, ohne Rahmen; bis 2026-10-06 blaues Schachbrett): Ball kehrt an den Bildanfang am Rand zurück; Format 4, Erkennung über den Farbton der Zelle unter der Ballmitte; ein Strafschlag.
 - [x] Physikkonstanten kalibrieren und dokumentieren; Referenz und Zielkern vergleichen (docs/physics.md).
 
 Abnahme: sämtliche Physikkriterien aus SPEC erfüllt; dokumentierte Grenzfälle und reproduzierbare Tests vorhanden. Erfüllt 2026-10-06; Par von Bahn 2 bleibt nach Nutzerentscheidung 2 (docs/par.md).

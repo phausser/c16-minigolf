@@ -714,7 +714,7 @@ emit_code:
     tya
     and #1
     eor emit_row
-    and #3                    ; bit 0: water checker, bit 1: 2-row lawn stripes
+    and #3                    ; bit 0: water (one colour), bit 1: 2-row lawn stripes
     asl GLYPH
     asl GLYPH
     ora GLYPH
@@ -841,7 +841,7 @@ intern_copy:
 ; Index = class * 2 + checker parity. The value is the text-mode foreground
 ; (luminance in bits 6..4, hue in bits 3..0). Black is the global background.
 ; Class * 4 + ((row XOR (column AND 1)) AND 3): the lawn follows row bit 1,
-; so it forms horizontal stripes two cells high; the water checker follows bit 0.
+; so it forms horizontal stripes two cells high; water colours follow bit 0 (both equal now).
 !macro lawn_ink { !byte CHECKER_COLOR_EVEN,CHECKER_COLOR_EVEN,CHECKER_COLOR_ODD,CHECKER_COLOR_ODD }
 course_ink:
 !byte COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR

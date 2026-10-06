@@ -231,7 +231,7 @@ function draw() {
   ctx.fillStyle = '#ffffff'; ctx.fill(path, 'evenodd');
   for (const [x1, y1, x2, y2] of course.hazards || [])
     for (let y = y1; y < y2; y += 8) for (let x = x1; x < x2; x += 8) {
-      ctx.fillStyle = (x / 8 + y / 8) % 2 ? '#6a9ad8' : '#5a86c0'; ctx.fillRect(x, y, 8, 8);
+      ctx.fillStyle = '#6a9ad8'; ctx.fillRect(x, y, 8, 8);
     }
   if (waterDrag) {
     const [x1, y1, x2, y2] = waterRect(waterDrag.from, waterDrag.to);
