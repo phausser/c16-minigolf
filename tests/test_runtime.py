@@ -94,6 +94,34 @@ class Runtime:
     def get(self, name):
         return self.bus[self.S[name]]
 
+    def hud_strip(self):
+        """Glyph rows 0..7 of the seven HUD cells as '#'/'.' strings."""
+        base = self.S['CHARSET_BASE']+self.S['HUD_CHAR']*8
+        return [''.join('#' if self.bus[base+cell*8+row] & (0x80 >> bit) else '.'
+                        for cell in range(self.S['HUD_CELLS']) for bit in range(8))
+                for row in range(8)]
+
+    def hud_expected(self, left, right):
+        """The strip for two texts: digits, '/', 'F' flag, 'C' club, ' ' gap.
+        Left from HUD_LEFT_X, right ending before the last strip column."""
+        index = {**{d: int(d) for d in '0123456789'}, '/': self.S['HUD_SLASH'],
+                 'F': self.S['HUD_FLAG'], 'C': self.S['HUD_CLUB'], ' ': self.S['HUD_GAP']}
+        width = self.S['HUD_CELLS']*8
+        rows = [['.']*width for _ in range(8)]
+        def put(text, x):
+            for c in text:
+                g = index[c]
+                for r in range(5):
+                    bits = self.bus[self.S['hud_font']+g*5+r]
+                    for b in range(8):
+                        if bits & (0x80 >> b):
+                            rows[1+r][x+b] = '#'
+                x += self.bus[self.S['hud_font_advance']+g]
+        advance = sum(self.bus[self.S['hud_font_advance']+index[c]] for c in right)
+        put(left, self.S['HUD_LEFT_X'])
+        put(right, self.S['HUD_RIGHT_END']+1-advance)
+        return [''.join(row) for row in rows]
+
     def put(self, name, value):
         self.bus[self.S[name]] = value & 255
 
@@ -172,16 +200,15 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.bus[0xff14] & 0xf8, 0x30)
         self.assertEqual(self.r.bus[0xff15] & 0x7f, 0)
         self.assertEqual(self.r.bus[0xff19] & 0x7f, S['BORDER_COLOR'])
-        self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1024], [32]*1024)
+        hud = S['HUD_CHAR']
+        row = [hud, hud+1]+[32]*33+list(range(hud+2, hud+S['HUD_CELLS']))
+        self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1024], [32]*960+row+[32]*24)
         self.assertEqual(self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+1024], [S['HUD_FOREGROUND_COLOR']]*1024)
-        for code in (1, 2, 5, 8, 11, 13, 14, 16, 18, 19, 20, 21, 32, *range(48, 58)):
-            self.assertEqual(self.r.bus[S['CHARSET_BASE']+code*8:S['CHARSET_BASE']+code*8+8],
-                             self.r.bus[0xd000+code*8:0xd000+code*8+8], code)
-        masks = (0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff)
-        for width, mask in enumerate(masks):
-            address = S['CHARSET_BASE']+(S['BAR_CHAR']+width)*8
-            self.assertEqual(self.r.bus[address:address+8], [0, mask, mask, 0xff, mask, mask, 0, 0])
-        self.assertEqual(self.r.get('TEXT_ROW'), 24)
+        self.assertEqual(self.r.bus[S['CHARSET_BASE']+32*8:S['CHARSET_BASE']+33*8], [0]*8)
+        self.assertEqual(self.r.hud_strip(), ['.'*56]*8)
+        for n, inner in enumerate((0x00, 0x80, 0x08, 0x01, 0xff)):
+            address = S['CHARSET_BASE']+(S['BAR_CHAR']+n)*8
+            self.assertEqual(self.r.bus[address:address+8], [0, 0xff, inner, inner, inner, 0xff, 0, 0])
         self.r.bus[S['SCREEN_BASE']] = 99
         self.r.call('clear_playfield')
         self.assertEqual(self.r.bus[S['SCREEN_BASE']], 99)
@@ -586,19 +613,17 @@ class HardwareTests(unittest.TestCase):
         base = S['SCREEN_BASE']+row*40+column
         return self.r.bus[base:base+count]
 
-    def test_summary_shows_total_par_left_and_strokes_right(self):
+    def test_summary_shows_club_total_and_total_par_right(self):
         self.r.call('initialise_video')
-        def codes(text):
-            return [(ord(c) & 63) if ord(c) >= 64 else ord(c) for c in text]
         par = json.loads((ROOT/'assets/test-course.json').read_text()).get('par', 0)
-        for total, right in ((61, 'SUMME  61'), (123, 'SUMME 123')):
+        self.assertEqual(S['TOTAL_PAR'], par)
+        self.r.put('HOLE', 0)
+        self.r.put('SHOTS', 7)
+        self.r.call('draw_status')
+        for total in (61, 123, 7, 234):
             self.r.put('TOTAL', total)
             self.r.call('draw_summary')
-            self.assertEqual(self.screen_codes(0, 7), codes(f'PAR {par:<3}'))
-            self.assertEqual(self.screen_codes(31, 9), codes(right))
-            for code in self.screen_codes(0, 7)+self.screen_codes(31, 9):
-                self.assertEqual(self.r.bus[S['CHARSET_BASE']+code*8:S['CHARSET_BASE']+code*8+8],
-                                 self.r.bus[0xd000+code*8:0xd000+code*8+8])
+            self.assertEqual(self.r.hud_strip(), self.r.hud_expected('', f'C {total}/{par}'), total)
 
     def test_game_build_plays_the_18_drafts_in_order(self):
         from course_codec import encode
@@ -677,48 +702,58 @@ class HardwareTests(unittest.TestCase):
 
     def test_power_bar_grows_pixel_by_pixel(self):
         self.r.call('initialise_video')
-        masks = (0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff)
-        for power in (0,1,2,3,7,32,31,16,0,32,0,5,6,5,32):
+        # Outline 80 x 5 pixels, ticks at 25, 50 and 75 %.
+        inner = {0, 20, 40, 60, 79}
+        for power in (0,1,2,3,7,8,16,24,32,31,16,0,32,0,5,6,5,32):
             self.r.put('POWER', power)
             self.r.call('draw_power')
             filled = 5*power//2
             for cell in range(S['BAR_CELLS']):
-                n = max(0, min(8, filled-cell*8))
-                code = S['BAR_CHAR']+n
-                self.assertEqual(self.r.bus[S['SCREEN_BASE']+24*40+S['BAR_COLUMN']+cell], code, (power, cell))
+                code = self.r.bus[S['SCREEN_BASE']+24*40+S['BAR_COLUMN']+cell]
+                self.assertIn(code, range(S['BAR_CHAR'], S['BAR_CHAR']+S['BAR_GLYPHS']), (power, cell))
                 address = S['CHARSET_BASE']+code*8
-                mask = masks[n]
-                self.assertEqual(self.r.bus[address:address+8], [0, mask, mask, 0xff, mask, mask, 0, 0], (power, cell))
+                glyph = self.r.bus[address:address+8]
+                for row in range(8):
+                    for bit in range(8):
+                        x = cell*8+bit
+                        if row in (0, 6, 7):
+                            want = False
+                        elif x < filled or row in (1, 5):
+                            want = True
+                        else:
+                            want = x in inner
+                        self.assertEqual(bool(glyph[row] & (0x80 >> bit)), want, (power, cell, row, bit))
 
-    def test_status_shows_hole_left_and_shots_right(self):
+    def test_status_shows_flag_and_hole_left_club_shots_and_par_right(self):
         self.r.call('initialise_video')
-        def codes(text):
-            return [(ord(c) & 63) if ord(c) >= 64 else ord(c) for c in text]
-        for hole, shots, left, right in ((0,0,'BAHN 1 ',' PUNKTE 0'),(17,13,'BAHN 18','PUNKTE 13'),
-                                         (8,9,'BAHN 9 ',' PUNKTE 9')):
+        # One course in the test build: other holes read past course_par.
+        for hole, shots in ((0, 0), (17, 13), (8, 9), (99, 10)):
+            par = self.r.bus[S['course_par']+hole]
             self.r.put('HOLE', hole)
             self.r.put('SHOTS', shots)
             self.r.call('draw_status')
-            self.assertEqual(self.screen_codes(0, 7), codes(left))
-            self.assertEqual(self.screen_codes(31, 9), codes(right))
+            self.assertEqual(self.r.hud_strip(), self.r.hud_expected(f'F {hole+1}', f'C {shots}/{par}'),
+                             (hole, shots))
 
-    def test_glyph_cell_above_255_and_hud_stays_outside_course(self):
+    def test_hud_stays_outside_course_and_bar(self):
         self.r.call('initialise_video')
         playfield = self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+24*40].copy()
         attrs = self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+24*40].copy()
-        self.r.put('TEXT_ROW', 24)
-        self.r.put('TEXT_COLUMN', 39)
-        self.r.cpu.a = ord('A')
-        self.r.call('draw_glyph')
-        self.assertEqual(self.r.bus[S['SCREEN_BASE']+24*40+39], 1)
-        self.r.put('SHOTS', 13)               # widest count: no blank cell
-        self.r.call('draw_status')
-        for power in range(33):
-            self.r.put('POWER', power)
-            self.r.call('draw_power')
+        charset = self.r.bus[S['CHARSET_BASE']:S['CHARSET_BASE']+1024].copy()
+        hud = range(S['HUD_CHAR']*8, (S['HUD_CHAR']+S['HUD_CELLS'])*8)
+        bar = range(S['BAR_PARTIAL_GLYPH']-S['CHARSET_BASE'], S['BAR_PARTIAL_GLYPH']-S['CHARSET_BASE']+8)
+        self.r.put('HOLE', 17)
+        self.r.put('SHOTS', 13)
+        self.r.put('TOTAL', 234)
+        for label in ('draw_status', 'draw_summary'):
+            self.r.call(label)
+            for power in range(33):
+                self.r.put('POWER', power)
+                self.r.call('draw_power')
         self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+24*40], playfield)
         self.assertEqual(self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+24*40], attrs)
-        self.assertEqual(self.r.bus[S['SCREEN_BASE']+24*40+39], ord('3'))
+        after = self.r.bus[S['CHARSET_BASE']:S['CHARSET_BASE']+1024]
+        self.assertEqual([i for i in range(1024) if after[i] != charset[i] and i not in hud and i not in bar], [])
 
     def test_drafts_match_reference_within_character_budget(self):
         game = Runtime('minigolf')

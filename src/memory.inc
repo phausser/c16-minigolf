@@ -2,7 +2,8 @@
 COPY_SOURCE = $02             ; word, reused by renderer after relocation
 COPY_TARGET = $04             ; word
 BITMAP_PTR = $06              ; word
-TEXT_PTR = $08                ; word
+HUD_WIDTH = $08               ; sum of queued advances
+HUD_VALUE = $09
 FONT_PTR = $0a                ; word
 COURSE_PTR = $0c              ; word
 PIXEL_X = $0e                 ; word, unsigned 0..319
@@ -17,9 +18,14 @@ LINE_X = $17                  ; word
 LINE_Y = $19
 SEGMENTS_LEFT = $1a
 TEXT_COLUMN = $1b
-TEXT_ROW = $1c
+HUD_X = $1c                   ; pixel in the HUD strip
 GLYPH = $1d
 POINT_INDEX = $1e
+HUD_DIVISOR = $1f
+; While a glyph is drawn the queue sums are spent.
+HUD_ROW = HUD_WIDTH
+HUD_SPILL = HUD_DIVISOR
+HUD_COUNT = TEXT_COLUMN       ; queued HUD glyphs
 
 ; Clearable state, deliberately contiguous for tests and snapshots.
 STATE_BEGIN = $20
@@ -196,8 +202,9 @@ CHARSET_BASE = $3800
 SCRATCH_BASE = $3c00         ; three cell rows of bitmap while a hole is drawn
 SCRATCH_END = $4000
 COLOR_BASE = ATTR_BASE       ; physics reads the foreground hue here
-; Charset slots. Screen codes 1..21, 32 and 48..57 are ROM glyphs.
-BAR_CHAR = 22                ; nine power-bar shapes, widths 0..8
+; Charset slots. Screen code 32 stays blank (the charset is cleared).
+BAR_CHAR = 22                ; six power-bar shapes (BAR_GLYPHS)
+HUD_CHAR = 48                ; seven cells of the HUD pixel strip
 DYNAMIC_CHAR = 33            ; twelve cells under the ball and the aim dots
 COURSE_CHAR = 64             ; up to 64 static hole patterns
 COURSE_CHAR_LIMIT = 64

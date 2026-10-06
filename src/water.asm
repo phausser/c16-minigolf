@@ -278,7 +278,7 @@ water_odd_lo:
 water_odd_hi:
 !fill WATER_PHASES
 
-; Free screen codes: not the HUD letters and digits, bar or dynamic glyphs.
+; Free screen codes: not the bar, HUD strip or dynamic glyphs.
 water_codes:
 !byte 3,4,6,7,9
 

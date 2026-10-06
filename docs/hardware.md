@@ -23,7 +23,7 @@ Füllung, die das Überschreiben des ursprünglichen SYS-Stubs provoziert.
 | $2FFF | Klassifizierungsrand (Zelle −1), zur Laufzeit geschrieben |
 | $3000–$33FF | Attribute: Vordergrundfarbe je Zelle; beim Zeichnen Zellklassen |
 | $3400–$37FF | Zeichencodes |
-| $3800–$3BFF | Zeichensatz: ROM-Schrift (Codes 1–21, 32, 48–57), Balken 22–30, dynamisch 33–44, Bahnzeichen ab 64 |
+| $3800–$3BFF | Zeichensatz: leer 32, Balken 22–27, dynamisch 33–44, HUD-Streifen 48–54, Bahnzeichen ab 64 |
 | $3C00–$3FFF | Pixelpuffer des Bahnzeichners (3 × 320 Bytes), sonst frei |
 
 Zero Page enthält Zustand, temporäre Mathematik und die 32-Byte-
@@ -65,8 +65,9 @@ aus einer Tabelle und sucht das dynamische Zeichen nur beim Zellwechsel.
 Rollender Ball schlimmstenfalls 1842 Zyklen (Bitmap-Stand 1830).
 Wiederherstellen schreibt die gemerkten statischen Codes zurück. Alle acht
 Ausrichtungen, x=255/256 und die rechte Kante sind pixelgenau geprüft.
-HUD-Text nutzt die beim Start aus dem ROM ($D000) kopierten Zeichen, der
-Ladebalken neun feste Zeichen (Breite 0–8 Pixel).
+Das HUD zeichnet eine eigene 5-Pixel-Schrift in sieben Zeichen (Zellen 0–1
+und 35–39), der Ladebalken nutzt fünf feste Zeichen und eines für die
+teilweise gefüllte Zelle.
 
 Tastaturmatrix: A=(1,2), D=(2,2), W=(1,1), S=(1,5), P=(5,1),
 SPACE=(7,4). $FD30 wählt aktive niedrige Zeilen, $FF08 liest Spalten.

@@ -196,7 +196,7 @@ function draw() {
   ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
   ctx.imageSmoothingEnabled = false;
   for (let r = 0; r < 25; r++) for (let c = 0; c < 40; c++) {
-    ctx.fillStyle = r === 24 ? '#000' : (r + c) % 2 ? '#3f9a3f' : '#358535';
+    ctx.fillStyle = r === 24 ? '#000' : ((r >> 1) + (c >> 1)) % 2 ? '#3f9a3f' : '#358535';
     ctx.fillRect(c * 8, r * 8, 8, 8);
   }
   const path = new Path2D();

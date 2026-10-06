@@ -71,7 +71,8 @@ Spielraum (2/8).
 - Par steht je Bahn in den Bahndaten (`par` in `assets/courses/*.json`);
   `tools/generate_assets.py` erzeugt daraus `course_par` (18 Bytes) und die
   Summe für die Endwertung.
-- Die Statuszeile zeigt `BAHN n PAR p` links, den Ladebalken ab Spalte 15
-  und `PUNKTE` rechts; die Endwertung `PAR 49` links und `SUMME` rechts.
+- Die Statuszeile zeigt Fähnchen und Bahnnummer links, den Ladebalken ab
+  Spalte 15 und Schläger mit `Schläge/Par` rechts; die Endwertung Schläger
+  mit `Summe/49` rechts.
 - Ändert sich eine Bahn, Solver erneut laufen lassen und Par nach der
   Regel oben prüfen.

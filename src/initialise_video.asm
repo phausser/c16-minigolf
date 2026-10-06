@@ -26,7 +26,6 @@ clear_charset:
     sta CHARSET_BASE + $300,x
     inx
     bne clear_charset
-    jsr install_rom_glyphs
     jsr install_bar_glyphs
 
     ldx #0
@@ -47,53 +46,30 @@ clear_attributes:
     sta ATTR_BASE + $300,x
     inx
     bne clear_attributes
-    lda #24
-    sta TEXT_ROW
+    ldx #HUD_LEFT_CELLS - 1
+hud_codes_left:
+    txa
+    clc
+    adc #HUD_CHAR
+    sta SCREEN_BASE + 24 * 40,x
+    dex
+    bpl hud_codes_left
+    ldx #HUD_CELLS - HUD_LEFT_CELLS - 1
+hud_codes_right:
+    txa
+    clc
+    adc #HUD_CHAR + HUD_LEFT_CELLS
+    sta SCREEN_BASE + 24 * 40 + HUD_RIGHT_COLUMN,x
+    dex
+    bpl hud_codes_right
     rts
 
 ; draw_course repaints rows 0..23. Row 24 keeps the HUD colours from above.
 clear_playfield:
     rts
 
-; Screen codes whose ROM shapes the HUD uses. Same codes in RAM.
-rom_glyph_codes:
-!byte 1,2,5,8,11,13,14,16,18,19,20,21
-!byte 32
-!byte 48,49,50,51,52,53,54,55,56,57
-ROM_GLYPH_COUNT = * - rom_glyph_codes
-
-install_rom_glyphs:
-    ldx #0
-install_one_glyph:
-    lda rom_glyph_codes,x
-    pha
-    jsr charset_address
-    pla
-    sta COPY_SOURCE
-    lda #0
-    sta COPY_SOURCE + 1
-    asl COPY_SOURCE
-    rol COPY_SOURCE + 1
-    asl COPY_SOURCE
-    rol COPY_SOURCE + 1
-    asl COPY_SOURCE
-    rol COPY_SOURCE + 1
-    clc
-    lda COPY_SOURCE + 1
-    adc #$d0
-    sta COPY_SOURCE + 1
-    ldy #7
-install_glyph_bytes:
-    lda (COPY_SOURCE),y
-    sta (FONT_PTR),y
-    dey
-    bpl install_glyph_bytes
-    inx
-    cpx #ROM_GLYPH_COUNT
-    bne install_one_glyph
-    rts
-
-; Nine bar shapes, widths 0..8. Glyph row 3 is the resting line.
+; Six bar shapes: rows 1 and 5 outline the frame, rows 2..4 hold
+; bar_glyph_rows. The charset is already clear.
 install_bar_glyphs:
     ldx #0
 build_bar:
@@ -101,26 +77,19 @@ build_bar:
     clc
     adc #BAR_CHAR
     jsr charset_address
-    lda bar_masks,x
+    lda #$ff
     ldy #1
-    sta (FONT_PTR),y
-    ldy #2
-    sta (FONT_PTR),y
-    ldy #4
     sta (FONT_PTR),y
     ldy #5
     sta (FONT_PTR),y
-    lda #$ff
-    ldy #3
+    lda bar_glyph_rows,x
+    dey
+build_bar_row:
     sta (FONT_PTR),y
-    lda #0
-    tay
-    sta (FONT_PTR),y
-    ldy #6
-    sta (FONT_PTR),y
-    ldy #7
-    sta (FONT_PTR),y
+    dey
+    cpy #1
+    bne build_bar_row
     inx
-    cpx #9
+    cpx #BAR_GLYPHS
     bne build_bar
     rts

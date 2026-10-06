@@ -4,8 +4,8 @@
 COURSE_SURFACE_COLOR = (6 << 4) + 1 ; light gray floor
 COURSE_MARKER_COLOR = (0 << 4) + 0 ; ball, aim marks, cup ring and inner edges
 COURSE_FRAME_COLOR = (0 << 4) + 0  ; one-cell frame around the course
-CHECKER_COLOR_EVEN = (3 << 4) + 5  ; non-playable area, (column + row) even
-CHECKER_COLOR_ODD = (4 << 4) + 5   ; neighbouring cells, one luminance step
+CHECKER_COLOR_EVEN = (2 << 4) + 5  ; non-playable area, (column + row) even
+CHECKER_COLOR_ODD = (3 << 4) + 5   ; neighbouring cells, one luminance step
 WATER_COLOR_EVEN = (2 << 4) + 6    ; water areas: blue checker, no frame
 WATER_COLOR_ODD = (3 << 4) + 6
 HUD_FOREGROUND_COLOR = (7 << 4) + 1

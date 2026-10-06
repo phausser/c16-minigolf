@@ -35,15 +35,13 @@ class CourseSolutionTests(unittest.TestCase):
     def test_status_line_shows_the_par_of_each_hole(self):
         r = Runtime('minigolf')
         r.call('initialise_video')
-        codes = {' ': 32, **{d: 48+int(d) for d in '0123456789'},
-                 **{c: ord(c)-64 for c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'}}
+        r.put('SHOTS', 0)
         for solution in SOLUTIONS:
             r.put('HOLE', solution['hole']-1)
             r.call('draw_status')
-            row = r.bus[r.S['SCREEN_BASE']+24*40:r.S['SCREEN_BASE']+25*40]
             par = json.loads(COURSES[solution['hole']-1].read_text())['par']
-            text = f"PAR {par}"
-            self.assertEqual(list(row[8:8+len(text)]), [codes[c] for c in text], solution['hole'])
+            self.assertEqual(r.hud_strip(), r.hud_expected(f"F {solution['hole']}", f'C 0/{par}'),
+                             solution['hole'])
 
     def test_every_course_has_a_line(self):
         self.assertEqual([s['hole'] for s in SOLUTIONS if s['shots']], list(range(1, 19)))

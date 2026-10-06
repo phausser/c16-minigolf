@@ -255,117 +255,182 @@ aim_shift_y:
     bne aim_shift_y
     rts
 
-; Whole status row: "BAHN n" left, "PUNKTE n" right aligned.
+; Status row in the 5-pixel HUD font: flag and hole number from the
+; left, club and "strokes/par" right aligned. Glyph rows 1..5, like the bar.
 draw_status:
-    lda #0
-    sta TEXT_COLUMN
-    lda #<hud_hole
-    ldx #>hud_hole
-    jsr draw_text_at
-    inc TEXT_COLUMN
+    jsr hud_clear
+    jsr hud_begin
+    lda #HUD_FLAG
+    jsr hud_put
+    lda #HUD_GAP
+    jsr hud_put
     ldx HOLE
     inx
     txa
-    jsr draw_number
-    lda #8                    ; "BAHN nn PAR n", the power bar from column 15
-    sta TEXT_COLUMN
-    lda #<hud_par_word
-    ldx #>hud_par_word
-    jsr draw_text_at
-    inc TEXT_COLUMN
+    jsr hud_number
+    lda #HUD_LEFT_X
+    sta HUD_X
+    jsr hud_flush
     ldx HOLE
     lda course_par,x
-    jsr draw_number
-    ; "PUNKTE n" ends in column 39: one digit gets a leading blank.
-    lda #31
-    sta TEXT_COLUMN
-    lda SHOTS
-    cmp #10
-    lda #<hud_shots
-    bcc status_shots
-    lda #<(hud_shots + 1)
-status_shots:
-    ldx #>hud_shots
-    jsr draw_text_at
-    lda SHOTS
-    jsr number_digits
-    cpx #'0'
-    beq number_single_digit
-    bne number_pair
-; Round summary: total par left ("PAR nn "), "SUMME nnn" right.
-draw_summary:
-    lda #0
-    sta TEXT_COLUMN
-    lda #<hud_par_text
-    ldx #>hud_par_text
-    jsr draw_text_at
-    lda #31
-    sta TEXT_COLUMN
-    lda #<hud_total
-    ldx #>hud_total
-    jsr draw_text_at
-    lda TOTAL
-    ldy #'0'
-total_hundreds:
-    cmp #100
-    bcc total_tens
-    sbc #100
-    iny
-    bne total_hundreds
-total_tens:
     pha
-    tya
-    cmp #'0'
-    bne total_digit
-    lda #' '
-total_digit:
-    jsr draw_glyph
-    inc TEXT_COLUMN
-    pla
-    jsr number_digits         ; a round has at least 18 strokes
-    jmp number_pair
+    lda SHOTS
+    jmp hud_right
 
-; A = 0..99, left aligned in two cells from TEXT_COLUMN.
-draw_number:
-    jsr number_digits
-    cpx #'0'
-    beq number_single
-number_pair:
-    sta TEMP
+; Round summary: club and "total strokes/total par" right aligned.
+draw_summary:
+    jsr hud_clear
+    lda #TOTAL_PAR
+    pha
+    lda TOTAL
+; A = strokes. The caller pushed the par and jumped here; it is pulled
+; below, before the final rts.
+hud_right:
+    sta HUD_VALUE
+    jsr hud_begin
+    lda #HUD_CLUB
+    jsr hud_put
+    lda #HUD_GAP
+    jsr hud_put
+    lda HUD_VALUE
+    jsr hud_number
+    lda #HUD_SLASH
+    jsr hud_put
+    pla
+    jsr hud_number
+    lda #HUD_RIGHT_END + 1    ; last advance includes one blank column
+    sec
+    sbc HUD_WIDTH
+    sta HUD_X
+; Draws the queued glyphs from HUD_X on.
+hud_flush:
+    ldx #0
+hud_flush_next:
+    cpx HUD_COUNT
+    beq hud_done
     txa
-    jsr draw_glyph
-    inc TEXT_COLUMN
-    lda TEMP
-    jmp draw_glyph
-number_single:
-    jsr draw_glyph
-    inc TEXT_COLUMN
-    lda #' '
-number_single_digit:
-    jmp draw_glyph
-; A = 0..99 -> X = tens digit, A = units digit (ASCII).
-number_digits:
-    ldx #'0'
-number_tens:
-    cmp #10
-    bcc number_units
-    sbc #10
+    pha
+    lda hud_text,x
+    jsr hud_glyph
+    pla
+    tax
     inx
-    bne number_tens
-number_units:
-    ora #'0'
+    bne hud_flush_next
+hud_done:
     rts
 
-; Ten-cell bar centred in row 24. Each cell is one of nine glyphs:
-; row 3 is always a full line, rows 1, 2, 4 and 5 grow from the left
-; by 5 * POWER / 2 pixels (80 at full power).
-draw_power:
-    lda #24
-    jsr class_row_pointer
-    lda COURSE_PTR + 1
+hud_clear:
+    ldx #HUD_CELLS * 8 - 1
+    lda #0
+hud_clear_byte:
+    sta HUD_GLYPHS,x
+    dex
+    bpl hud_clear_byte
+    rts
+
+hud_begin:
+    lda #0
+    sta HUD_COUNT
+    sta HUD_WIDTH
+    rts
+
+; A = font index, queued; HUD_WIDTH sums the advances. Preserves Y.
+hud_put:
+    ldx HUD_COUNT
+    sta hud_text,x
+    inc HUD_COUNT
+    tax
+    lda hud_font_advance,x
     clc
-    adc #>(SCREEN_BASE - ATTR_BASE)
-    sta COURSE_PTR + 1
+    adc HUD_WIDTH
+    sta HUD_WIDTH
+    rts
+
+; A = 0..255, queued without leading zeros. Y = 1 once a digit is queued.
+hud_number:
+    sta HUD_VALUE
+    ldy #0
+    lda #100
+    jsr hud_digit
+    lda #10
+    jsr hud_digit
+    ldy #1                    ; the units digit always shows
+    lda #1
+hud_digit:
+    sta HUD_DIVISOR
+    ldx #0
+hud_digit_count:
+    lda HUD_VALUE
+    cmp HUD_DIVISOR
+    bcc hud_digit_queue
+    sbc HUD_DIVISOR
+    sta HUD_VALUE
+    inx
+    bne hud_digit_count
+hud_digit_queue:
+    txa
+    bne hud_digit_shown
+    cpy #0
+    beq hud_done
+hud_digit_shown:
+    ldy #1
+    jmp hud_put               ; digit value = font index
+
+; A = font index, ORed into the HUD strip at pixel HUD_X, which then
+; advances past it. Each font row is shifted across a cell boundary.
+hud_glyph:
+    tax
+    lda hud_font_advance,x
+    clc
+    adc HUD_X
+    pha
+    txa
+    asl
+    asl
+    sta HUD_ROW
+    txa
+    adc HUD_ROW               ; index * 5, carry clear
+    sta HUD_ROW
+    lda HUD_X
+    and #7
+    sta TEMP
+    lda HUD_X
+    and #$f8                  ; cell * 8, then glyph row 1
+    ora #1
+    tay
+hud_glyph_row:
+    lda #0
+    sta HUD_SPILL
+    ldx HUD_ROW
+    lda hud_font,x
+    ldx TEMP
+    beq hud_glyph_store
+hud_glyph_shift:
+    lsr
+    ror HUD_SPILL
+    dex
+    bne hud_glyph_shift
+hud_glyph_store:
+    ora HUD_GLYPHS,y
+    sta HUD_GLYPHS,y
+    lda HUD_SPILL
+    ora HUD_GLYPHS + 8,y
+    sta HUD_GLYPHS + 8,y
+    inc HUD_ROW
+    iny
+    tya
+    and #7
+    cmp #6
+    bne hud_glyph_row
+    pla
+    sta HUD_X
+    rts
+
+; Ten-cell frame centred in row 24: 1-pixel outline in glyph rows 1..5,
+; edges and the 25/50/75 % ticks inside. The first 5 * POWER / 2 pixels
+; (80 at full power) fill rows 1..5; the one partly filled cell uses
+; the glyph rebuilt here.
+draw_power:
     lda POWER
     lsr
     sta TEMP
@@ -373,78 +438,93 @@ draw_power:
     asl
     adc TEMP                  ; POWER <= 32: carry clear
     sta TEMP
-    ldy #BAR_COLUMN
+    ldx #0
 power_bar_cell:
     lda TEMP
     cmp #8
-    bcc power_bar_width
-    lda #8
-power_bar_width:
-    clc
-    adc #BAR_CHAR
-    sta (COURSE_PTR),y
-    lda TEMP
-    sec
-    sbc #8
-    bcs power_bar_next
-    lda #0
-power_bar_next:
+    bcc power_bar_part
+    sbc #8                    ; carry set
     sta TEMP
-    iny
-    cpy #BAR_COLUMN + BAR_CELLS
+    lda #BAR_CHAR + BAR_FULL
+    bne power_bar_store
+power_bar_part:
+    lda bar_empty,x
+    ldy TEMP
+    beq power_bar_store
+    lda bar_masks,y
+    ora bar_frame,x
+    sta BAR_PARTIAL_GLYPH + 2
+    sta BAR_PARTIAL_GLYPH + 3
+    sta BAR_PARTIAL_GLYPH + 4
+    lda #0
+    sta TEMP
+    lda #BAR_CHAR + BAR_PARTIAL
+power_bar_store:
+    sta SCREEN_BASE + 24 * 40 + BAR_COLUMN,x
+    inx
+    cpx #BAR_CELLS
     bne power_bar_cell
-    rts
-
-draw_text_at:
-    sta TEXT_PTR
-    stx TEXT_PTR + 1
-draw_text:
-    ldy #0
-    lda (TEXT_PTR),y
-    beq text_done
-    jsr draw_glyph
-    inc TEXT_COLUMN
-    inc TEXT_PTR
-    bne draw_text
-    inc TEXT_PTR + 1
-    jmp draw_text
-text_done:
-    rts
-
-; A = ASCII 32..93. The screen code selects the ROM glyph copied at startup.
-draw_glyph:
-    cmp #64
-    bcc glyph_code
-    and #63
-glyph_code:
-    pha
-    lda TEXT_ROW
-    jsr class_row_pointer
-    lda COURSE_PTR + 1
-    clc
-    adc #>(SCREEN_BASE - ATTR_BASE)
-    sta COURSE_PTR + 1
-    pla
-    ldy TEXT_COLUMN
-    sta (COURSE_PTR),y
     rts
 
 wall_offsets_x:
 !byte $ff,$ff,0,1,1,1,0,$ff
 wall_offsets_y:
 !byte 0,$ff,$ff,$ff,0,1,1,1
-hud_hole:
-!text "BAHN",0
-hud_shots:
-!text " PUNKTE ",0
-hud_par_word:
-!text "PAR",0
-hud_total:
-!text "SUMME ",0
+; HUD font, glyph rows 1..5, pixels from bit 7. Advance = width + 1.
+HUD_SLASH = 10
+HUD_FLAG = 11
+HUD_CLUB = 12
+HUD_GAP = 13                  ; two more blank columns after an icon
+hud_font:
+!byte %11100000,%10100000,%10100000,%10100000,%11100000 ; 0
+!byte %01000000,%11000000,%01000000,%01000000,%11100000 ; 1
+!byte %11100000,%00100000,%11100000,%10000000,%11100000 ; 2
+!byte %11100000,%00100000,%01100000,%00100000,%11100000 ; 3
+!byte %10100000,%10100000,%11100000,%00100000,%00100000 ; 4
+!byte %11100000,%10000000,%11100000,%00100000,%11100000 ; 5
+!byte %11100000,%10000000,%11100000,%10100000,%11100000 ; 6
+!byte %11100000,%00100000,%00100000,%01000000,%01000000 ; 7
+!byte %11100000,%10100000,%11100000,%10100000,%11100000 ; 8
+!byte %11100000,%10100000,%11100000,%00100000,%11100000 ; 9
+!byte %00100000,%00100000,%01000000,%10000000,%10000000 ; /
+!byte %11000000,%11110000,%11000000,%10000000,%10000000 ; flag
+!byte %00001000,%00010000,%00100000,%01000000,%11100000 ; club
+!byte 0,0,0,0,0                                         ; gap
+hud_font_advance:
+!byte 4,4,4,4,4,4,4,4,4,4,4,5,6,2
+!if * - hud_font_advance != HUD_GAP + 1 | hud_font_advance - hud_font != (HUD_GAP + 1) * 5 {
+    !error "hud_font and hud_font_advance need HUD_GAP + 1 glyphs"
+}
+; Left strip cells 0..1, right strip cells 2..6 (screen columns 35..39).
+HUD_CELLS = 7
+HUD_LEFT_CELLS = 2
+HUD_RIGHT_COLUMN = 40 - (HUD_CELLS - HUD_LEFT_CELLS)
+HUD_LEFT_X = 1
+HUD_RIGHT_END = HUD_CELLS * 8 - 1 ; last strip column, left blank like HUD_LEFT_X - 1
+HUD_GLYPHS = CHARSET_BASE + HUD_CHAR * 8
+!if >HUD_GLYPHS != >(HUD_GLYPHS + HUD_CELLS * 8 + 7) { !error "HUD strip must not cross a page" }
+hud_text:                     ; club, gap, three digits, slash, two digits
+!fill 8
 BAR_COLUMN = 15
 BAR_CELLS = 10
-bar_masks:
-!byte $00,$80,$c0,$e0,$f0,$f8,$fc,$fe,$ff
+; Glyph offsets from BAR_CHAR: empty frame with each inner pattern, full, partial.
+BAR_FULL = 4
+BAR_PARTIAL = 5
+BAR_GLYPHS = 6
+BAR_PARTIAL_GLYPH = CHARSET_BASE + (BAR_CHAR + BAR_PARTIAL) * 8
+bar_glyph_rows:
+!byte $00,$80,$08,$01,$ff,$00
+; Rows 2..4 per cell: left edge, ticks at pixels 20, 40 and 60, right edge.
+bar_frame:
+!byte $80,$00,$08,$00,$00,$80,$00,$08,$00,$01
+bar_empty:
+!byte BAR_CHAR + 1, BAR_CHAR, BAR_CHAR + 2, BAR_CHAR, BAR_CHAR
+!byte BAR_CHAR + 1, BAR_CHAR, BAR_CHAR + 2, BAR_CHAR, BAR_CHAR + 3
+!if bar_empty - bar_frame != BAR_CELLS | * - bar_empty != BAR_CELLS {
+    !error "bar_frame and bar_empty need BAR_CELLS entries"
+}
+bar_masks:                    ; index 1..7: filled pixels from the left
+!byte $00,$80,$c0,$e0,$f0,$f8,$fc,$fe
 
 ; Inverted ball rows (the pixels to keep) for alignments 0..7: left byte
 ; column, then the right one. Row 1 leaves the highlight pixel set.

@@ -713,7 +713,8 @@ emit_code:
     sta (COPY_SOURCE),y
     tya
     eor emit_row
-    and #1
+    and #3                    ; bit 0: water checker, bit 1: 2x2 lawn checker
+    asl GLYPH
     asl GLYPH
     ora GLYPH
     tax
@@ -769,7 +770,7 @@ hidden_cell:
     sta GLYPH
     lda emit_row
     eor TEXT_COLUMN
-    and #1
+    and #3
     jmp emit_ink_store
 hidden_stored:
     inc TEXT_COLUMN
@@ -780,6 +781,7 @@ hidden_stored:
 
 ; Shared ink store used by the hidden row. Falls through from eor above.
 emit_ink_store:
+    asl GLYPH
     asl GLYPH
     ora GLYPH
     tax
@@ -836,13 +838,16 @@ intern_copy:
 
 ; Index = class * 2 + checker parity. The value is the text-mode foreground
 ; (luminance in bits 6..4, hue in bits 3..0). Black is the global background.
+; Class * 4 + ((row XOR column) AND 3): the lawn checker follows bit 1,
+; so its squares are 2x2 cells; the water checker follows bit 0.
+!macro lawn_ink { !byte CHECKER_COLOR_EVEN,CHECKER_COLOR_EVEN,CHECKER_COLOR_ODD,CHECKER_COLOR_ODD }
 course_ink:
-!byte COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR
-!byte COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR
-!byte CHECKER_COLOR_EVEN,CHECKER_COLOR_ODD
-!byte CHECKER_COLOR_EVEN,CHECKER_COLOR_ODD
-!byte CHECKER_COLOR_EVEN,CHECKER_COLOR_ODD
-!byte WATER_COLOR_EVEN,WATER_COLOR_ODD
+!byte COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR
+!byte COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR
++lawn_ink                     ; solid
++lawn_ink                     ; outer
++lawn_ink                     ; hidden
+!byte WATER_COLOR_EVEN,WATER_COLOR_ODD,WATER_COLOR_EVEN,WATER_COLOR_ODD
 
 window_row:
 !byte 0

@@ -10,7 +10,7 @@ straight frame meets a slope closed. Other solid cells next to a whole floor cel
 (8-neighbourhood) get a black band of FRAME_WIDTH pixels on each side that
 faces such a cell, square at corners. The cup is a round 7-pixel
 hole, shadowed inside at the top left. Cells with floor are gray with black
-ink, other playfield cells black ink on the green checker, rows 0 and 21..23 equal checker colors, row 24
+ink, other playfield cells black ink on the green checker of 2x2 cells, rows 0 and 21..23 equal checker colors, row 24
 the HUD palette. Water areas are whole floor cells with black ink on a
 blue checker. Row 24 is entirely the HUD palette.
 """
@@ -95,7 +95,7 @@ def render(course, s):
     luminance, color = [hud[0]]*1024, [hud[1]]*1024
     for row in range(24):
         for col in range(40):
-            checker = s['CHECKER_COLOR_ODD'] if (row+col) % 2 else s['CHECKER_COLOR_EVEN']
+            checker = s['CHECKER_COLOR_ODD'] if (row//2+col//2) % 2 else s['CHECKER_COLOR_EVEN']
             kind = classes.get((row, col))
             if kind in ('floor', 'edge'):
                 pair = attribute(s['COURSE_MARKER_COLOR'], s['COURSE_SURFACE_COLOR'])
@@ -115,7 +115,7 @@ def legacy_picture(bus, s):
 
     Rows 1..20 store inverted glyphs (set bit was black). Rows 0 and 21..23
     ignore the glyph and use one checker colour for both planes. Row 24 keeps
-    the ROM/bar glyph and a black background. Floor and the hidden rows can
+    the HUD/bar glyph and a black background. Floor and the hidden rows can
     share the solid glyph; the row number tells them apart.
     """
     bitmap = bytearray(8000)
