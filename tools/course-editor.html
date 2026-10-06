@@ -196,7 +196,7 @@ function draw() {
   ctx.setTransform(SCALE, 0, 0, SCALE, 0, 0);
   ctx.imageSmoothingEnabled = false;
   for (let r = 0; r < 25; r++) for (let c = 0; c < 40; c++) {
-    ctx.fillStyle = r === 24 ? '#000' : ((r >> 1) + (c >> 1)) % 2 ? '#689e4c' : '#7ab85a';
+    ctx.fillStyle = r === 24 ? '#000' : (r >> 1) % 2 ? '#689e4c' : '#7ab85a';
     ctx.fillRect(c * 8, r * 8, 8, 8);
   }
   const path = new Path2D();
@@ -204,7 +204,7 @@ function draw() {
     path.moveTo(c[0][0], c[0][1]); c.slice(1).forEach(p => path.lineTo(p[0], p[1])); path.closePath();
   }
   ctx.lineJoin = 'miter'; ctx.lineWidth = 12; ctx.strokeStyle = '#000'; ctx.stroke(path);
-  ctx.fillStyle = '#c8c8c8'; ctx.fill(path, 'evenodd');
+  ctx.fillStyle = '#ffffff'; ctx.fill(path, 'evenodd');
   for (const [x1, y1, x2, y2] of course.hazards || [])
     for (let y = y1; y < y2; y += 8) for (let x = x1; x < x2; x += 8) {
       ctx.fillStyle = (x / 8 + y / 8) % 2 ? '#6a9ad8' : '#5a86c0'; ctx.fillRect(x, y, 8, 8);
@@ -222,7 +222,7 @@ function draw() {
   // cup and ball
   disc(course.cup, 3.5, '#000');
   disc(course.start, 2.5, '#000');
-  ctx.fillStyle = '#c8c8c8'; ctx.fillRect(course.start[0] - 1, course.start[1] - 1, 1, 1);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(course.start[0] - 1, course.start[1] - 1, 1, 1);
   // initial aim: seven dots 8..32 px ahead, as in the game
   const a = (course.aim || 0) * Math.PI / 64;
   ctx.fillStyle = '#000';

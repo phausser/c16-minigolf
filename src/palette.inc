@@ -1,14 +1,14 @@
 ; TED colors: (LUMINANCE << 4) + HUE. Luminance 0..7, hue 0..15.
 ; Hue 0 is black, hue 1 is neutral gray/white, 13 light blue, 15 light green.
 ; Hi-res stores luminance and hue in separate foreground/background nibbles.
-COURSE_SURFACE_COLOR = (6 << 4) + 1 ; light gray floor
+COURSE_SURFACE_COLOR = (7 << 4) + 1 ; white floor
 COURSE_MARKER_COLOR = (0 << 4) + 0 ; ball, aim marks, cup ring and inner edges
 COURSE_FRAME_COLOR = (0 << 4) + 0  ; one-cell frame around the course
-CHECKER_COLOR_EVEN = (4 << 4) + 15  ; non-playable area, (column + row) even
-CHECKER_COLOR_ODD = (3 << 4) + 15   ; neighbouring squares, one luminance step
-WATER_COLOR_EVEN = (2 << 4) + 13    ; water areas: blue checker, no frame
+CHECKER_COLOR_EVEN = (4 << 4) + 15  ; non-playable area: horizontal stripes
+CHECKER_COLOR_ODD = (3 << 4) + 15   ; neighbouring stripes, one luminance step
+WATER_COLOR_EVEN = (4 << 4) + 13    ; water areas: blue checker, no frame
 WATER_COLOR_ODD = (3 << 4) + 13
-HUD_FOREGROUND_COLOR = (6 << 4) + 1
+HUD_FOREGROUND_COLOR = (7 << 4) + 1
 HUD_BACKGROUND_COLOR = (0 << 4) + 0
 BORDER_COLOR = (0 << 4) + 0
 

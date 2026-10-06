@@ -345,3 +345,12 @@ Offen: freien Speicher verteilen (Plan, Schritt 9).
 - Farben (Nutzerwahl): Rasen hellgrün (Farbton 15, Luminanz 4/3) in 2×2-Feldern,
   Wasser hellblau (Farbton 13, Luminanz 2/3), HUD Luminanz 6.
 - Runtime 9913 Bytes, 1862 frei; 70 Tests, VICE-Smoke bestanden.
+
+## Stand 2026-10-06 spät: Rasenstreifen, weiße Fläche
+
+- Nach Vergleich von Streifen (waagerecht, senkrecht) und grauem Außen-
+  Schachbrett (Nutzerwahl): Rasen in waagerechten Streifen von zwei Zeilen
+  (Farbton 15, Luminanz 4/3), Spielfläche weiß (Luminanz 7).
+- Farbindex = Klasse × 4 + ((Zeile XOR (Spalte AND 1)) AND 3): Bit 1 nur aus
+  der Zeile (Streifen), Bit 0 bleibt das Wasser-Schachbrett.
+- Editor zeichnet Streifen und weiße Fläche; 70 Tests, VICE-Smoke bestanden.

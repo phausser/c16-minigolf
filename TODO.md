@@ -46,7 +46,8 @@ Abnahme: spielbarer Kern erfüllt Speicher- und Zeitbudget mit begründeter Rese
 
 Seit 2026-10-05: schwarzer 6-Pixel-Rahmen (Schrägen glatt bis zur Zellkante, optisch gleich stark), gefülltes rundes Loch,
 hellgraue Fläche, schwarzer Ball mit Glanzpunkt, grünes Schachbrett außerhalb
-(siehe SPEC und docs/hardware.md). Der folgende Absatz beschreibt den Stand davor.
+(siehe SPEC und docs/hardware.md). Seit 2026-10-06: weiße Fläche, Rasen in
+waagerechten Streifen von zwei Zeilen. Der folgende Absatz beschreibt den Stand davor.
 
 ### Grafikänderung vor der Speicheroptimierung
 

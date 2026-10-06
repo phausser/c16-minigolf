@@ -6,7 +6,7 @@ Ein technisch anspruchsvolles Minigolfspiel für den unveränderten Commodore 16
 
 Planungsannahmen: PAL als erstes Ziel, ein Spieler, C16-kompatibler Joystick an Port 1 als Grundsteuerung, P auf der Tastatur zum Pausieren. Alle 18 Löcher liegen im geladenen Programm; während einer Runde wird nichts nachgeladen. Auslieferung als PRG, zusätzlich ein D64 mit demselben Programm. Keine Speichererweiterung erforderlich. NTSC ist ein späteres Kompatibilitätsziel mit derselben Simulationszeit, aber eigener Laufzeitprüfung.
 
-„Kein Multicolor“ bedeutet TED Standard-Hi-Res mit einem Bit pro Pixel und zwei Farben pro 8×8-Zelle. Graue Spielflächen sind die Hintergrundfarbe, Ball und Markierungen die schwarze Vordergrundfarbe. Rahmen und grünes Schachbrett entstehen allein über die Zellattribute. Die Pixelauflösung bleibt 320×200.
+„Kein Multicolor“ bedeutet TED Standard-Hi-Res mit einem Bit pro Pixel und zwei Farben pro 8×8-Zelle. Weiße Spielflächen sind die Hintergrundfarbe, Ball und Markierungen die schwarze Vordergrundfarbe. Rahmen und grüne Rasenstreifen entstehen allein über die Zellattribute. Die Pixelauflösung bleibt 320×200.
 
 ## Darstellung und Atmosphäre
 

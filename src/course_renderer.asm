@@ -712,8 +712,9 @@ emit_code:
     ldy TEXT_COLUMN
     sta (COPY_SOURCE),y
     tya
+    and #1
     eor emit_row
-    and #3                    ; bit 0: water checker, bit 1: 2x2 lawn checker
+    and #3                    ; bit 0: water checker, bit 1: 2-row lawn stripes
     asl GLYPH
     asl GLYPH
     ora GLYPH
@@ -768,8 +769,9 @@ hidden_cell:
     sta (COPY_SOURCE),y
     lda #CLASS_HIDDEN
     sta GLYPH
-    lda emit_row
-    eor TEXT_COLUMN
+    lda TEXT_COLUMN
+    and #1
+    eor emit_row
     and #3
     jmp emit_ink_store
 hidden_stored:
@@ -838,8 +840,8 @@ intern_copy:
 
 ; Index = class * 2 + checker parity. The value is the text-mode foreground
 ; (luminance in bits 6..4, hue in bits 3..0). Black is the global background.
-; Class * 4 + ((row XOR column) AND 3): the lawn checker follows bit 1,
-; so its squares are 2x2 cells; the water checker follows bit 0.
+; Class * 4 + ((row XOR (column AND 1)) AND 3): the lawn follows row bit 1,
+; so it forms horizontal stripes two cells high; the water checker follows bit 0.
 !macro lawn_ink { !byte CHECKER_COLOR_EVEN,CHECKER_COLOR_EVEN,CHECKER_COLOR_ODD,CHECKER_COLOR_ODD }
 course_ink:
 !byte COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR

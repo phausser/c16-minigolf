@@ -9,8 +9,8 @@ cells also get the bands below towards orthogonal whole floor cells, so a
 straight frame meets a slope closed. Other solid cells next to a whole floor cell
 (8-neighbourhood) get a black band of FRAME_WIDTH pixels on each side that
 faces such a cell, square at corners. The cup is a round 7-pixel
-hole, shadowed inside at the top left. Cells with floor are gray with black
-ink, other playfield cells black ink on the green checker of 2x2 cells, rows 0 and 21..23 equal checker colors, row 24
+hole, shadowed inside at the top left. Cells with floor are white with black
+ink, other playfield cells black ink on green horizontal stripes two cells high, rows 0 and 21..23 equal stripe colors, row 24
 the HUD palette. Water areas are whole floor cells with black ink on a
 blue checker. Row 24 is entirely the HUD palette.
 """
@@ -95,7 +95,7 @@ def render(course, s):
     luminance, color = [hud[0]]*1024, [hud[1]]*1024
     for row in range(24):
         for col in range(40):
-            checker = s['CHECKER_COLOR_ODD'] if (row//2+col//2) % 2 else s['CHECKER_COLOR_EVEN']
+            checker = s['CHECKER_COLOR_ODD'] if (row//2) % 2 else s['CHECKER_COLOR_EVEN']
             kind = classes.get((row, col))
             if kind in ('floor', 'edge'):
                 pair = attribute(s['COURSE_MARKER_COLOR'], s['COURSE_SURFACE_COLOR'])
