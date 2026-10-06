@@ -199,17 +199,13 @@ physics_steps_finished:
     and #15
     cmp #WATER_HUE
     bne physics_dry
-    ldx #4
-physics_ashore:
-    lda FRAME_START,x
-    sta BALL_POS_X,x
-    dex
-    bpl physics_ashore
+    jsr ashore
     inc SHOTS                 ; one penalty stroke; the stroke limit below applies
     jsr stop_ball
     ldx #SOUND_WATER
     jmp play_sound
 physics_dry:
+    jsr cup_rim
     ; Constant radial resistance preserves the unit direction. There is
     ; no independent x/y braking and no asymptotic never-ending creep.
     lda SPEED + 1
@@ -248,6 +244,378 @@ stop_ball:
 stop_status:
     lda #2
     sta HUD_DIRTY
+    ; Fall through: the next stroke starts aimed at the cup.
+
+; ANGLE = round(atan2(cup - ball) * 64 / pi) from the rounded pixel
+; positions: |dy|/|dx| within one octant against 16 tangent thresholds.
+aim_at_cup:
+    lda HOLED
+    bne aim_cup_done
+    jsr ball_screen_position
+    sec
+    lda COURSE_CUP_X
+    sbc BALL_SCREEN_X
+    sta QX
+    lda COURSE_CUP_X_HI
+    sbc BALL_SCREEN_X + 1
+    sta QX + 1
+    sec
+    lda COURSE_CUP_Y
+    sbc BALL_SCREEN_Y
+    sta QY
+    lda #0
+    sbc #0
+    sta QY + 1
+    ldx #2                    ; DX_WIDE = |dx|, DX_WIDE + 2 = |dy|
+aim_abs:
+    lda QX,x
+    sta DX_WIDE,x
+    lda QX + 1,x
+    sta DX_WIDE + 1,x
+    bpl aim_abs_next
+    sec
+    lda #0
+    sbc DX_WIDE,x
+    sta DX_WIDE,x
+    lda #0
+    sbc DX_WIDE + 1,x
+    sta DX_WIDE + 1,x
+aim_abs_next:
+    dex
+    dex
+    bpl aim_abs
+    lda DX_WIDE
+    cmp DX_WIDE + 2
+    lda DX_WIDE + 1
+    sbc DX_WIDE + 3
+    bcc aim_steep
+    lda DX_WIDE
+    ora DX_WIDE + 1
+    beq aim_cup_done          ; on the cup centre: keep the angle
+    ldx #2                    ; |dy| / |dx|
+    ldy #0
+    jsr aim_octant
+    jmp aim_quadrant
+aim_steep:
+    ldx #0                    ; |dx| / |dy|
+    ldy #2
+    jsr aim_octant
+    sta TEMP
+    lda #32
+    sec
+    sbc TEMP
+aim_quadrant:
+    bit QX + 1
+    bpl aim_right
+    sta TEMP
+    lda #64
+    sec
+    sbc TEMP
+aim_right:
+    bit QY + 1
+    bpl aim_store
+    eor #$ff
+    clc
+    adc #1
+aim_store:
+    and #127
+    sta ANGLE
+aim_cup_done:
+    rts
+
+; A = round(atan(n / d) * 64 / pi) for n = DX_WIDE + X <= d = DX_WIDE + Y.
+aim_octant:
+    lda DX_WIDE,x
+    sta M_REM
+    cmp DX_WIDE,y
+    lda DX_WIDE + 1,x
+    sta M_REM + 1
+    sbc DX_WIDE + 1,y
+    bcs aim_diagonal          ; n = d
+    lda DX_WIDE,y
+    sta M_DEN
+    lda DX_WIDE + 1,y
+    sta M_DEN + 1
+    lda #0
+    sta M_REM + 2
+    sta M_DEN + 2
+    jsr divide_fraction       ; M_QUOT = floor(256 * n / d)
+    ldx #0
+aim_count:
+    lda M_QUOT
+    cmp aim_tangents,x
+    bcc aim_counted
+    inx
+    cpx #16
+    bne aim_count
+aim_counted:
+    txa
+    rts
+aim_diagonal:
+    lda #16
+    rts
+
+; ceil(256 * tan((j - 0.5) * pi / 64)), j = 1..16
+aim_tangents:
+!byte 7,19,32,45,58,71,85,99,114,129,146,163,181,200,221,244
+
+; Back ashore from the water cell the ball centre ended in: on each axis
+; whose cell boundary this frame crossed, three free pixels lie between the
+; ball (centre +-2) and the water; otherwise the frame start coordinate
+; stays. A frame moves at most 4 px, so the crossing is one cell.
+ashore:
+    jsr ball_cell_x
+    sta M_A                   ; water cell
+    lda BALL_POS_Y + 1
+    lsr
+    lsr
+    lsr
+    sta M_A + 1
+    ldx #4
+ashore_restore:
+    lda FRAME_START,x
+    sta BALL_POS_X,x
+    dex
+    bpl ashore_restore
+    jsr ball_cell_x
+    cmp M_A
+    beq ashore_y
+    bcc ashore_right
+    jsr cell_times_8          ; water on the left: x = start cell * 8 + 5
+    clc
+    lda M_B
+    adc #5
+    sta BALL_POS_X + 1
+    lda M_B + 1
+    adc #0
+    jmp ashore_x_store
+ashore_right:
+    lda M_A                   ; water on the right: x = water cell * 8 - 6
+    jsr cell_times_8
+    sec
+    lda M_B
+    sbc #6
+    sta BALL_POS_X + 1
+    lda M_B + 1
+    sbc #0
+ashore_x_store:
+    sta BALL_POS_X + 2
+    lda #0
+    sta BALL_POS_X
+ashore_y:
+    lda BALL_POS_Y + 1
+    lsr
+    lsr
+    lsr
+    cmp M_A + 1
+    beq ashore_done
+    bcc ashore_down
+    asl                       ; water above: y = start cell * 8 + 5
+    asl
+    asl
+    adc #5                    ; carry clear from the shifts (y < 256)
+    bne ashore_y_store
+ashore_down:
+    lda M_A + 1               ; water below: y = water cell * 8 - 6
+    asl
+    asl
+    asl
+    sbc #6 - 1                ; carry clear from the shifts: subtracts 6
+ashore_y_store:
+    sta BALL_POS_Y + 1
+    lda #0
+    sta BALL_POS_Y
+ashore_done:
+    rts
+
+; A = column of the cell under the ball centre, 0..39.
+ball_cell_x:
+    lda BALL_POS_X + 2
+    lsr
+    lda BALL_POS_X + 1
+    ror
+    lsr
+    lsr
+    rts
+
+; M_B = A * 8.
+cell_times_8:
+    ldx #0
+    stx M_B + 1
+    asl
+    rol M_B + 1
+    asl
+    rol M_B + 1
+    asl
+    rol M_B + 1
+    sta M_B
+    rts
+
+; Cup rim: while the ball overlaps the cup (centre within 5.5 px of it)
+; without being caught, its direction turns about 0.9 degrees per frame
+; towards the cup centre: a ball passing left of the cup bends right.
+; Slow balls stay longer on the rim and curl more; a ball over the
+; centre line goes straight. Rim drag SPEED/128 + 1 outweighs the unit
+; rounding of the turn (< 0.3 %), so the rim never adds speed.
+; Frames with a wall contact skip the rim: the two worst costs never add.
+rim_far:
+    rts
+cup_rim:
+    lda CONTACTS_LEFT
+    cmp #MAX_CONTACTS
+    bne rim_far
+    sec
+    lda BALL_POS_X + 1
+    sbc COURSE_CUP_X
+    tax
+    lda BALL_POS_X + 2
+    sbc COURSE_CUP_X_HI
+    beq rim_x_positive
+    cmp #$ff
+    bne rim_far
+    cpx #$fa
+    bcc rim_far
+    bcs rim_x_ready
+rim_x_positive:
+    cpx #6
+    bcs rim_far
+rim_x_ready:
+    stx QX + 1                ; QX/QY = ball - cup, Q8.8, |q| < 6 px
+    lda BALL_POS_X
+    sta QX
+    sec
+    lda BALL_POS_Y + 1
+    sbc COURSE_CUP_Y
+    cmp #6
+    bcc rim_y_ready
+    cmp #$fa
+    bcc rim_far
+rim_y_ready:
+    sta QY + 1
+    lda BALL_POS_Y
+    sta QY
+    jsr square_q              ; d^2 in Q16.16, below 72 px^2
+    lda M_PRODUCT + 2
+    cmp #$1e                  ; 5.5^2 = $1e.40
+    bcc rim_inside
+    bne rim_far
+    lda M_PRODUCT + 1
+    cmp #$40
+    bcs rim_far
+rim_inside:
+    ; s = ux*qy - uy*qx; its sign tells on which side the cup lies.
+    +copy16 QY, M_A
+    +copy16 UNIT_X, M_B
+    jsr multiply_unit
+    +copy32 M_PRODUCT, DX_WIDE
+    +copy16 QX, M_A
+    +copy16 UNIT_Y, M_B
+    jsr multiply_unit
+    sec
+    lda DX_WIDE
+    sbc M_PRODUCT
+    sta DX_WIDE
+    lda DX_WIDE + 1
+    sbc M_PRODUCT + 1
+    sta DX_WIDE + 1
+    lda DX_WIDE + 2
+    sbc M_PRODUCT + 2
+    sta DX_WIDE + 2
+    lda DX_WIDE + 3
+    sbc M_PRODUCT + 3
+    sta DX_WIDE + 3
+    ora DX_WIDE
+    ora DX_WIDE + 1
+    ora DX_WIDE + 2
+    beq rim_drag              ; heading straight over the centre
+    ; Turn by 1/64 rad: s < 0 gives u += (-uy, ux)/64, s > 0 the opposite.
+    lda UNIT_Y
+    ldx UNIT_Y + 1
+    jsr rim_share
+    sta M_A
+    lda UNIT_X
+    ldx UNIT_X + 1
+    jsr rim_share
+    sta M_B
+    lda DX_WIDE + 3
+    bmi rim_turn_left
+    lda #0
+    sec
+    sbc M_B
+    sta M_B
+    jmp rim_turn
+rim_turn_left:
+    lda #0
+    sec
+    sbc M_A
+    sta M_A
+rim_turn:
+    ldx #0
+    lda M_A
+    jsr rim_add
+    ldx #2
+    lda M_B
+    jsr rim_add
+rim_drag:
+    lda SPEED
+    asl
+    lda SPEED + 1
+    rol
+    sta TEMP                  ; SPEED / 128
+    clc                       ; borrow: one more
+    lda SPEED
+    sbc TEMP
+    sta SPEED
+    lda SPEED + 1
+    sbc #0
+    sta SPEED + 1
+    bcs rim_none
+    lda #0
+    sta SPEED
+    sta SPEED + 1
+rim_none:
+    rts
+
+; A = round(v / 64) for the unit component v = X:A, |v| <= 288.
+rim_share:
+    sta M_REM
+    stx M_REM + 1
+    txa
+    php
+    bpl rim_share_positive
+    +negate16 M_REM
+rim_share_positive:
+    clc
+    lda M_REM
+    adc #32
+    sta M_REM
+    lda M_REM + 1
+    adc #0
+    asl M_REM
+    rol
+    asl M_REM
+    rol
+    plp
+    bpl rim_share_done
+    eor #$ff
+    clc
+    adc #1
+rim_share_done:
+    rts
+
+; UNIT_X + X += sign-extended A.
+rim_add:
+    ldy #0
+    ora #0
+    bpl rim_add_positive
+    dey
+rim_add_positive:
+    clc
+    adc UNIT_X,x
+    sta UNIT_X,x
+    tya
+    adc UNIT_X + 1,x
+    sta UNIT_X + 1,x
     rts
 
 finish_hole:

@@ -30,13 +30,13 @@ class CourseCodecTests(unittest.TestCase):
                   'outline':[[16,24],[304,24],[304,152],[16,152]],
                   'hazards':[[128,64,176,112],[208,24,240,48]]}
         packed = encode(course)
-        self.assertEqual(packed[4], 1 | 2 << 6)
+        self.assertEqual(packed[5], 1 | 2 << 5)
         self.assertEqual(list(packed[-8:]), [16,8,21,13, 26,3,29,5])
         self.assertEqual(decode(packed), course)
         for hazards in ([[128,64,176,110]],       # not cell aligned
                         [[8,64,40,112]],          # covers the frame
                         [[32,80,48,96]],          # start in water
-                        [[128,64,176,112]]*4):    # too many areas
+                        [[128,64,176,112]]*8):    # too many areas
             with self.assertRaises(ValueError, msg=hazards):
                 encode(dict(course, hazards=hazards))
 

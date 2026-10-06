@@ -69,6 +69,8 @@
       <h2>Bahn</h2>
       <label>Name <input id="name" type="text" maxlength="28"></label>
       <label>Par <input id="par" type="number" min="1" max="9" style="width:4em"></label>
+      <label title="Startrichtung des Richtungswählers: 0 rechts, 32 unten, 64 links, 96 oben">Richtung
+        <input id="aim" type="number" min="-1" max="128" style="width:4em"> <span id="aimDeg"></span></label>
       <div class="stat" id="stats"></div>
     </section>
     <section>
@@ -88,7 +90,7 @@
 'use strict';
 // Game geometry: 320x200 bitmap, playfield rows 1..20, vertices on the
 // 8-pixel cell grid inside x 8..304, y 8..160 (tools/generate_assets.py).
-const W = 320, H = 200, SCALE = 3, MAX_SEGMENTS = 32, MAX_WATER = 3;
+const W = 320, H = 200, SCALE = 3, MAX_SEGMENTS = 32, MAX_WATER = 7;
 const canvas = document.getElementById('view');
 const ctx = canvas.getContext('2d');
 let course = blankCourse();
@@ -134,8 +136,8 @@ function waterCells() {
     for (let r = y1 / 8; r < y2 / 8; r++) for (let c = x1 / 8; c < x2 / 8; c++) cells.add(r * 40 + c);
   return cells;
 }
-function packedSize() {   // format 4, tools/course_codec.py
-  let n = 5;
+function packedSize() {   // format 5, tools/course_codec.py
+  let n = 6;
   for (const c of contours()) {
     n += 3;
     c.forEach((a, i) => { const b = c[(i + 1) % c.length];
@@ -221,6 +223,11 @@ function draw() {
   disc(course.cup, 3.5, '#000');
   disc(course.start, 2.5, '#000');
   ctx.fillStyle = '#c8c8c8'; ctx.fillRect(course.start[0] - 1, course.start[1] - 1, 1, 1);
+  // initial aim: seven dots 8..32 px ahead, as in the game
+  const a = (course.aim || 0) * Math.PI / 64;
+  ctx.fillStyle = '#000';
+  for (let d = 8; d <= 32; d += 4)
+    ctx.fillRect(Math.round(course.start[0] + d * Math.cos(a)), Math.round(course.start[1] + d * Math.sin(a)), 1, 1);
   // vertices
   contours().forEach((c, ci) => c.forEach((p, i) => {
     const hot = hover && hover.ci === ci && hover.i === i;
@@ -333,6 +340,9 @@ function refresh() {
   const name = document.getElementById('name'), par = document.getElementById('par');
   if (document.activeElement !== name) name.value = course.name || '';
   if (document.activeElement !== par) par.value = course.par || '';
+  const aim = document.getElementById('aim');
+  if (document.activeElement !== aim) aim.value = course.aim || 0;
+  document.getElementById('aimDeg').textContent = `${Math.round((course.aim || 0) * 360 / 128)}°`;
   document.getElementById('save').disabled = !fileHandle;
   setStatus(dirty ? 'ungespeichert' : '');
 }
@@ -442,6 +452,9 @@ document.getElementById('tools').addEventListener('click', e => { if (e.target.d
 document.getElementById('name').addEventListener('input', e => {
   remember(); course.name = e.target.value.toUpperCase().replace(/[^A-Z0-9 '!?.,-]/g, ''); e.target.value = course.name; refresh();
 });
+document.getElementById('aim').addEventListener('input', e => {
+  remember(); course.aim = ((Number(e.target.value) || 0) % 128 + 128) % 128; e.target.value = course.aim; refresh();
+});
 document.getElementById('par').addEventListener('input', e => { remember(); course.par = Number(e.target.value) || 0; refresh(); });
 
 // ---------- files ----------
@@ -449,6 +462,7 @@ function serialise() {
   const out = { name: course.name, par: course.par, start: course.start, cup: course.cup,
                 outline: course.outline, obstacles: course.obstacles };
   if ((course.hazards || []).length) out.hazards = course.hazards;
+  if (course.aim) out.aim = course.aim;
   return JSON.stringify(out) + '\n';
 }
 function load(text) {

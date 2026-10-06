@@ -1,4 +1,4 @@
-; X = course index. Unpacks a version-3 stream (tools/course_codec.py)
+; X = course index. Unpacks a version-5 stream (tools/course_codec.py)
 ; into course_segments plus start/cup variables. Runs of one direction merge
 ; into one segment; flags match tools/generate_assets.expanded_segments.
 decode_course:
@@ -19,14 +19,18 @@ decode_header:
     bpl decode_header
     ldy #4
     lda (COURSE_PTR),y
-    and #63
+    sta ANGLE                 ; initial aim along the course
+    iny
+    lda (COURSE_PTR),y
+    and #31
     sta DECODE_CONTOURS
     lda (COURSE_PTR),y
-    rol
-    rol
-    rol
-    and #3
-    sta HAZARD_COUNT
+    lsr
+    lsr
+    lsr
+    lsr
+    lsr
+    sta HAZARD_COUNT          ; 0..7
 decode_contour:
     ; Cells to 2px segment units: x/8 * 4.
     iny

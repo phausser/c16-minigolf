@@ -1,1 +1,1 @@
-{"name": "GERADER GEHT'S NICHT", "par": 2, "start": [48, 96], "cup": [264, 96], "outline": [[24, 64], [296, 64], [296, 128], [24, 128]], "obstacles": [], "hazards": [[280, 64, 296, 128]]}
+{"name": "GERADER GEHT'S NICHT", "par": 2, "start": [48, 96], "cup": [264, 96], "outline": [[24, 64], [296, 64], [296, 128], [24, 128]], "obstacles": [], "hazards": [[280, 64, 296, 128]], "aim": 0}

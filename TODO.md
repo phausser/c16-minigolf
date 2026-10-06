@@ -1,6 +1,6 @@
 # C16 Minigolf — Umsetzung
 
-Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-06: Schritt 1 ist abgeschlossen. Das Spiel läuft im TED-Textmodus mit allen 18 Bahnentwürfen, Wertung und Endwertung; Runtime 8360 Bytes, 3415 Bytes frei (`make budget`). 61 automatisierte Tests bestehen. VICE bestätigt ROM-Start, Textmodus, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31142 von 32000 Ticks (Test-Build mit Testbahn, ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis Sweep- und Mehrfachkontaktfälle abgesichert sind; die Entwürfe sind noch nicht spielgetestet. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
+Grundlage: [SPEC.md](SPEC.md). Ziel ist ein vollständiges 18-Loch-Spiel auf dem unveränderten C16 mit 16 KB RAM. Reihenfolge beachten: Machbarkeit und Physik kommen vor Bahnproduktion und Effekten. Stand 2026-10-06: Schritt 1 ist abgeschlossen. Das Spiel läuft im TED-Textmodus mit allen 18 Bahnentwürfen, Wertung und Endwertung; Runtime 9152 Bytes, 2623 Bytes frei (`make budget`). 66 automatisierte Tests bestehen. VICE bestätigt ROM-Start, Textmodus, Eingabe, Joystick und Rendering; das Zeitbudget hält mit 31140 von 32000 Ticks (Test-Build mit Testbahn, ohne Wasser), inklusive der teuersten Winkel. Schritt 2 bleibt offen, bis Sweep- und Mehrfachkontaktfälle abgesichert sind; der Spieltest der Entwürfe läuft. Reale Hardware ist ungeprüft; alle sechs Tasten sind durch den Nutzer in VICE bestätigt. Messungen stehen in [docs/hardware.md](docs/hardware.md).
 
 ## 1. Werkzeugkette und Hardware-Nachweis
 
@@ -85,10 +85,10 @@ Plan und Ergebnis: [docs/textmode-plan.md](docs/textmode-plan.md).
 
 ### Nächste Umsetzung innerhalb von Schritt 2
 
-Speicher (Textmodus, 3415 Bytes frei) und Zeitbudget (31142 ≤ 32000 Ticks) sind nachgewiesen; die früheren Punkte zu Speicherarchitektur, 38873-Tick-Ecken und Decoder-Vergleich sind erledigt. Messstand und Fortsetzungskontext: [docs/continuation.md](docs/continuation.md); Teilkosten mit `make profile`, Rechenfälle mit `make benchmark`.
+Speicher (Textmodus, 2623 Bytes frei) und Zeitbudget (31140 ≤ 32000 Ticks) sind nachgewiesen; die früheren Punkte zu Speicherarchitektur, 38873-Tick-Ecken und Decoder-Vergleich sind erledigt. Messstand und Fortsetzungskontext: [docs/continuation.md](docs/continuation.md); Teilkosten mit `make profile`, Rechenfälle mit `make benchmark`.
 
 1. Kontinuierlichen Sweep, Restbewegung, Doppelkontakte und Kontaktgrenze systematisch prüfen; gleichzeitige Kontakte und schräge Endpunktfälle absichern.
-2. Die 18 Entwürfe in VICE spieltesten (`make play HOLE=n`) und Auffälligkeiten festhalten.
+2. Die 18 Entwürfe in VICE spieltesten (`make play HOLE=n`) und Auffälligkeiten festhalten. Stand 2026-10-06: Bahnen 1–4, 6, 11 und 13–16 nach Spieltest überarbeitet; 5, 7–10, 12, 17 und 18 noch ohne Rückmeldung. Dabei neu: Lochrand lenkt ab, Loch mit Schatten, Startrichtung je Bahn und danach Richtung aufs Loch, Wasser +1 Schlag mit 3 Pixel Abstand zum Ufer, bis zu 7 Wasserflächen.
 3. Danach Schritt 2 schließen und mit Schritt 3/4 fortfahren.
 
 ## 3. Physik absichern
@@ -122,7 +122,7 @@ Abnahme: sämtliche Physikkriterien aus SPEC erfüllt; dokumentierte Grenzfälle
 - [ ] Für jedes Loch mindestens eine robuste Lösung als Replay sichern.
 - [ ] Engstellen und Einlochen mit benachbarten Richtungs-/Stärkewerten auf Fairness prüfen.
 - [ ] Namen, Schwierigkeit, Par und Gesamtsumme nach Spieltests finalisieren.
-- [x] Alle 18 Exporte gemeinsam gegen das echte RAM-Budget prüfen (`make budget`: 3415 Bytes frei; nach Änderungen erneut prüfen).
+- [x] Alle 18 Exporte gemeinsam gegen das echte RAM-Budget prüfen (`make budget`: 2623 Bytes frei; nach Änderungen erneut prüfen).
 
 Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kanten, kein zwingender einzelner Präzisionsschlag.
 

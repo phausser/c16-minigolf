@@ -46,8 +46,8 @@ def hazard_cells(course):
 
 
 def validate_hazards(course):
-    if len(course.get('hazards', [])) > 3:
-        raise ValueError('at most three water areas')
+    if len(course.get('hazards', [])) > 7:
+        raise ValueError('at most seven water areas')
     contours = [course['outline'], *course['obstacles']]
     cells = hazard_cells(course)
     for row, col in cells:
@@ -82,7 +82,7 @@ def validate(course):
             segments.append((a,b,contour_index,i,len(contour)))
     if len(segments) > 32:
         raise ValueError('course exceeds 32-segment budget')
-    if len(contours) > 63:
+    if len(contours) > 31:
         raise ValueError('too many contours')
     for i,(a,b,ci,ei,ni) in enumerate(segments):
         for c,d,cj,ej,nj in segments[i+1:]:

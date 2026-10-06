@@ -451,10 +451,12 @@ ball_masks:
 !for ball_shift, 0, 7 { +ball_mask_rows ball_shift, 0 }
 !for ball_shift, 0, 7 { +ball_mask_rows ball_shift, 1 }
 
-; The cup is a filled round 7-pixel disc; plotting covers x > 255 too.
+; The cup is a round 7-pixel hole: a dark rim with the shadow of its edge
+; inside at the top left; the lit far wall at the bottom right stays floor.
+; Plotting covers x > 255 too.
 draw_cup:
     lda #6
-    sta POINT_INDEX           ; disc row 0..6, dy = row - 3
+    sta POINT_INDEX           ; hole row 0..6, dy = row - 3
 cup_row:
     lda POINT_INDEX
     clc
@@ -463,29 +465,36 @@ cup_row:
     sbc #3
     sta PIXEL_Y
     ldx POINT_INDEX
-    lda cup_half_widths,x
-    sta TEMP
-    asl
+    lda cup_rows,x
+    asl                       ; bits 6..0 are dx = -3..3
     sta GLYPH
-    inc GLYPH                 ; 2 * half width + 1 pixels
     sec
     lda COURSE_CUP_X
-    sbc TEMP
+    sbc #3
     sta PIXEL_X
     lda COURSE_CUP_X_HI
     sbc #0
     sta PIXEL_X + 1
 cup_pixel:
+    asl GLYPH
+    bcc cup_pixel_next
     jsr plot_pixel
-    inc PIXEL_X
-    bne cup_pixel_next
-    inc PIXEL_X + 1
 cup_pixel_next:
-    dec GLYPH
+    inc PIXEL_X
+    bne cup_pixel_more
+    inc PIXEL_X + 1
+cup_pixel_more:
+    lda GLYPH
     bne cup_pixel
     dec POINT_INDEX
     bpl cup_row
     rts
 
-cup_half_widths:
-!byte 1,2,3,3,3,2,1
+cup_rows:
+!byte %0011100
+!byte %0111110
+!byte %1111001
+!byte %1110001
+!byte %1100001
+!byte %0100010
+!byte %0011100

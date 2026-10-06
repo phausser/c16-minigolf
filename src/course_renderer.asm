@@ -422,7 +422,19 @@ shape_cell:
     beq shape_invert
     cmp #CLASS_SOLID
     beq shape_frame
-    bcs shape_next
+    bcc shape_floor_or_edge
+    cmp #CLASS_OUTER
+    bne shape_next_far
+    lda #$ff                  ; outer cells: orthogonal bands only
+    bne shape_bands
+shape_frame:
+    lda #0
+shape_bands:
+    sta frame_skip
+    jsr frame_bands
+shape_next_far:
+    jmp shape_next
+shape_floor_or_edge:
     cmp #CLASS_EDGE
     bne shape_invert
     lda #0
@@ -473,28 +485,6 @@ shape_invert_byte:
     sta (BITMAP_PTR),y
     dey
     bpl shape_invert_byte
-    bmi shape_next
-shape_frame:
-    ldx #7
-shape_neighbour:
-    ldy course_neighbours,x
-    lda (COURSE_PTR),y
-    beq shape_is_floor
-    cmp #CLASS_WATER
-    bne shape_neighbour_next
-shape_is_floor:
-    ldy frame_row_first,x
-shape_frame_row:
-    lda (BITMAP_PTR),y
-    ora frame_columns,x
-    sta (BITMAP_PTR),y
-    iny
-    tya
-    cmp frame_row_end,x
-    bne shape_frame_row
-shape_neighbour_next:
-    dex
-    bpl shape_neighbour
 shape_next:
     jsr course_cells_next
     beq shape_row_done
@@ -519,12 +509,50 @@ course_outer_cell:
     bne course_outer_done
     lda #CLASS_OUTER
     sta (COURSE_PTR),y
+    tya
+    tax                       ; class offset of the outer cell
     lda #0
     ldy #7
 course_outer_clear:
     sta (COPY_TARGET),y
     dey
     bpl course_outer_clear
+    ; A cell left of or above the edge was shaped already: give it its
+    ; orthogonal bands again, so a straight frame meets the slope closed.
+    lda COURSE_PTR
+    pha
+    lda COURSE_PTR + 1
+    pha
+    lda BITMAP_PTR
+    pha
+    lda BITMAP_PTR + 1
+    pha
+    txa
+    sec
+    sbc #CLASS_SELF
+    tay                       ; -40..40
+    clc
+    adc COURSE_PTR
+    sta COURSE_PTR
+    tya
+    and #$80
+    beq outer_offset_positive
+    lda #$ff
+outer_offset_positive:
+    adc COURSE_PTR + 1
+    sta COURSE_PTR + 1
+    +copy16 COPY_TARGET, BITMAP_PTR
+    lda #$ff
+    sta frame_skip
+    jsr frame_bands
+    pla
+    sta BITMAP_PTR + 1
+    pla
+    sta BITMAP_PTR
+    pla
+    sta COURSE_PTR + 1
+    pla
+    sta COURSE_PTR
 course_outer_add:
     ldy TEMP
 course_outer_copy:
@@ -590,6 +618,37 @@ water_done:
 
 FRAME_LEFT = ($ff << (8 - FRAME_WIDTH)) & $ff
 FRAME_RIGHT = $ff >> (8 - FRAME_WIDTH)
+; Bands towards whole floor or water neighbours; frame_skip = $ff keeps
+; only the four orthogonal ones (outer cells beside a slope).
+frame_bands:
+    ldx #7
+frame_band_neighbour:
+    lda frame_diagonal,x
+    and frame_skip
+    bne frame_band_next
+    ldy course_neighbours,x
+    lda (COURSE_PTR),y
+    beq frame_band_floor
+    cmp #CLASS_WATER
+    bne frame_band_next
+frame_band_floor:
+    ldy frame_row_first,x
+frame_band_row:
+    lda (BITMAP_PTR),y
+    ora frame_columns,x
+    sta (BITMAP_PTR),y
+    iny
+    tya
+    cmp frame_row_end,x
+    bne frame_band_row
+frame_band_next:
+    dex
+    bpl frame_band_neighbour
+    rts
+frame_skip:
+!byte 0
+frame_diagonal:
+!byte $ff,0,$ff,0,0,$ff,0,$ff
 course_neighbours:
 !byte 0,1,2,40,42,80,81,82
 frame_row_first:

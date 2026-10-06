@@ -428,6 +428,63 @@ class MovementTests(unittest.TestCase):
         self.assertEqual(self.r.get('HOLED'),0)
         self.assertGreater(point(self.r)[0],272)
 
+    def rim_pass(self, y, power):
+        isolate_segments(self.r,[])
+        self.r.call('initialise_state')
+        position(self.r,240,y)
+        self.shoot(0,power)
+        speeds = []
+        for _ in range(400):
+            self.r.call('physics_tick')
+            speeds.append(unsigned(self.r,'SPEED'))
+            if not self.r.get('ROLLING'):
+                break
+        self.assertTrue(all(b <= a for a,b in zip(speeds,speeds[1:])))
+        self.assertEqual(self.r.get('HOLED'),0)
+        return signed(self.r,'UNIT_X'),signed(self.r,'UNIT_Y'),point(self.r)
+
+    def test_cup_rim_bends_towards_the_cup_on_both_sides(self):
+        for power in (8,16,32):
+            above = self.rim_pass(108,power)    # cup lies below: bend down
+            below = self.rim_pass(116,power)
+            self.assertGreater(above[1],0,power)
+            self.assertLess(below[1],0,power)
+            self.assertLessEqual(abs(above[1]+below[1]),1,power)
+            self.assertLessEqual(abs(above[0]-below[0]),1,power)
+            # Every unit stays within the Q1.8 rounding of length 1.
+            for ux,uy,_ in (above,below):
+                self.assertLessEqual(abs(math.hypot(ux,uy)-256),2,power)
+
+    def test_cup_rim_bends_slow_balls_more(self):
+        slow = self.rim_pass(108,8)
+        fast = self.rim_pass(108,32)
+        self.assertGreater(slow[1],fast[1])
+        self.assertGreater(fast[1],0)
+
+    def test_cup_rim_leaves_centre_line_and_clear_passes_straight(self):
+        for y in (112,105,119):
+            ux,uy,_ = self.rim_pass(y,32)
+            self.assertEqual((ux,uy),(256,0),y)
+
+    def test_ball_at_rest_aims_at_the_cup(self):
+        isolate_segments(self.r,[])
+        cup = self.r.get('COURSE_CUP_X')+256*self.r.get('COURSE_CUP_X_HI'),self.r.get('COURSE_CUP_Y')
+        cases = [(cup[0]-40,cup[1],0),(cup[0]+40,cup[1],64),(cup[0],cup[1]-40,32),(cup[0],cup[1]+40,96),
+                 (cup[0]-30,cup[1]-30,16),(cup[0]+30,cup[1]+30,80)]
+        cases += [(cup[0]+dx,cup[1]+dy,None) for dx in (-97,-40,-7,0,13,61) for dy in (-63,-21,-5,0,9,44)
+                  if dx or dy]
+        for x,y,expected in cases:
+            self.r.call('initialise_state')
+            position(self.r,x,y)
+            self.r.put('ANGLE',99)
+            self.r.call('stop_ball')
+            exact = math.atan2(cup[1]-y,cup[0]-x)*64/math.pi
+            if expected is None:
+                difference = (self.r.get('ANGLE')-exact+64) % 128-64
+                self.assertLessEqual(abs(difference),0.5+0.1,(x,y,self.r.get('ANGLE'),exact))
+            else:
+                self.assertEqual(self.r.get('ANGLE'),expected,(x,y))
+
     def test_real_course_deterministic_long_rolls_never_hit_contact_limit(self):
         def replay():
             r = Runtime()

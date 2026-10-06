@@ -1,7 +1,8 @@
 """Lossless packed course geometry, decoded at runtime by decode_course.
 
-Version 4 stream: start x/2, start y/2, cup x/2, cup y/2, a count byte
-(contours in bits 0-5, water areas in bits 6-7), then per contour: first vertex x/8, y/8 with bit 7 = normal side flag,
+Version 5 stream: start x/2, start y/2, cup x/2, cup y/2, the initial aim
+(0..127, clockwise, 0 = right; JSON key 'aim', omitted when 0), a count byte
+(contours in bits 0-4, water areas in bits 5-7), then per contour: first vertex x/8, y/8 with bit 7 = normal side flag,
 run count and runs. A run byte has a 3-bit compass direction and a 5-bit
 length in 8px cells (zero means 32). All vertices lie on the cell grid.
 Each water area follows as four cell numbers: left, top, right, bottom,
@@ -17,6 +18,13 @@ from pathlib import Path
 from generate_assets import ROOT, DIRECTIONS, validate, validate_hazards
 
 
+def aim(course):
+    value = course.get('aim', 0)
+    if type(value) is not int or not 0 <= value < 128:
+        raise ValueError('aim must be 0..127')
+    return value
+
+
 def encode(course):
     validate(course)
     validate_hazards(course)
@@ -29,7 +37,8 @@ def encode(course):
     contours = [course['outline'], *course['obstacles']]
     hazards = course.get('hazards', [])
     data = bytearray([*(v//2 for v in course['start']),
-                      *(v//2 for v in course['cup']), len(contours) | len(hazards) << 6])
+                      *(v//2 for v in course['cup']), aim(course),
+                      len(contours) | len(hazards) << 5])
     for ci,contour in enumerate(contours):
         area = sum(a[0]*b[1]-a[1]*b[0] for a,b in zip(contour,contour[1:]+contour[:1]))
         side = 128 if (area > 0) == (ci == 0) else 0
@@ -65,9 +74,11 @@ def decode(data):
         return result
 
     course = {'start':[byte()*2,byte()*2], 'cup':[byte()*2,byte()*2]}
+    if direction := byte():
+        course['aim'] = direction
     count = byte()
-    hazard_count, count = count >> 6, count & 63
-    if not 1 <= count <= 32:
+    hazard_count, count = count >> 5, count & 31
+    if not 1 <= count <= 31:
         raise ValueError('invalid contour count')
     contours = []
     for _ in range(count):
@@ -114,7 +125,7 @@ def budget():
     estimated = len(data)*18+directory_bytes
     missing = (len(data)+2)*17
     free = memory['runtime_free_bytes']
-    report = {'format_version':4, 'test_course_segments':len(validate(course)),
+    report = {'format_version':5, 'test_course_segments':len(validate(course)),
               'expanded_test_course_bytes':len(validate(course))*5,
               'packed_test_course_bytes':len(data), 'course_count':18,
               'directory_bytes':directory_bytes, 'estimated_geometry_bytes':estimated,

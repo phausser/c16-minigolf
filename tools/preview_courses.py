@@ -6,7 +6,6 @@ Output: build/courses-preview.png (3 x 6 screens) and the packed sizes.
 """
 import argparse
 import json
-import math
 from pathlib import Path
 import struct
 import sys
@@ -58,9 +57,6 @@ def render(index, course):
     r.call('draw_course')
     r.put('HOLE', index)
     r.call('draw_status')
-    dx = course['cup'][0]-course['start'][0]
-    dy = course['cup'][1]-course['start'][1]
-    r.put('ANGLE', round(math.atan2(dy, dx)/math.tau*128) % 128)
     r.put('DYNAMIC_COUNT', 0)
     r.call('draw_dynamic')
     if r.get('pattern_overflow'):

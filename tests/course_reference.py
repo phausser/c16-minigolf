@@ -4,11 +4,13 @@ Cells of rows 1..20 are whole floor, inner 45-degree edge (floor and solid)
 or solid. Floor pixels are clear; the solid part of floor and edge cells is
 black. Each edge cell repeats its floor pattern, as black pixels cut to
 FRAME_WIDTH on the far side, in the solid neighbour towards its solid side
-horizontally and vertically: the smooth outer frame edge. Other solid cells next to a whole floor cell
+horizontally and vertically: the smooth outer frame edge. Such outer
+cells also get the bands below towards orthogonal whole floor cells, so a
+straight frame meets a slope closed. Other solid cells next to a whole floor cell
 (8-neighbourhood) get a black band of FRAME_WIDTH pixels on each side that
-faces such a cell, square at corners. The cup is a filled round 7-pixel
-disc. Cells with floor are gray with black ink, other playfield cells black
-ink on the green checker, rows 0 and 21..23 equal checker colors, row 24
+faces such a cell, square at corners. The cup is a round 7-pixel
+hole, shadowed inside at the top left. Cells with floor are gray with black
+ink, other playfield cells black ink on the green checker, rows 0 and 21..23 equal checker colors, row 24
 the HUD palette. Water areas are whole floor cells with black ink on a
 blue checker. Row 24 is entirely the HUD palette.
 """
@@ -66,11 +68,11 @@ def render(course, s):
                             black.add((x+dc*8, y+dr*8))
     band = 8-FRAME_WIDTH
     for (row, col), kind in classes.items():
-        if kind != 'solid':
+        if kind not in ('solid', 'outer'):
             continue
         for dr in (-1, 0, 1):
             for dc in (-1, 0, 1):
-                if classes.get((row+dr, col+dc)) != 'floor':
+                if classes.get((row+dr, col+dc)) != 'floor' or (kind == 'outer' and dr and dc):
                     continue
                 for x, y in pixels(row, col):
                     dx, dy = x-col*8, y-row*8
@@ -82,9 +84,10 @@ def render(course, s):
     for x, y in black:
         bitmap[bitmap_offset(x, y)] |= 128 >> (x % 8)
     cx, cy = course['cup']
-    for dy in range(-3, 4):
-        for dx in range(-3, 4):
-            if dx*dx+dy*dy <= 12.25:          # radius 3.5
+    for dy, row in zip(range(-3, 4), ('..###..', '.#####.', '####..#', '###...#',
+                                      '##....#', '.#...#.', '..###..')):
+        for dx, pixel in zip(range(-3, 4), row):
+            if pixel == '#':
                 bitmap[bitmap_offset(cx+dx, cy+dy)] |= 128 >> ((cx+dx) % 8)
     water = {(row, col) for x1, y1, x2, y2 in course.get('hazards', [])
              for row in range(y1//8, y2//8) for col in range(x1//8, x2//8)}
