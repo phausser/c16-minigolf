@@ -86,7 +86,8 @@ ball_column_done:
 ball_right_column:
     inc BALL_SIDE
     lda BALL_MASK_INDEX
-    adc #40 - 1               ; carry set from cmp: + 40, the right table
+    clc                       ; carry differs between the x < 256 and x >= 256 paths
+    adc #40                   ; the right table
     sta BALL_MASK_INDEX
     clc
     lda PIXEL_X

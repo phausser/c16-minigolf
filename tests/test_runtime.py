@@ -263,12 +263,14 @@ class HardwareTests(unittest.TestCase):
             self.r.put('ANGLE', angle)
             self.r.put('POWER', power)
             self.r.call('start_shot')
+            shots = self.r.get('SHOTS')
             for frame in range(400):
                 before = self.r.bus[S['BALL_POS_X']:S['BALL_POS_X']+5]
                 self.r.call('physics_tick')
                 if not self.r.get('ROLLING'):
                     break
             self.assertFalse(self.r.get('ROLLING'))
+            self.assertEqual(self.r.get('SHOTS'), shots+1, angle)   # penalty stroke
             x = (self.r.bus[S['BALL_POS_X']+1] + 256*self.r.bus[S['BALL_POS_X']+2])
             y = self.r.bus[S['BALL_POS_Y']+1]
             # Back at the start of the entering frame: outside, near the edge.
@@ -298,7 +300,7 @@ class HardwareTests(unittest.TestCase):
 
     def test_byte_ball_renderer_matches_every_pixel_alignment(self):
         self.r.call('initialise_video')
-        for x in [*range(18,26),254,255,256,257,317,318,319]:
+        for x in [*range(18,26),254,255,256,257,*range(262,270),313,314,315,316,317,318,319]:
             for y in (10,26,166):
                 self.install_floor()
                 self.r.bus[S['BALL_POS_X']:S['BALL_POS_X']+3] = [0,x&255,x>>8]

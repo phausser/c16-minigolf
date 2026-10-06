@@ -100,7 +100,7 @@ Speicher (Textmodus, 3415 Bytes frei) und Zeitbudget (31142 ≤ 32000 Ticks) sin
 - [ ] Innen-/Außenecken, gleichzeitige Kontakte und 10-Pixel-Passagen prüfen.
 - [ ] Energiegewinn, Tunneling, Zittern und erschöpfte Kontaktlimits automatisch erkennen.
 - [ ] Lochfang bei geringer/hoher Geschwindigkeit und Durchquerung innerhalb eines Schritts prüfen.
-- [x] Wasserflächen (blaues Schachbrett, ohne Rahmen): Ball kehrt an den Bildanfang am Rand zurück; Format 4, Erkennung über den Farbton der Zelle unter der Ballmitte.
+- [x] Wasserflächen (blaues Schachbrett, ohne Rahmen): Ball kehrt an den Bildanfang am Rand zurück; Format 4, Erkennung über den Farbton der Zelle unter der Ballmitte; ein Strafschlag.
 - [ ] Sand/Eis hinzufügen und Materialgrenzen testen.
 - [ ] Physikkonstanten kalibrieren und dokumentieren; Referenz und Zielkern vergleichen.
 

@@ -205,6 +205,7 @@ physics_ashore:
     sta BALL_POS_X,x
     dex
     bpl physics_ashore
+    inc SHOTS                 ; one penalty stroke; the stroke limit below applies
     jsr stop_ball
     ldx #SOUND_WATER
     jmp play_sound
