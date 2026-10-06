@@ -84,8 +84,8 @@ def render(course, s):
     for x, y in black:
         bitmap[bitmap_offset(x, y)] |= 128 >> (x % 8)
     cx, cy = course['cup']
-    for dy, row in zip(range(-3, 4), ('..###..', '.#####.', '####..#', '###...#',
-                                      '##....#', '.#...#.', '..###..')):
+    for dy, row in zip(range(-3, 4), ('..###..', '.#####.', '#######', '####..#',
+                                      '###...#', '.##..#.', '..###..')):
         for dx, pixel in zip(range(-3, 4), row):
             if pixel == '#':
                 bitmap[bitmap_offset(cx+dx, cy+dy)] |= 128 >> ((cx+dx) % 8)

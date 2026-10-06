@@ -504,8 +504,8 @@ cup_pixel_more:
 cup_rows:
 !byte %00011100
 !byte %00111110
+!byte %01111111
 !byte %01111001
 !byte %01110001
-!byte %01100001
-!byte %00100010
+!byte %00110010
 !byte %00011100

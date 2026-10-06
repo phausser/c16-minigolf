@@ -117,6 +117,7 @@ frame_status:
     bcc frame_done
     jsr draw_status
 frame_done:
+    jsr water_tick
     lda TED_RASTER_LO
     sta FRAME_END_RASTER
     jmp main_loop
@@ -129,6 +130,7 @@ start_hole:
     jsr clear_playfield
     jsr initialise_state
     jsr draw_course
+    jsr water_init
     lda #$1b                  ; text, display on, 25 rows, y-scroll 3
     sta TED_CONTROL1
     rts
@@ -199,6 +201,7 @@ clear_state:
 !source "src/wide_math.asm"
 !source "src/initialise_video.asm"
 !source "src/circle_diagonal_guard.asm"
+!source "src/water.asm"
 small_square_lo:
 !for square_index, 0, 127 { !byte <(square_index*square_index) }
 small_square_hi:

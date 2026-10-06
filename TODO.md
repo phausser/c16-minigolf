@@ -145,6 +145,7 @@ Abnahme: vollständige Runde vom Start bis zur korrekten Endwertung ohne Neustar
 - [x] Kurze Schlag-, Banden-, Einloch- und Wassergeräusche mit TED erzeugen. Seit 2026-10-05 Effekte 51/38/53 aus c16-sound-fx auf beiden Stimmen, Wasser 72, Hole-in-one 83; Hörprüfung in VICE bestanden (2026-10-06).
 - [ ] Tonumschaltung ergänzen.
 - [ ] HUD-Kommentare mit Cooldown und Prioritäten hinzufügen.
+- [x] Bewegtes Wasser: diagonal laufender Schatten- und Helligkeitszyklus (src/water.asm, bis 538 Zyklen je Frame auf Bahn 13; Smoke-Bahn ohne Wasser, Messung mit Wasser steht aus).
 - [ ] Hole-in-one-Sternchen und Abschlussfanfare im verbleibenden Budget ergänzen.
 - [ ] Physikreplays mit und ohne Effekte vergleichen: identische Ballzustände verlangen.
 - [ ] Größe und schlechteste Framezeit erneut prüfen; Effekte bei Budgetproblemen kürzen.
