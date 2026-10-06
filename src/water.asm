@@ -1,14 +1,14 @@
-; Moving water. Every water cell runs through the same cycle: none, none,
-; 1 px, 2 px, 2 px, 1 px of solid shadow on its left and top edge, and its
-; luminance drops by the same 0, 0, 1, 2, 2, 1 below the water colour.
-; The phase is (row + column) mod 6, so the pattern runs diagonally
-; down-right at constant speed. Six characters, one per phase.
+; Moving water. Every water cell runs through the same cycle: none, 1 px,
+; 2 px, 1 px of solid shadow on its left and top edge, and its luminance
+; drops by the same 0, 1, 2, 1 below the water colour. The phase is
+; (row + column) mod 4, so the pattern runs diagonally down-right at
+; constant speed. Four characters, one per phase.
 ; Colours: water_init generates one small program per phase from STA
 ; instructions for its cells' attributes (4 cycles a cell) in the renderer
 ; scratch, free once the hole is drawn. Each step patches its two colours.
 ; Physics finds water by the cell hue, which never changes.
-WATER_PHASES = 6
-WATER_STEP_FRAMES = 8         ; frames per step, at least WATER_PHASES
+WATER_PHASES = 4
+WATER_STEP_FRAMES = 12         ; frames per step, at least WATER_PHASES
 !if WATER_STEP_FRAMES < WATER_PHASES { !error "a step redraws one phase per frame" }
 WATER_CODE = SCRATCH_BASE + 64     ; below: ball cells off the playfield
 WATER_CODE_END = SCRATCH_END - 32  ; room for every phase's LDA, LDA, RTS
@@ -163,7 +163,7 @@ water_row_pointers:
     sta COPY_TARGET + 1
     rts
 
-; Once per frame: in the first six frames of a step redraw one phase,
+; Once per frame: in the first four frames of a step redraw one phase,
 ; glyph and colours; after the last one the cycle advances.
 water_tick:
     ldx water_frame
@@ -200,7 +200,7 @@ water_run_phase:
 water_run:
     jmp (water_vector)
 
-; X = phase 0..5: Y = its position in the cycle for the current step.
+; X = phase 0..3: Y = its position in the cycle for the current step.
 water_position:
     txa
     sec
@@ -236,7 +236,7 @@ water_colours:
     sta (COPY_TARGET),y
     rts
 
-; X = phase character 0..5: its shadow for the current step. X preserved.
+; X = phase character 0..3: its shadow for the current step. X preserved.
 water_glyph:
     stx water_index
     jsr water_position
@@ -280,14 +280,14 @@ water_odd_hi:
 
 ; Free screen codes: not the bar, HUD strip or dynamic glyphs.
 water_codes:
-!byte 3,4,6,7,9,10
+!byte 3,4,6,7
 
 ; Cycle position -> glyph offset and luminance step:
-; none, none, 1 px, 2 px, 2 px, 1 px.
+; none, 1 px, 2 px, 1 px.
 water_cycle:
-!byte 0,0,8,16,16,8
+!byte 0,8,16,8
 water_luminance:              ; added modulo 256: lower luminance
-!byte 0,0,<-$10,<-$20,<-$20,<-$10
+!byte 0,<-$10,<-$20,<-$10
 !if water_luminance - water_cycle != WATER_PHASES | * - water_luminance != WATER_PHASES {
     !error "water_codes, water_cycle and water_luminance need WATER_PHASES entries"
 }
