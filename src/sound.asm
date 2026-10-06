@@ -1,5 +1,6 @@
-; Short step sequences on both TED voices. Shot, wall and cup are effects
-; 51, 38 and 53 of https://github.com/phausser/c16-sound-fx (PAL data).
+; Short step sequences on both TED voices. Shot, wall, cup, water and hole
+; in one are effects 51, 38, 53, 72 and 83 of
+; https://github.com/phausser/c16-sound-fx (PAL data).
 ; A step is: frames, voice 1 N lo/hi, voice 2 N lo/hi, $FF11 control
 ; (bit 4 voice 1 square, bit 5 voice 2 square, bit 6 voice 2 noise,
 ; bits 0-3 volume). Frame 0 ends the effect. Only bits 0-1 of $FF10 and
@@ -70,7 +71,30 @@ SOUND_CUP = * - sound_steps    ; 53 paradroid-link: rising double tones
     +sound_step 2, 880, 1760, $34
     +sound_step 3, 1320, 2640, $32
     !byte 0
-SOUND_WATER = * - sound_steps  ; noise splash, unchanged
-    +sound_step 14, 110, 277, $48
+SOUND_WATER = * - sound_steps  ; 72 flap-double: two noise splashes
+    +sound_step 1, 110, 2000, $43
+    +sound_step 2, 110, 1200, $42
+    +sound_step 2, 110, 110, $00
+    +sound_step 1, 110, 1700, $44
+    +sound_step 2, 110, 850, $42
+    +sound_step 2, 110, 450, $41
+    +sound_step 6, 110, 110, $00
+    !byte 0
+SOUND_ACE = * - sound_steps    ; 83 mario-mushroom: hole in one
+    +sound_step 2, 392, 110, $14
+    +sound_step 2, 523, 110, $15
+    +sound_step 2, 659, 110, $15
+    +sound_step 2, 440, 110, $14
+    +sound_step 2, 587, 110, $15
+    +sound_step 2, 740, 110, $15
+    +sound_step 2, 494, 110, $14
+    +sound_step 2, 659, 110, $15
+    +sound_step 2, 831, 110, $15
+    +sound_step 2, 523, 110, $14
+    +sound_step 2, 698, 110, $15
+    +sound_step 2, 880, 110, $15
+    +sound_step 2, 587, 110, $14
+    +sound_step 2, 784, 110, $14
+    +sound_step 2, 988, 110, $13
     !byte 0
 !if * - sound_steps > 256 { !error "sound steps exceed one index page" }

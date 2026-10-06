@@ -545,7 +545,8 @@ class HardwareTests(unittest.TestCase):
             'SOUND_WALL': [(2, 110, 2000, 0x44)],
             'SOUND_CUP': [(2, 330, 660, 0x34), (2, 440, 880, 0x35), (2, 660, 1320, 0x35),
                           (2, 440, 880, 0x34), (2, 880, 1760, 0x34), (3, 1320, 2640, 0x32)],
-            'SOUND_WATER': [(14, 110, 277, 0x48)]}
+            'SOUND_WATER': [(1, 110, 2000, 0x43), (2, 110, 1200, 0x42), (2, 110, 110, 0x00), (1, 110, 1700, 0x44), (2, 110, 850, 0x42), (2, 110, 450, 0x41), (6, 110, 110, 0x00)],
+            'SOUND_ACE': [(2, 392, 110, 0x14), (2, 523, 110, 0x15), (2, 659, 110, 0x15), (2, 440, 110, 0x14), (2, 587, 110, 0x15), (2, 740, 110, 0x15), (2, 494, 110, 0x14), (2, 659, 110, 0x15), (2, 831, 110, 0x15), (2, 523, 110, 0x14), (2, 698, 110, 0x15), (2, 880, 110, 0x15), (2, 587, 110, 0x14), (2, 784, 110, 0x14), (2, 988, 110, 0x13)]}
         for name, steps in expected.items():
             self.r.bus[0xff12] = 0xc4           # charset bit and unused bits must survive
             self.r.bus[0xff10] = 0xfc
@@ -566,6 +567,13 @@ class HardwareTests(unittest.TestCase):
             self.assertEqual(self.r.bus[0xff11] & 0x7f, 0, name)   # voices off
             self.assertEqual(self.r.bus[0xff12] & 0xfc, 0xc4, name)
             self.assertEqual(self.r.bus[0xff10] & 0xfc, 0xfc, name)
+
+    def test_hole_in_one_has_its_own_sound(self):
+        for shots, sound in ((1, 'SOUND_ACE'), (2, 'SOUND_CUP'), (5, 'SOUND_CUP')):
+            self.r.call('initialise_state')
+            self.r.put('SHOTS', shots)
+            self.r.call('finish_hole')
+            self.assertEqual(self.r.get('SOUND_TONE'), S[sound], shots)
 
     def test_twelfth_stroke_without_holing_counts_thirteen(self):
         for shots, holed, expected in ((11, 0, (11, 0)), (12, 0, (13, 13)), (12, 1, (12, 1))):

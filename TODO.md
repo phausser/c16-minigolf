@@ -142,7 +142,7 @@ Abnahme: vollständige Runde vom Start bis zur korrekten Endwertung ohne Neustar
 
 ## 6. Humor und Ton
 
-- [x] Kurze Schlag-, Banden-, Einloch- und Wassergeräusche mit TED erzeugen. Seit 2026-10-05 Effekte 51/38/53 aus c16-sound-fx auf beiden Stimmen, Wasser Rauschen; Hörprüfung in VICE steht aus.
+- [x] Kurze Schlag-, Banden-, Einloch- und Wassergeräusche mit TED erzeugen. Seit 2026-10-05 Effekte 51/38/53 aus c16-sound-fx auf beiden Stimmen, Wasser 72, Hole-in-one 83; Hörprüfung in VICE bestanden (2026-10-06).
 - [ ] Tonumschaltung ergänzen.
 - [ ] HUD-Kommentare mit Cooldown und Prioritäten hinzufügen.
 - [ ] Hole-in-one-Sternchen und Abschlussfanfare im verbleibenden Budget ergänzen.

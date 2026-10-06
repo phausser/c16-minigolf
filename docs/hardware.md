@@ -171,12 +171,12 @@ Sound darf beim Schreiben von $FF12 nur Bits 0–1 ändern; Bit 2 wählt
 den Zeichensatz im RAM. Der Start schaltet Sound über $FF11=0 aus. Das
 Soundmodul (src/sound.asm) spielt Schrittfolgen aus
 [c16-sound-fx](https://github.com/phausser/c16-sound-fx) (Nr. 51 Schlag,
-38 Bande, 53 Einlochen; Wasser als eigenes Rauschen): je Schritt Dauer,
+38 Bande, 53 Einlochen, 83 Hole-in-one, 72 Wasser): je Schritt Dauer,
 Frequenzwerte beider Stimmen und ein Steuerbyte für $FF11. In $FF10 und
 $FF12 liest es den Wert und ersetzt nur Bits 0–1. Die frühere
 VICE-Aufnahme (2026-10-05, `-sounddev wav`) galt den alten Tönen auf
-Stimme 2; die neuen Effekte sind per Test am Register geprüft, aber noch
-nicht angehört.
+Stimme 2; die Effekte sind per Test am Register geprüft; 51/38/53 hat der
+Nutzer am 2026-10-06 in VICE als gut bestätigt, 72 und 83 ebenfalls (Hörprüfung bestanden).
 
 $FF07 Bit 6 wählt NTSC (1) oder PAL (0). Eine Moduserkennung muss **vor**
 der Videoinitialisierung erfolgen: diese setzt derzeit ausdrücklich PAL.

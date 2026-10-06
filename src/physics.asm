@@ -633,6 +633,11 @@ finish_hole:
     jsr stop_ball
     sta DIRTY
     ldx #SOUND_CUP
+    lda SHOTS
+    cmp #1
+    bne finish_sound
+    ldx #SOUND_ACE            ; hole in one
+finish_sound:
     jmp play_sound
 
 make_step:
