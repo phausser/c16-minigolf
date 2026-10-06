@@ -102,30 +102,29 @@ Speicher (Textmodus, 2623 Bytes frei) und Zeitbudget (31140 ≤ 32000 Ticks) sin
 - [ ] Energiegewinn, Tunneling, Zittern und erschöpfte Kontaktlimits automatisch erkennen.
 - [ ] Lochfang bei geringer/hoher Geschwindigkeit und Durchquerung innerhalb eines Schritts prüfen.
 - [x] Wasserflächen (blaues Schachbrett, ohne Rahmen): Ball kehrt an den Bildanfang am Rand zurück; Format 4, Erkennung über den Farbton der Zelle unter der Ballmitte; ein Strafschlag.
-- [ ] Sand/Eis hinzufügen und Materialgrenzen testen.
 - [ ] Physikkonstanten kalibrieren und dokumentieren; Referenz und Zielkern vergleichen.
 
 Abnahme: sämtliche Physikkriterien aus SPEC erfüllt; dokumentierte Grenzfälle und reproduzierbare Tests vorhanden.
 
 ## 4. Bahnwerkzeuge und 18-Loch-Kurs
 
-- [ ] Menschenlesbare Bahnquellen, Generator und kompakte Exporte anlegen (Entwürfe 1–18 in assets/courses, 371 Bytes gepackt, im Spiel-Build; Generator und Exporte vorhanden, Bahnen noch nicht spielgetestet).
+- [x] Menschenlesbare Bahnquellen, Generator und kompakte Exporte anlegen (Bahnen 1–18 in assets/courses, 371 Bytes gepackt, im Spiel-Build; vom Nutzer am 2026-10-06 spielgetestet).
 - [x] Validator für geschlossene Konturen, ungültige Schnittpunkte und Segmentlimit bauen.
 - [x] Bahneditor im Browser (`make editor`) mit denselben Regeln und Größenanzeige; `make play HOLE=n` zum Ausprobieren.
-- [ ] Ballradius, Engstellen, gültige Start-/Lochpositionen und Erreichbarkeit prüfen.
+- [x] Ballradius, Engstellen, gültige Start-/Lochpositionen und Erreichbarkeit prüfen (Validator, Solver-Replays, Spieltest).
 - [x] Vorschau erzeugen, die dieselben exportierten Geometriedaten verwendet (`make preview`, echter 6502-Renderer).
 - [x] Löcher 1–3: Gerade, L rechts, L links bauen und spielen.
 - [x] Löcher 4–6: Flaschenhals, Z, U bauen und spielen.
 - [x] Löcher 7–9: dick/dünn, Diagonalbande, Raute bauen und spielen.
-- [x] Löcher 10–12: S, Hindernisse, Sand bauen und spielen (Bahn 12 noch ohne Sand: Material fehlt, siehe Schritt 3).
+- [x] Löcher 10–12: S, Hindernisse, breite Bahn bauen und spielen (Sand und Eis am 2026-10-06 gestrichen).
 - [x] Löcher 13–15: Eis, Trichter, Nadel bauen und spielen (Bahn 13 jetzt Wasser-Mäander statt Eis).
 - [x] Löcher 16–18: Banden, Labyrinth, Finale bauen und spielen.
 - [x] Für jedes Loch mindestens eine Lösung als Replay sichern (`make solve`, tests/fixtures/course-solutions.json, Test im Spiel-Build; Toleranz nur für den letzten Schlag gemessen, siehe docs/par.md).
-- [ ] Engstellen und Einlochen mit benachbarten Richtungs-/Stärkewerten auf Fairness prüfen.
+- [x] Engstellen und Einlochen mit benachbarten Richtungs-/Stärkewerten auf Fairness prüfen (Spieltest des Nutzers 2026-10-06: spielt sich gut).
 - [x] Par und Gesamtsumme nach Spieltest und Solver festgelegt: Summe 49 (docs/par.md). Namen bleiben vorerst.
 - [x] Alle 18 Exporte gemeinsam gegen das echte RAM-Budget prüfen (`make budget`: 2623 Bytes frei; nach Änderungen erneut prüfen).
 
-Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kanten, kein zwingender einzelner Präzisionsschlag.
+Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kanten, kein zwingender einzelner Präzisionsschlag. Schritt 4 am 2026-10-06 vom Nutzer abgenommen.
 
 ## 5. Vollständiges Spiel
 

@@ -59,7 +59,7 @@ Verbindlich: pixelgenaue Bewegung. Der Ball kann auf jeder einzelnen Pixelpositi
 
 Auf normalem Boden wirkt eine konstante Bremsbeschleunigung entgegen der Bewegungsrichtung. Die Implementierung darf eine kleine Integer-Näherung für den Betrag benutzen, muss aber die Richtungsabhängigkeit nach den untenstehenden Kriterien begrenzen. Keine unabhängige, gleich große Bremsung beider Achsen: das würde Diagonalschläge benachteiligen.
 
-Der Ball wird unterhalb einer klaren Geschwindigkeitsgrenze exakt stillgesetzt. Keine dauerhaft kriechende Kugel. Sand erhöht die Bremsung; Eis vermindert sie. Materialwechsel wird an der Ballmitte erkannt und gilt ab dem nächsten Simulationsschritt. Wasser: Endet ein Rollbild mit der Ballmitte in einer Wasserzelle (Hintergrundfarbton der Zelle), kehrt der Ball ans Ufer zurück und bleibt liegen: auf jeder Achse, deren Zellgrenze er in diesem Bild überquert hat, liegen genau 3 freie Pixel zwischen Ballrand und Wasser; die andere Koordinate bleibt die vom Bildbeginn; ein Strafschlag (zählt zum Schlaglimit). Weil der Ball höchstens 4 Pixel je Bild rollt und Wasserflächen ganze Zellen sind, kann er keine Wasserzelle überspringen. Alle Materialwerte sind konstant, sichtbar und reproduzierbar.
+Der Ball wird unterhalb einer klaren Geschwindigkeitsgrenze exakt stillgesetzt. Keine dauerhaft kriechende Kugel. Außer Wasser gibt es keine Materialien (kein Sand, kein Eis; Entscheidung 2026-10-06). Wasser: Endet ein Rollbild mit der Ballmitte in einer Wasserzelle (Hintergrundfarbton der Zelle), kehrt der Ball ans Ufer zurück und bleibt liegen: auf jeder Achse, deren Zellgrenze er in diesem Bild überquert hat, liegen genau 3 freie Pixel zwischen Ballrand und Wasser; die andere Koordinate bleibt die vom Bildbeginn; ein Strafschlag (zählt zum Schlaglimit). Weil der Ball höchstens 4 Pixel je Bild rollt und Wasserflächen ganze Zellen sind, kann er keine Wasserzelle überspringen. Alle Physikwerte sind konstant, sichtbar und reproduzierbar.
 
 ### Kollisionen
 
@@ -83,7 +83,7 @@ Lochzentrum und Fangradius sind eigene Daten. Vorläufiger Fangradius der Ballmi
 - Kein Tunneling bei Höchstgeschwindigkeit, kein Steckenbleiben bei normalen Eckkontakten, kein sichtbares Zittern nach Stillstand.
 - Legale Engstellen sind mindestens 10 Pixel breit, also mit deutlicher Reserve zum Balldurchmesser.
 - Lochfang funktioniert auch dann, wenn der Ball in einem Schritt beide Seiten des Fangbereichs passiert.
-- Physiktests decken Segmentmitte, Segmentende, Innen-/Außenecken, doppelte Kontakte, Materialgrenzen und Lochfang ab.
+- Physiktests decken Segmentmitte, Segmentende, Innen-/Außenecken, doppelte Kontakte, Wasserränder und Lochfang ab.
 
 ## 18 Löcher
 
@@ -102,13 +102,13 @@ Dies sind verbindliche Designbriefs; exakte Koordinaten entstehen im Bahneditor 
 | 9 | RAUTE MIT LAUNE | 3 | Rautenförmige Außenkontur, zentraler eckiger Block. |
 | 10 | SCHLANGENLINIE | 4 | Rechtwinklige S-Bahn; mehrere kontrollierte Teilschläge. |
 | 11 | INSELHUEPFEN OHNE HUEPFEN | 3 | Rechteck mit zwei versetzten rechteckigen Hindernissen. |
-| 12 | SAND IM GETRIEBE | 3 | Breite Bahn, Sandfeld vor der letzten Kurve. |
-| 13 | GLATTE SACHE | 3 | Eiszone auf gerader Passage, normaler Boden am Loch. |
+| 12 | SAND IM GETRIEBE | 3 | Breite Bahn mit einer Kurve vor dem Loch. |
+| 13 | GLATTE SACHE | 3 | Wasser-Mäander. |
 | 14 | DER TRICHTER | 3 | Breiter Eingang verengt sich über 45°-Wände auf 10 Pixel. |
 | 15 | DIE NADEL | 4 | Langer schmaler Weg mit zwei breiten Ruhekammern. |
 | 16 | BANDENBANDE | 3 | Versetzte dicke Wände und diagonale Endbande; mehrere Routen. |
 | 17 | DAS LABYRINTHCHEN | 4 | Kompaktes rechtwinkliges Labyrinth mit einer fairen Sackgasse. |
-| 18 | FEIERABEND | 4 | Finale aus breitem Start, schmalem Knick, Sand und 45°-Zielkammer. |
+| 18 | FEIERABEND | 4 | Finale aus breitem Start, schmalem Knick und 45°-Zielkammer. |
 
 Vorläufig Gesamtpar: 54. Jede Bahn zeigt Abschlag und Loch gleichzeitig. Keine unsichtbaren Kanten, zufälligen Hindernisse oder beweglichen Türen. Mindestens eine robuste Route, auf schweren Löchern zusätzlich eine riskantere, kürzere Route. Kein Loch darf nur mit einer einzigen Richtung-/Stärkekombination lösbar sein.
 
@@ -124,7 +124,7 @@ Umgesetzt (2026-10-05): Effekte aus [c16-sound-fx](https://github.com/phausser/c
 
 Module: Start/Hardware, Frame-Takt, Eingabe, Zustand/Score, Festkomma, Bewegung/Kollision, Bahn-Decoder, Bitmap-Zeichner, HUD, Sound/Effekte. Zustand und Darstellung sind getrennt, damit der echte Assembler-Physikkern automatisiert geprüft werden kann.
 
-Bahnquelle in menschenlesbarem Datenformat: Name, Par, Abschlag, Loch, Startrichtung des Richtungswählers (`aim`, 0–127 im Uhrzeigersinn, 0 = rechts; ein Byte im Export, gesetzt bei Lochbeginn), Außenkontur, Hindernisse und Materialflächen. Export als kompakte Byte-Ströme (Format 3: Eckpunkte und Lauflängen in Zellen, Abschlag/Loch auf 2-Pixel-Raster; Testbahn 28 Bytes). Erst entpacken, dann Rendern und Kollisionsgeometrie aus derselben Quelle erzeugen. Keine 18 gespeicherten Bitmaps. Grenze pro Bahn: maximal 32 Kollisionssegmente insgesamt, einschließlich Hindernissen, höchstens sieben Wasserflächen (zellgenaue Rechtecke, 4 Bytes je Fläche, nur über ganzen Bodenzellen, Abschlag und Loch nicht im Wasser) und höchstens zwei weitere Materialflächen. Generator prüft Konturen, Überschneidungen, Ballfreiheit, Abschlag/Loch und Engstellen.
+Bahnquelle in menschenlesbarem Datenformat: Name, Par, Abschlag, Loch, Startrichtung des Richtungswählers (`aim`, 0–127 im Uhrzeigersinn, 0 = rechts; ein Byte im Export, gesetzt bei Lochbeginn), Außenkontur, Hindernisse und Wasserflächen. Export als kompakte Byte-Ströme (Format 3: Eckpunkte und Lauflängen in Zellen, Abschlag/Loch auf 2-Pixel-Raster; Testbahn 28 Bytes). Erst entpacken, dann Rendern und Kollisionsgeometrie aus derselben Quelle erzeugen. Keine 18 gespeicherten Bitmaps. Grenze pro Bahn: maximal 32 Kollisionssegmente insgesamt, einschließlich Hindernissen, höchstens sieben Wasserflächen (zellgenaue Rechtecke, 4 Bytes je Fläche, nur über ganzen Bodenzellen, Abschlag und Loch nicht im Wasser). Generator prüft Konturen, Überschneidungen, Ballfreiheit, Abschlag/Loch und Engstellen.
 
 ### Vorläufiger RAM-Vertrag
 
