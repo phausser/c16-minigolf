@@ -2,8 +2,6 @@
 COPY_SOURCE = $02             ; word, reused by renderer after relocation
 COPY_TARGET = $04             ; word
 BITMAP_PTR = $06              ; word
-HUD_WIDTH = $08               ; sum of queued advances
-HUD_VALUE = $09
 FONT_PTR = $0a                ; word
 COURSE_PTR = $0c              ; word
 PIXEL_X = $0e                 ; word, unsigned 0..319
@@ -18,14 +16,8 @@ LINE_X = $17                  ; word
 LINE_Y = $19
 SEGMENTS_LEFT = $1a
 TEXT_COLUMN = $1b
-HUD_X = $1c                   ; pixel in the HUD strip
 GLYPH = $1d
 POINT_INDEX = $1e
-HUD_DIVISOR = $1f
-; While a glyph is drawn the queue sums are spent.
-HUD_ROW = HUD_WIDTH
-HUD_SPILL = HUD_DIVISOR
-HUD_COUNT = TEXT_COLUMN       ; queued HUD glyphs
 
 ; Clearable state, deliberately contiguous for tests and snapshots.
 STATE_BEGIN = $20
@@ -207,14 +199,24 @@ SCRATCH_BASE = $3c00         ; three cell rows of bitmap while a hole is drawn
 SCRATCH_END = $4000
 COLOR_BASE = ATTR_BASE       ; physics reads the foreground hue here
 ; Charset slots. Screen code 32 stays blank (the charset is cleared).
-BAR_CHAR = 22                ; six power-bar shapes (BAR_GLYPHS)
-HUD_CHAR = 48                ; seven cells of the HUD pixel strip
+; Font codes 0..26 (src/font.inc): white on black in the game, black on
+; the white floor on the title screen.
+BLANK_CHAR = 0
+DIGIT_CHAR = 8               ; 0..9
+BALL_CHAR = 18
+ARROW_LEFT_CHAR = 19
+ARROW_RIGHT_CHAR = 20
+FLAG_CHAR = 21
+CLUB_CHAR = 22
+SLASH_CHAR = 23
+PLAYER_CHAR = 24
+FONT_GLYPHS = 25             ; codes with 5-row glyphs, blank included
+FIGURE_CHAR = 25             ; big player figure, top and bottom cell
 DYNAMIC_CHAR = 33            ; twelve cells under the ball and the aim dots
-COURSE_CHAR = 64             ; static hole patterns up to TITLE_FONT_CHAR
-; The title font (src/title_font.inc) lives in the last charset cells for
-; good: holes stay below it, and so do the title frame and previews.
-TITLE_FONT_CHAR = 110
-TITLE_FONT_STORE = CHARSET_BASE + TITLE_FONT_CHAR * 8
-TITLE_GLYPHS = 27            ; blank, 15 letters, 10 digits, ball
-COURSE_CHAR_LIMIT = TITLE_FONT_CHAR - COURSE_CHAR
-!if TITLE_FONT_STORE + TITLE_GLYPHS * 5 > CHARSET_BASE + $400 { !error "title font exceeds the charset" }
+BAR_CHAR = 45                ; six power-bar shapes (BAR_GLYPHS)
+COURSE_CHAR = 64             ; static hole patterns up to FONT_CHAR
+; The font image (src/font.inc) lives in the last charset cells for good:
+; holes stay below it, and so do the title frame and previews.
+FONT_CHAR = 111
+FONT_STORE = CHARSET_BASE + FONT_CHAR * 8
+COURSE_CHAR_LIMIT = FONT_CHAR - COURSE_CHAR

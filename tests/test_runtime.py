@@ -30,10 +30,14 @@ class KeyboardBus(list):
         self.joysticks = [0,0]
         self.row = 255
         self.latched = 255
+        self.raster = 0
 
     def __getitem__(self, key):
         if key == 0xff08:
             return self.latched
+        if key == 0xff1d:              # every read a line later: frames pass
+            self.raster = (self.raster+1) % 312
+            return self.raster & 255
         return super().__getitem__(key)
 
     def __setitem__(self, key, value):
@@ -75,6 +79,7 @@ class Runtime:
         self.bus[load:load+len(prg)-2] = prg[2:]
         self.cpu.pc = self.S['loader']
         self.run_until(self.S['start'])
+        self.call('copy_font_image')   # as start does first
 
     def run_until(self, address, limit=20000000):
         for _ in range(limit):
@@ -94,33 +99,54 @@ class Runtime:
     def get(self, name):
         return self.bus[self.S[name]]
 
-    def hud_strip(self):
-        """Glyph rows 0..7 of the seven HUD cells as '#'/'.' strings."""
-        base = self.S['CHARSET_BASE']+self.S['HUD_CHAR']*8
-        return [''.join('#' if self.bus[base+cell*8+row] & (0x80 >> bit) else '.'
-                        for cell in range(self.S['HUD_CELLS']) for bit in range(8))
-                for row in range(8)]
+    GLYPHS = {'F': 'FLAG_CHAR', 'C': 'CLUB_CHAR', '/': 'SLASH_CHAR', 'P': 'PLAYER_CHAR',
+              '*': 'BALL_CHAR', '<': 'ARROW_LEFT_CHAR', '>': 'ARROW_RIGHT_CHAR', ' ': 'BLANK_CHAR'}
 
-    def hud_expected(self, left, right):
-        """The strip for two texts: digits, '/', 'F' flag, 'C' club, ' ' gap.
-        Left from HUD_LEFT_X, right ending before the last strip column."""
-        index = {**{d: int(d) for d in '0123456789'}, '/': self.S['HUD_SLASH'],
-                 'F': self.S['HUD_FLAG'], 'C': self.S['HUD_CLUB'], ' ': self.S['HUD_GAP']}
-        width = self.S['HUD_CELLS']*8
-        rows = [['.']*width for _ in range(8)]
-        def put(text, x):
-            for c in text:
-                g = index[c]
-                for r in range(5):
-                    bits = self.bus[self.S['hud_font']+g*5+r]
-                    for b in range(8):
-                        if bits & (0x80 >> b):
-                            rows[1+r][x+b] = '#'
-                x += self.bus[self.S['hud_font_advance']+g]
-        advance = sum(self.bus[self.S['hud_font_advance']+index[c]] for c in right)
-        put(left, self.S['HUD_LEFT_X'])
-        put(right, self.S['HUD_RIGHT_END']+1-advance)
-        return [''.join(row) for row in rows]
+    def screen_text(self, row, column=0, count=40, floor=None):
+        """Font codes of a screen row as text: digits, F flag, C club, '/',
+        P player, * ball, < > arrows, ' ' blank (and the floor code, if
+        given); '?' for anything else."""
+        names = {self.S[name]: char for char, name in self.GLYPHS.items()}
+        if floor is not None:
+            names[floor] = ' '
+        names.update({self.S['DIGIT_CHAR']+d: str(d) for d in range(10)})
+        base = self.S['SCREEN_BASE']+row*40+column
+        return ''.join(names.get(code, '?') for code in self.bus[base:base+count])
+
+    def status_expected(self, hole, shots, par, player=None):
+        """Left text from column 0 and the right text in columns 33..39."""
+        left = f'F{hole:>2}' + (f' P{player}' if player else '')
+        return left, f'C {shots:>2}/{par} '
+
+    def assert_status(self, test, hole, shots, par, player=None, message=None):
+        left, right = self.status_expected(hole, shots, par, player)
+        test.assertEqual((self.screen_text(24, 0, len(left)), self.screen_text(24, 33, 7)),
+                         (left, right), message)
+
+    def call_until(self, label, stop, limit=20000000):
+        """Calls label and runs until it returns or reaches stop. Returns PC."""
+        self.cpu.sp = 255
+        self.cpu.stPushWord(0xefff)
+        self.cpu.pc = self.S[label]
+        for _ in range(limit):
+            if self.cpu.pc in (0xf000, self.S[stop]):
+                return self.cpu.pc
+            self.cpu.step()
+        raise AssertionError(f'{label} neither returned nor reached {stop}')
+
+    def frames(self, joystick, count):
+        """Menu frames with joystick port 1 held: runs to title_loop or
+        summary_loop count times."""
+        self.bus.joysticks = [joystick, 0]
+        loops = (self.S['title_loop'], self.S['summary_loop'])
+        for _ in range(count):
+            self.cpu.step()
+            for _ in range(20000000):
+                if self.cpu.pc in loops:
+                    break
+                self.cpu.step()
+            else:
+                raise AssertionError('no menu frame')
 
     def put(self, name, value):
         self.bus[self.S[name]] = value & 255
@@ -191,7 +217,8 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(bus[S['RUNTIME_BASE']:S['RUNTIME_BASE']+len(expected)], list(expected))
 
     def test_video_registers_charset_and_screen(self):
-        self.r.bus[S['ATTR_BASE']:S['SCRATCH_END']] = [0x55]*(S['SCRATCH_END']-S['ATTR_BASE'])
+        self.r.bus[S['ATTR_BASE']:S['FONT_STORE']] = [0x55]*(S['FONT_STORE']-S['ATTR_BASE'])
+        font = self.r.bus[S['FONT_STORE']:S['CHARSET_BASE']+1024].copy()
         self.r.call('initialise_video')
         self.assertEqual(self.r.bus[0xff06], 0x0b)
         self.assertEqual(self.r.bus[0xff07], 0x08)
@@ -200,12 +227,21 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.bus[0xff14] & 0xf8, 0x30)
         self.assertEqual(self.r.bus[0xff15] & 0x7f, 0)
         self.assertEqual(self.r.bus[0xff19] & 0x7f, S['BORDER_COLOR'])
-        hud = S['HUD_CHAR']
-        row = [hud, hud+1]+[32]*33+list(range(hud+2, hud+S['HUD_CELLS']))
+        row = [S['BLANK_CHAR']]*40
         self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1024], [32]*960+row+[32]*24)
         self.assertEqual(self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+1024], [S['HUD_FOREGROUND_COLOR']]*1024)
         self.assertEqual(self.r.bus[S['CHARSET_BASE']+32*8:S['CHARSET_BASE']+33*8], [0]*8)
-        self.assertEqual(self.r.hud_strip(), ['.'*56]*8)
+        # The font image survives; its glyphs are white on black, rows 1..5.
+        self.assertEqual(self.r.bus[S['FONT_STORE']:S['CHARSET_BASE']+1024], font)
+        image = S['font_image']
+        for code in range(1, S['FONT_GLYPHS']):
+            address = S['CHARSET_BASE']+code*8
+            self.assertEqual(self.r.bus[address:address+8],
+                             [0]+self.r.bus[image+code*5-5:image+code*5]+[0, 0], code)
+        figure = S['CHARSET_BASE']+S['FIGURE_CHAR']*8
+        rows = image+(S['FONT_GLYPHS']-1)*5
+        self.assertEqual(self.r.bus[figure:figure+16], self.r.bus[rows:rows+16])
+        self.assertEqual(self.r.bus[S['CHARSET_BASE']:S['CHARSET_BASE']+8], [0]*8)
         for n, inner in enumerate((0x00, 0x80, 0x08, 0x01, 0xff)):
             address = S['CHARSET_BASE']+(S['BAR_CHAR']+n)*8
             self.assertEqual(self.r.bus[address:address+8], [0, 0xff, inner, inner, inner, 0xff, 0, 0])
@@ -409,7 +445,7 @@ class HardwareTests(unittest.TestCase):
                 if pause:
                     self.r.bus.pressed.add((5,1))
                 self.r.call('scan_keyboard')
-                expected = ((mask & 12) >> 2) | (32 if mask & 16 else 0) | (16 if pause else 0)
+                expected = ((mask & 12) >> 2) | ((mask & 3) << 2) | (32 if mask & 16 else 0) | (16 if pause else 0)
                 self.assertEqual(self.r.get('KEY_CURRENT'),expected)
                 self.assertEqual(self.r.bus.row,255)
 
@@ -528,28 +564,66 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.get('CHARGING'),0)
         self.assertEqual(self.r.get('SHOTS'),1)
 
-    def test_holed_fire_scores_then_summary_then_new_round(self):
+    def hole_out(self, shots):
+        """Holes with shots strokes and fires: runs next_hole through the
+        real control path. Returns where it went: 'game', 'summary' or 'title'."""
+        self.r.put('HOLED', 1)
+        self.r.put('SHOTS', shots)
+        self.r.put('FIRE_LOCK', 0)
+        self.r.put('KEY_PREVIOUS', 32)
+        pc = self.r.call_until('apply_controls', 'summary_screen')
+        if pc == S['summary_screen']:
+            return 'summary'
+        return 'game'
+
+    def totals(self):
+        return self.r.bus[S['totals']:S['totals']+4]
+
+    def test_players_finish_each_hole_in_turn_then_the_summary(self):
         self.r.call('initialise_video')
+        self.r.bus[S['totals']:S['totals']+4] = [0]*4
+        self.r.put('player_count', 3)
+        self.r.put('player', 0)
+        self.r.put('practice', 0)
+        self.r.put('HOLE', 0)
+        self.r.call('initialise_state')
+        self.assertEqual(self.hole_out(3), 'game')
+        # Player 2 on the same hole: state cleared, ball back on the tee.
+        self.assertEqual((self.r.get('player'), self.r.get('HOLE'), self.r.get('HOLED'),
+                          self.r.get('SHOTS'), self.r.get('FIRE_LOCK')), (1, 0, 0, 0, 1))
+        self.assertEqual(self.r.bus[S['BALL_POS_X']+1], self.r.get('COURSE_START_X'))
+        self.assertEqual(self.totals(), [3, 0, 0, 0])
+        self.r.call('draw_status')
+        self.r.assert_status(self, 1, 0, self.r.bus[S['course_par']], 2)
+        self.assertEqual(self.hole_out(5), 'game')
+        # The test build has one hole: the last player's fire ends the round.
+        self.assertEqual(self.hole_out(13), 'summary')
+        self.assertEqual(self.totals(), [3, 5, 13, 0])
+        self.assertEqual(self.r.get('HOLE'), S['COURSE_COUNT'])
+
+    def test_practice_returns_to_the_menu_without_scoring(self):
+        self.r.call('initialise_video')
+        self.r.bus[S['totals']:S['totals']+4] = [0]*4
+        self.r.put('player_count', 1)
+        self.r.put('practice', 1)
+        self.r.put('HOLED', 1)
+        self.r.put('FIRE_LOCK', 0)
+        self.r.put('KEY_PREVIOUS', 32)
+        self.assertEqual(self.r.call_until('apply_controls', 'title_screen'), S['title_screen'])
+        self.assertEqual(self.totals(), [0]*4)
+
+    def test_holed_fire_waits_for_release_on_the_next_player(self):
+        self.r.call('initialise_video')
+        self.r.put('player_count', 2)
+        self.r.put('player', 0)
+        self.r.put('practice', 0)
         self.tick(0)
         self.tick(0)
         self.r.put('HOLED',1)
         self.r.put('SHOTS',3)
         self.tick(32)
         self.tick(32)
-        # The test build has one course: its score leads to the summary.
-        self.assertEqual(self.r.get('HOLE'), S['COURSE_COUNT'])
-        self.assertEqual(self.r.get('TOTAL'), 3)
-        self.assertEqual(self.r.get('HOLED'), 1)
-        self.assertEqual(self.r.get('FIRE_LOCK'), 1)
-        for _ in range(20):
-            self.tick(32)
-        self.assertEqual(self.r.get('HOLE'), S['COURSE_COUNT'])
-        self.tick(0)
-        self.tick(0)
-        self.tick(32)
-        self.tick(32)
-        self.assertEqual((self.r.get('HOLE'), self.r.get('TOTAL'), self.r.get('HOLED')), (0, 0, 0))
-        self.assertEqual(self.r.get('FIRE_LOCK'), 1)
+        self.assertEqual((self.r.get('player'), self.r.get('HOLED'), self.r.get('FIRE_LOCK')), (1, 0, 1))
         for _ in range(20):
             self.tick(32)
         self.assertEqual(self.r.get('CHARGING'),0)
@@ -613,17 +687,22 @@ class HardwareTests(unittest.TestCase):
         base = S['SCREEN_BASE']+row*40+column
         return self.r.bus[base:base+count]
 
-    def test_summary_shows_club_total_and_total_par_right(self):
+    def test_summary_lists_each_player_with_a_ball_beside_the_best(self):
         self.r.call('initialise_video')
         par = json.loads((ROOT/'assets/test-course.json').read_text()).get('par', 0)
         self.assertEqual(S['TOTAL_PAR'], par)
-        self.r.put('HOLE', 0)
-        self.r.put('SHOTS', 7)
-        self.r.call('draw_status')
-        for total in (61, 123, 7, 234):
-            self.r.put('TOTAL', total)
-            self.r.call('draw_summary')
-            self.assertEqual(self.r.hud_strip(), self.r.hud_expected('', f'C {total}/{par}'), total)
+        for totals in ([61, 0, 0, 0], [123, 7, 234, 7]):
+            count = 1 if totals[1] == 0 else 4
+            self.r.bus[S['totals']:S['totals']+4] = totals
+            self.r.put('player_count', count)
+            self.assertEqual(self.r.call_until('summary_screen', 'summary_loop'), S['summary_loop'])
+            floor = self.r.get('solid_code')
+            best = min(totals[:count])
+            for p in range(count):
+                mark = '*' if totals[p] == best else ' '
+                self.assertEqual(self.r.screen_text(10+2*p, 13, 12, floor),
+                                 f'{mark}P{p+1} C{totals[p]:>4}/{par:>2}', totals)
+            self.assertEqual(self.r.screen_text(10+2*count, 13, 12, floor), ' '*12)
 
     def test_game_build_plays_the_18_drafts_in_order(self):
         from course_codec import encode
@@ -727,33 +806,38 @@ class HardwareTests(unittest.TestCase):
     def test_status_shows_flag_and_hole_left_club_shots_and_par_right(self):
         self.r.call('initialise_video')
         # One course in the test build: other holes read past course_par.
-        for hole, shots in ((0, 0), (17, 13), (8, 9), (99, 10)):
-            par = self.r.bus[S['course_par']+hole]
+        self.r.put('player_count', 1)
+        for hole, shots in ((0, 0), (17, 13), (8, 9), (98, 10), (3, 1)):
+            par = self.r.bus[S['course_par']+hole] % 10
+            self.r.bus[S['course_par']+hole] = par
             self.r.put('HOLE', hole)
             self.r.put('SHOTS', shots)
             self.r.call('draw_status')
-            self.assertEqual(self.r.hud_strip(), self.r.hud_expected(f'F {hole+1}', f'C {shots}/{par}'),
-                             (hole, shots))
+            self.r.assert_status(self, hole+1, shots, par, None, (hole, shots))
+        self.r.put('player_count', 4)
+        self.r.put('player', 3)
+        self.r.call('draw_status')
+        self.r.assert_status(self, 4, 1, self.r.bus[S['course_par']+3], 4)
 
     def test_hud_stays_outside_course_and_bar(self):
         self.r.call('initialise_video')
         playfield = self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+24*40].copy()
         attrs = self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+24*40].copy()
         charset = self.r.bus[S['CHARSET_BASE']:S['CHARSET_BASE']+1024].copy()
-        hud = range(S['HUD_CHAR']*8, (S['HUD_CHAR']+S['HUD_CELLS'])*8)
         bar = range(S['BAR_PARTIAL_GLYPH']-S['CHARSET_BASE'], S['BAR_PARTIAL_GLYPH']-S['CHARSET_BASE']+8)
         self.r.put('HOLE', 17)
         self.r.put('SHOTS', 13)
-        self.r.put('TOTAL', 234)
-        for label in ('draw_status', 'draw_summary'):
-            self.r.call(label)
+        for players in (1, 4):
+            self.r.put('player_count', players)
+            self.r.put('player', players-1)
+            self.r.call('draw_status')
             for power in range(33):
                 self.r.put('POWER', power)
                 self.r.call('draw_power')
         self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+24*40], playfield)
         self.assertEqual(self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+24*40], attrs)
         after = self.r.bus[S['CHARSET_BASE']:S['CHARSET_BASE']+1024]
-        self.assertEqual([i for i in range(1024) if after[i] != charset[i] and i not in hud and i not in bar], [])
+        self.assertEqual([i for i in range(1024) if after[i] != charset[i] and i not in bar], [])
 
     def test_drafts_match_reference_within_character_budget(self):
         game = Runtime('minigolf')

@@ -255,181 +255,63 @@ aim_shift_y:
     bne aim_shift_y
     rts
 
-; Status row in the 5-pixel HUD font: flag and hole number from the
-; left, club and "strokes/par" right aligned. Glyph rows 1..5, like the bar.
+; Status row 24 in the font, one glyph per cell: flag and hole number on
+; the left, with several players the player sign and number beside them;
+; club and "strokes/par" on the right. Numbers come first: print_number
+; blanks the cell left of them, where the signs go afterwards.
+STATUS_ROW = SCREEN_BASE + 24 * 40
 draw_status:
-    jsr hud_clear
-    jsr hud_begin
-    lda #HUD_FLAG
-    jsr hud_put
-    lda #HUD_GAP
-    jsr hud_put
+    lda #<STATUS_ROW
+    sta COPY_TARGET
+    lda #>STATUS_ROW
+    sta COPY_TARGET + 1
     ldx HOLE
     inx
     txa
-    jsr hud_number
-    ldx player_count          ; several players: "P" and whose turn it is
+    ldy #2
+    jsr print_number
+    lda #FLAG_CHAR
+    sta STATUS_ROW
+    ldx player_count
     dex
-    beq status_left_done
-    lda #HUD_GAP
-    jsr hud_put
-    lda #HUD_PLAYER
-    jsr hud_put
+    beq status_right
     ldx player
     inx
     txa
-    jsr hud_number
-status_left_done:
-    lda #HUD_LEFT_X
-    sta HUD_X
-    jsr hud_flush
+    ldy #5
+    jsr print_number
+    lda #PLAYER_CHAR
+    sta STATUS_ROW + 4
+status_right:
     ldx HOLE
     lda course_par,x
-    pha
+    ldy #38
+    jsr print_number
     lda SHOTS
-    jmp hud_right
+    ldy #36
+    jsr print_number
+    lda #SLASH_CHAR
+    sta STATUS_ROW + 37
+    lda #CLUB_CHAR
+    sta STATUS_ROW + 33
+    rts
 
-; A = strokes. The caller pushed the par and jumped here; it is pulled
-; below, before the final rts.
-hud_right:
-    sta HUD_VALUE
-    jsr hud_begin
-    lda #HUD_CLUB
-    jsr hud_put
-    lda #HUD_GAP
-    jsr hud_put
-    lda HUD_VALUE
-    jsr hud_number
-    lda #HUD_SLASH
-    jsr hud_put
-    pla
-    jsr hud_number
-    lda #HUD_RIGHT_END + 1    ; last advance includes one blank column
+; A = 0..255, written leftwards from (COPY_TARGET),Y without leading
+; zeros, then one blank cell. Clobbers X.
+print_number:
+    ldx #$ff
     sec
-    sbc HUD_WIDTH
-    sta HUD_X
-; Draws the queued glyphs from HUD_X on.
-hud_flush:
-    ldx #0
-hud_flush_next:
-    cpx HUD_COUNT
-    beq hud_done
-    txa
-    pha
-    lda hud_text,x
-    jsr hud_glyph
-    pla
-    tax
+print_tens:
     inx
-    bne hud_flush_next
-hud_done:
-    rts
-
-hud_clear:
-    ldx #HUD_CELLS * 8 - 1
-    lda #0
-hud_clear_byte:
-    sta HUD_GLYPHS,x
-    dex
-    bpl hud_clear_byte
-    rts
-
-hud_begin:
-    lda #0
-    sta HUD_COUNT
-    sta HUD_WIDTH
-    rts
-
-; A = font index, queued; HUD_WIDTH sums the advances. Preserves Y.
-hud_put:
-    ldx HUD_COUNT
-    sta hud_text,x
-    inc HUD_COUNT
-    tax
-    lda hud_font_advance,x
-    clc
-    adc HUD_WIDTH
-    sta HUD_WIDTH
-    rts
-
-; A = 0..255, queued without leading zeros. Y = 1 once a digit is queued.
-hud_number:
-    sta HUD_VALUE
-    ldy #0
-    lda #100
-    jsr hud_digit
-    lda #10
-    jsr hud_digit
-    ldy #1                    ; the units digit always shows
-    lda #1
-hud_digit:
-    sta HUD_DIVISOR
-    ldx #0
-hud_digit_count:
-    lda HUD_VALUE
-    cmp HUD_DIVISOR
-    bcc hud_digit_queue
-    sbc HUD_DIVISOR
-    sta HUD_VALUE
-    inx
-    bne hud_digit_count
-hud_digit_queue:
+    sbc #10
+    bcs print_tens
+    adc #10 + DIGIT_CHAR      ; carry clear: the remainder's glyph
+    sta (COPY_TARGET),y
+    dey
     txa
-    bne hud_digit_shown
-    cpy #0
-    beq hud_done
-hud_digit_shown:
-    ldy #1
-    jmp hud_put               ; digit value = font index
-
-; A = font index, ORed into the HUD strip at pixel HUD_X, which then
-; advances past it. Each font row is shifted across a cell boundary.
-hud_glyph:
-    tax
-    lda hud_font_advance,x
-    clc
-    adc HUD_X
-    pha
-    txa
-    asl
-    asl
-    sta HUD_ROW
-    txa
-    adc HUD_ROW               ; index * 5, carry clear
-    sta HUD_ROW
-    lda HUD_X
-    and #7
-    sta TEMP
-    lda HUD_X
-    and #$f8                  ; cell * 8, then glyph row 1
-    ora #1
-    tay
-hud_glyph_row:
-    lda #0
-    sta HUD_SPILL
-    ldx HUD_ROW
-    lda hud_font,x
-    ldx TEMP
-    beq hud_glyph_store
-hud_glyph_shift:
-    lsr
-    ror HUD_SPILL
-    dex
-    bne hud_glyph_shift
-hud_glyph_store:
-    ora HUD_GLYPHS,y
-    sta HUD_GLYPHS,y
-    lda HUD_SPILL
-    ora HUD_GLYPHS + 8,y
-    sta HUD_GLYPHS + 8,y
-    inc HUD_ROW
-    iny
-    tya
-    and #7
-    cmp #6
-    bne hud_glyph_row
-    pla
-    sta HUD_X
+    bne print_number
+    lda #BLANK_CHAR
+    sta (COPY_TARGET),y
     rts
 
 ; Ten-cell frame centred in row 24: 1-pixel outline in glyph rows 1..5,
@@ -476,43 +358,6 @@ wall_offsets_x:
 !byte $ff,$ff,0,1,1,1,0,$ff
 wall_offsets_y:
 !byte 0,$ff,$ff,$ff,0,1,1,1
-; HUD font, glyph rows 1..5, pixels from bit 7. Advance = width + 1.
-HUD_SLASH = 10
-HUD_FLAG = 11
-HUD_CLUB = 12
-HUD_GAP = 13                  ; two more blank columns after an icon
-HUD_PLAYER = 14
-hud_font:
-!byte %11100000,%10100000,%10100000,%10100000,%11100000 ; 0
-!byte %01000000,%11000000,%01000000,%01000000,%11100000 ; 1
-!byte %11100000,%00100000,%11100000,%10000000,%11100000 ; 2
-!byte %11100000,%00100000,%01100000,%00100000,%11100000 ; 3
-!byte %10100000,%10100000,%11100000,%00100000,%00100000 ; 4
-!byte %11100000,%10000000,%11100000,%00100000,%11100000 ; 5
-!byte %11100000,%10000000,%11100000,%10100000,%11100000 ; 6
-!byte %11100000,%00100000,%00100000,%01000000,%01000000 ; 7
-!byte %11100000,%10100000,%11100000,%10100000,%11100000 ; 8
-!byte %11100000,%10100000,%11100000,%00100000,%11100000 ; 9
-!byte %00100000,%00100000,%01000000,%10000000,%10000000 ; /
-!byte %11000000,%11110000,%11000000,%10000000,%10000000 ; flag
-!byte %00001000,%00010000,%00100000,%01000000,%11100000 ; club
-!byte 0,0,0,0,0                                         ; gap
-!byte %11100000,%10100000,%11100000,%10000000,%10000000 ; P
-hud_font_advance:
-!byte 4,4,4,4,4,4,4,4,4,4,4,5,6,2,4
-!if * - hud_font_advance != HUD_PLAYER + 1 | hud_font_advance - hud_font != (HUD_PLAYER + 1) * 5 {
-    !error "hud_font and hud_font_advance need HUD_PLAYER + 1 glyphs"
-}
-; Left strip cells 0..3, right strip cells 4..8 (screen columns 35..39).
-HUD_CELLS = 9
-HUD_LEFT_CELLS = 4
-HUD_RIGHT_COLUMN = 40 - (HUD_CELLS - HUD_LEFT_CELLS)
-HUD_LEFT_X = 1
-HUD_RIGHT_END = HUD_CELLS * 8 - 1 ; last strip column, left blank like HUD_LEFT_X - 1
-HUD_GLYPHS = CHARSET_BASE + HUD_CHAR * 8
-!if >HUD_GLYPHS != >(HUD_GLYPHS + HUD_CELLS * 8 + 7) { !error "HUD strip must not cross a page" }
-hud_text:                     ; flag, gap, 2 digits, gap, P, digit or club, gap, 3 digits, /, 2 digits
-!fill 8
 BAR_COLUMN = 15
 BAR_CELLS = 10
 ; Glyph offsets from BAR_CHAR: empty frame with each inner pattern, full, partial.

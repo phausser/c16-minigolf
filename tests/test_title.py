@@ -1,0 +1,151 @@
+"""Title menu, hole previews and the start of a round in the game build."""
+import json
+import unittest
+
+from test_runtime import ROOT, Runtime
+
+COURSES = [json.loads(p.read_text()) for p in sorted((ROOT/'assets/courses').glob('*.json'))]
+UP, DOWN, LEFT, RIGHT, FIRE = 1, 2, 4, 8, 16
+
+
+def preview_bitmap(course):
+    """A block as src/title.asm draws it: 1:8, column by column, black
+    (cleared) outline and cup on white."""
+    points = set()
+    for contour in [course['outline'], *course['obstacles']]:
+        for a, b in zip(contour, contour[1:]+contour[:1]):
+            x, y = a[0]//8-1, a[1]//8-1
+            dx, dy = b[0]//8-1-x, b[1]//8-1-y
+            for i in range(max(abs(dx), abs(dy))):
+                points.add((x+i*((dx > 0)-(dx < 0)), y+i*((dy > 0)-(dy < 0))))
+    points.add((course['cup'][0]//8-1, course['cup'][1]//8-1))
+    bitmap = [0xff]*120
+    for x, y in points:
+        bitmap[(x//8)*24+y] &= 0xff ^ (0x80 >> (x % 8))
+    return bitmap
+
+
+class TitleTests(unittest.TestCase):
+    def setUp(self):
+        self.r = Runtime('minigolf')
+        self.S = self.r.S
+        self.r.call('initialise_video')
+        self.assertEqual(self.r.call_until('title_screen', 'title_loop'), self.S['title_loop'])
+        self.floor = self.r.get('solid_code')
+
+    def press(self, mask, times=1):
+        for _ in range(times):
+            self.r.frames(mask, 2)
+            self.r.frames(0, 2)
+
+    def block(self, hole):
+        base = self.S['CHARSET_BASE']+(self.S['PREVIEW_CHAR']+hole % 5*15)*8
+        return self.r.bus[base:base+120]
+
+    def code(self, row, column):
+        return self.r.bus[self.S['SCREEN_BASE']+row*40+column]
+
+    def holes_text(self):
+        return self.r.screen_text(15, 3, 33, self.floor)
+
+    @staticmethod
+    def holes_expected(first, ball=None):
+        """Row 15 from column 3: arrows, ball, numbers, outline cells (?)."""
+        cells = [' ']*33
+        cells[0] = '<' if first else ' '
+        cells[32] = '>' if first+3 < len(COURSES) else ' '
+        for slot in range(3):
+            number = str(first+slot+1)
+            i = 2+10*slot
+            cells[i+3-len(number):i+3] = number
+            cells[i+4:i+9] = '?????'
+            if ball == first+slot:
+                cells[i] = '*'
+        return ''.join(cells)
+
+    def test_picture_header_figures_and_first_holes(self):
+        S = self.S
+        self.assertEqual(self.r.bus[S['HEADER']:S['HEADER']+8], [1, 2, 3, 2, 4, 5, 6, 7])
+        figures = [6, 13, 14, 21, 22, 23, 30, 31, 32, 33]
+        for column in range(40):
+            want = (S['FIGURE_CHAR'], S['FIGURE_CHAR']+1) if column in figures else None
+            got = (self.code(10, column), self.code(11, column))
+            if want:
+                self.assertEqual(got, want, column)
+            else:
+                self.assertNotIn(S['FIGURE_CHAR'], got, column)
+        self.assertEqual(self.code(11, 5), S['BALL_CHAR'])
+        self.assertEqual(self.holes_text(), self.holes_expected(0))
+        self.assertEqual(self.r.get('pattern_overflow'), 0)
+        for slot in range(3):
+            for column in range(5):
+                for row in range(3):
+                    self.assertEqual(self.code(14+row, 9+10*slot+column),
+                                     S['PREVIEW_CHAR']+slot*15+column*3+row)
+        for hole in range(4):                  # three shown, one ready right
+            self.assertEqual(self.block(hole), preview_bitmap(COURSES[hole]), hole)
+        # The title glyphs are black on the white floor.
+        glyph = S['CHARSET_BASE']+(S['DIGIT_CHAR']+1)*8
+        image = S['FONT_STORE']+(S['DIGIT_CHAR']+1)*5-5   # the load image is gone
+        self.assertEqual(self.r.bus[glyph:glyph+8],
+                         [255]+[b ^ 255 for b in self.r.bus[image:image+5]]+[255, 255])
+
+    def test_ball_moves_and_holes_slide_without_redrawing_shown_ones(self):
+        S = self.S
+        self.press(RIGHT, 5)
+        self.assertEqual(self.r.get('menu_players'), 3)
+        self.assertEqual(self.code(11, 29), S['BALL_CHAR'])
+        self.assertEqual(self.code(11, 5), S['BLANK_CHAR'])
+        self.press(DOWN)
+        self.assertEqual(self.r.get('menu_row'), 1)
+        self.assertEqual(self.code(11, 29), S['BLANK_CHAR'])
+        self.assertEqual(self.holes_text(), self.holes_expected(0, 0))
+        self.press(RIGHT, 2)
+        self.assertEqual(self.r.get('window_first'), 0)
+        shown = [self.block(hole) for hole in (1, 2, 3)]
+        self.press(RIGHT)
+        self.assertEqual((self.r.get('practice_hole'), self.r.get('window_first')), (3, 1))
+        self.assertEqual([self.block(hole) for hole in (1, 2, 3)], shown)
+        self.assertEqual(self.block(0), preview_bitmap(COURSES[0]))
+        self.assertEqual(self.block(4), preview_bitmap(COURSES[4]))
+        self.assertEqual(self.holes_text(), self.holes_expected(1, 3))
+        self.press(RIGHT, 20)
+        self.assertEqual((self.r.get('practice_hole'), self.r.get('window_first')), (17, 15))
+        self.assertEqual(self.holes_text(), self.holes_expected(15, 17))
+        for hole in range(14, 18):
+            self.assertEqual(self.block(hole), preview_bitmap(COURSES[hole]), hole)
+        self.press(LEFT, 20)
+        self.assertEqual((self.r.get('practice_hole'), self.r.get('window_first')), (0, 0))
+        self.assertEqual(self.holes_text(), self.holes_expected(0, 0))
+        self.press(UP)
+        self.assertEqual(self.r.get('menu_row'), 0)
+        self.assertEqual(self.code(11, 29), S['BALL_CHAR'])
+
+    def start(self):
+        self.r.bus.joysticks = [FIRE, 0]
+        for _ in range(20000000):
+            if self.r.cpu.pc == self.S['main_loop']:
+                return
+            self.r.cpu.step()
+        self.fail('the round did not start')
+
+    def test_fire_on_players_starts_the_round_with_the_game_charset(self):
+        S = self.S
+        self.press(RIGHT)
+        self.start()
+        self.assertEqual([self.r.get(n) for n in ('player_count', 'player', 'practice', 'HOLE')], [2, 0, 0, 0])
+        self.assertEqual((self.r.get('intern_base'), self.r.get('intern_limit')),
+                         (S['COURSE_CHAR'], S['COURSE_CHAR_LIMIT']))
+        self.assertEqual(self.r.bus[S['CHARSET_BASE']+32*8:S['CHARSET_BASE']+33*8], [0]*8)
+        self.r.call('draw_status')
+        self.r.assert_status(self, 1, 0, COURSES[0]['par'], 1)
+
+    def test_fire_on_a_hole_starts_practice(self):
+        self.press(DOWN)
+        self.press(RIGHT, 6)
+        self.start()
+        self.assertEqual([self.r.get(n) for n in ('player_count', 'practice', 'HOLE')], [1, 1, 6])
+
+
+if __name__ == '__main__':
+    unittest.main()

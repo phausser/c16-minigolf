@@ -151,10 +151,11 @@ Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kante
 
 - [ ] Titel, kompakte Bedienhilfe und Rundenstart ergänzen. Plan (2026-10-07, Entscheidungen des Nutzers):
   - Titelbild als rechteckige 19. Bahn (`assets/title.json`, gleicher Renderer) vor dem Rasen, Zeile 24 Rasen statt HUD.
-  - Englischer Menütext in eigener 7×5-Schrift, ein Zeichen pro Buchstabe (`src/title_font.inc`, Codes über `build/title.ct`). Die Schrift liegt dauerhaft in den Zeichen 110–127, die weder Spiel noch Titel anders nutzen; sie kostet keinen Runtime-Speicher.
-  - Vorschau aller Bahnen als Umriss im Maßstab 1:8 (5×3 Zeichen), 9 pro Seite im 3×3-Raster mit Nummer; gleiche Zeichen teilt `intern_pattern` (Titel: Zeichen 27–109, höchstens 83 je Seite, vom Generator geprüft). Joystick links/rechts wählt auf PRACTICE die Bahn, ein Ball markiert sie, die Seite blättert mit.
+  - Eine 7×5-Schrift für Titel und HUD, ein Zeichen pro Zelle (`src/font.inc`, Pixelbild zum Editieren): MINIGOLF, Ziffern, Ball, Pfeile, Fähnchen, Schläger, Schrägstrich, Spielerzeichen und eine große Spielerfigur (8×16). Das Abbild liegt dauerhaft in den Zeichen 111–127; `install_font` erzeugt daraus die Codes 0–26, im Spiel weiß auf Schwarz, auf dem Titel schwarz auf Weiß. Kein Runtime-Speicher für die Glyphen; das HUD braucht keinen Pixelstreifen mehr.
+  - Menü: MINIGOLF zentriert, darunter Gruppen mit 1–4 Spielerfiguren, darunter drei Bahnen als Umriss im Maßstab 1:8 (5×3 Zeichen) mit Nummer davor und Pfeilen, wenn es davor/danach weitere gibt. Der Golfball links markiert die Wahl; hoch/runter wechselt die Reihe, links/rechts bewegt in ihr, die Bahnreihe rutscht um eine Bahn weiter. Fünf Umrisse sind stets fertig gezeichnet (Block = Bahn mod 5: drei sichtbare und je ein Nachbar), so dass das Weiterrutschen nur Bildschirmcodes tauscht.
   - Training: nur die gewählte Bahn, nach dem Einlochen führt Feuer zurück ins Menü.
-  - Mehrspieler 1–4: jede Person spielt das Loch nacheinander zu Ende; Spielernummer im HUD; Endwertung aller Personen auf dem Titelrechteck, Feuer zurück ins Menü.
+  - Mehrspieler 1–4: jede Person spielt das Loch nacheinander zu Ende; Spielerzeichen und -nummer im HUD; Endwertung aller Personen (Schläge/Par, Ball neben den Besten) auf dem Titelrechteck, Feuer zurück ins Menü.
+  - Stand 2026-10-07: umgesetzt, 92 Tests und `make smoke` bestehen, 498 Bytes frei. Abnahme in VICE durch den Nutzer steht aus.
 - [x] Eigener Zeichensatz: 5 Pixel hohe HUD-Schrift (Ziffern, Schrägstrich, Fähnchen, Schläger) als Pixelstreifen; keine ROM-Zeichen mehr (2026-10-06).
 - [ ] HUD mit Loch, Par, Schlägen, Stärke und Gesamtstand fertigstellen (Fähnchen und Bahnnummer links, Schläger und Schläge/Par rechts, Ladebalken als Rahmen mit Skala 25/50/75 % in der Mitte umgesetzt; laufender Gesamtstand fehlt).
 - [ ] Training mit freier Lochwahl implementieren (siehe Plan oben).

@@ -40,8 +40,7 @@ class CourseSolutionTests(unittest.TestCase):
             r.put('HOLE', solution['hole']-1)
             r.call('draw_status')
             par = json.loads(COURSES[solution['hole']-1].read_text())['par']
-            self.assertEqual(r.hud_strip(), r.hud_expected(f"F {solution['hole']}", f'C 0/{par}'),
-                             solution['hole'])
+            r.assert_status(self, solution['hole'], 0, par, None, solution['hole'])
 
     def test_every_course_has_a_line(self):
         self.assertEqual([s['hole'] for s in SOLUTIONS if s['shots']], list(range(1, 19)))
