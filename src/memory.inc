@@ -210,5 +210,11 @@ COLOR_BASE = ATTR_BASE       ; physics reads the foreground hue here
 BAR_CHAR = 22                ; six power-bar shapes (BAR_GLYPHS)
 HUD_CHAR = 48                ; seven cells of the HUD pixel strip
 DYNAMIC_CHAR = 33            ; twelve cells under the ball and the aim dots
-COURSE_CHAR = 64             ; up to 64 static hole patterns
-COURSE_CHAR_LIMIT = 64
+COURSE_CHAR = 64             ; static hole patterns up to TITLE_FONT_CHAR
+; The title font (src/title_font.inc) lives in the last charset cells for
+; good: holes stay below it, and so do the title frame and previews.
+TITLE_FONT_CHAR = 110
+TITLE_FONT_STORE = CHARSET_BASE + TITLE_FONT_CHAR * 8
+TITLE_GLYPHS = 27            ; blank, 15 letters, 10 digits, ball
+COURSE_CHAR_LIMIT = TITLE_FONT_CHAR - COURSE_CHAR
+!if TITLE_FONT_STORE + TITLE_GLYPHS * 5 > CHARSET_BASE + $400 { !error "title font exceeds the charset" }

@@ -73,6 +73,12 @@ start:
     lda #$ff
     sta TED_IRQ_STATUS
     jsr initialise_video
+    ldx #TITLE_GLYPHS * 5     ; the title font out of the load image
+copy_title_font:
+    lda title_font_image - 1,x
+    sta TITLE_FONT_STORE - 1,x
+    dex
+    bne copy_title_font
 !ifdef START_HOLE {           ; make play HOLE=n: begin the round at hole n
     lda #START_HOLE - 1
     sta HOLE
@@ -224,14 +230,16 @@ square_hi:
 !source "build/assets.inc"
 }
 ; The assets define TITLE_PATTERNS, so this check follows them.
-!if COURSE_CHAR + TITLE_PATTERNS > PREVIEW_CHAR { !error "title patterns overlap the preview" }
-!if PREVIEW_CHAR + PREVIEW_COLUMNS * PREVIEW_ROWS > 128 { !error "preview exceeds the charset" }
+!if TITLE_PATTERNS > TITLE_CHAR_LIMIT { !error "title frame and a preview page exceed the charset" }
 ; Test-only stress image: verify the safe copier even after the destination
 ; grows over the original SYS loader and part of its source image.
 !ifdef RELOCATION_TEST_PADDING { !fill RELOCATION_TEST_PADDING, $a5 }
 runtime_end:
 }
 payload_end:
+; initialise_video clears $3000-$3BFF: the font image must lie above it.
+!if * < SCRATCH_BASE { !fill SCRATCH_BASE - *, 0 }
+!source "src/title_font.inc"
 load_end:
 !if runtime_end > CLASS_SENTINEL { !error "runtime overlaps the class sentinel" }
 !if load_end > $4000 { !error "PRG exceeds physical C16 RAM" }

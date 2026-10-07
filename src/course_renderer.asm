@@ -792,6 +792,8 @@ emit_ink_store:
     jmp hidden_stored
 
 ; Eight bytes at BITMAP_PTR join the course catalogue. A = screen code.
+; The catalogue starts at intern_base: COURSE_CHAR in the game, lower on
+; the title, where the previews share it with the frame.
 intern_pattern:
     ldx #0
 intern_search:
@@ -799,7 +801,7 @@ intern_search:
     beq intern_new
     txa
     clc
-    adc #COURSE_CHAR
+    adc intern_base
     jsr charset_address
     ldy #7
 intern_cmp:
@@ -810,22 +812,22 @@ intern_cmp:
     bpl intern_cmp
     txa
     clc
-    adc #COURSE_CHAR
+    adc intern_base
     rts
 intern_next:
     inx
     bne intern_search
 intern_new:
-    cpx #COURSE_CHAR_LIMIT
+    cpx intern_limit
     bcc intern_store
     lda #1
     sta pattern_overflow
-    lda #COURSE_CHAR
+    lda intern_base
     rts
 intern_store:
     txa
     clc
-    adc #COURSE_CHAR
+    adc intern_base
     pha
     jsr charset_address
     ldy #7
@@ -871,5 +873,9 @@ pattern_count:
 !byte 0
 pattern_overflow:
 !byte 0
+intern_base:
+!byte COURSE_CHAR
+intern_limit:
+!byte COURSE_CHAR_LIMIT
 solid_glyph:
 !byte $ff,$ff,$ff,$ff,$ff,$ff,$ff,$ff

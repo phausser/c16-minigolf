@@ -151,8 +151,8 @@ Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kante
 
 - [ ] Titel, kompakte Bedienhilfe und Rundenstart ergänzen. Plan (2026-10-07, Entscheidungen des Nutzers):
   - Titelbild als rechteckige 19. Bahn (`assets/title.json`, gleicher Renderer) vor dem Rasen, Zeile 24 Rasen statt HUD.
-  - Englischer Menütext aus dem ROM-Zeichensatz (beim Titel invertiert in den RAM-Zeichensatz kopiert): 1–4 PLAYER(S), PRACTICE mit Lochnummer.
-  - Mini-Vorschau der Übungsbahn als Umriss im Maßstab 1:4 (10×5 Zeichen ab Zeichen 78), Joystick links/rechts wählt die Bahn.
+  - Englischer Menütext in eigener 7×5-Schrift, ein Zeichen pro Buchstabe (`src/title_font.inc`, Codes über `build/title.ct`). Die Schrift liegt dauerhaft in den Zeichen 110–127, die weder Spiel noch Titel anders nutzen; sie kostet keinen Runtime-Speicher.
+  - Vorschau aller Bahnen als Umriss im Maßstab 1:8 (5×3 Zeichen), 9 pro Seite im 3×3-Raster mit Nummer; gleiche Zeichen teilt `intern_pattern` (Titel: Zeichen 27–109, höchstens 83 je Seite, vom Generator geprüft). Joystick links/rechts wählt auf PRACTICE die Bahn, ein Ball markiert sie, die Seite blättert mit.
   - Training: nur die gewählte Bahn, nach dem Einlochen führt Feuer zurück ins Menü.
   - Mehrspieler 1–4: jede Person spielt das Loch nacheinander zu Ende; Spielernummer im HUD; Endwertung aller Personen auf dem Titelrechteck, Feuer zurück ins Menü.
 - [x] Eigener Zeichensatz: 5 Pixel hohe HUD-Schrift (Ziffern, Schrägstrich, Fähnchen, Schläger) als Pixelstreifen; keine ROM-Zeichen mehr (2026-10-06).
