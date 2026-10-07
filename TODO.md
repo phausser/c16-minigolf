@@ -149,10 +149,15 @@ Abnahme: 18 unterscheidbare, lösbare und faire Bahnen; keine unsichtbaren Kante
 
 ## 5. Vollständiges Spiel
 
-- [ ] Titel, kompakte Bedienhilfe und Rundenstart ergänzen.
+- [ ] Titel, kompakte Bedienhilfe und Rundenstart ergänzen. Plan (2026-10-07, Entscheidungen des Nutzers):
+  - Titelbild als rechteckige 19. Bahn (`assets/title.json`, gleicher Renderer) vor dem Rasen, Zeile 24 Rasen statt HUD.
+  - Englischer Menütext aus dem ROM-Zeichensatz (beim Titel invertiert in den RAM-Zeichensatz kopiert): 1–4 PLAYER(S), PRACTICE mit Lochnummer.
+  - Mini-Vorschau der Übungsbahn als Umriss im Maßstab 1:4 (10×5 Zeichen ab Zeichen 78), Joystick links/rechts wählt die Bahn.
+  - Training: nur die gewählte Bahn, nach dem Einlochen führt Feuer zurück ins Menü.
+  - Mehrspieler 1–4: jede Person spielt das Loch nacheinander zu Ende; Spielernummer im HUD; Endwertung aller Personen auf dem Titelrechteck, Feuer zurück ins Menü.
 - [x] Eigener Zeichensatz: 5 Pixel hohe HUD-Schrift (Ziffern, Schrägstrich, Fähnchen, Schläger) als Pixelstreifen; keine ROM-Zeichen mehr (2026-10-06).
 - [ ] HUD mit Loch, Par, Schlägen, Stärke und Gesamtstand fertigstellen (Fähnchen und Bahnnummer links, Schläger und Schläge/Par rechts, Ladebalken als Rahmen mit Skala 25/50/75 % in der Mitte umgesetzt; laufender Gesamtstand fehlt).
-- [ ] Training mit freier Lochwahl implementieren.
+- [ ] Training mit freier Lochwahl implementieren (siehe Plan oben).
 - [x] Lochbilanz und bestätigten Übergang zum nächsten Loch implementieren (Ergebnis in der Statuszeile, Feuer führt weiter).
 - [x] Schlaglimit mit 13er-Wertung implementieren (Ball verschwindet, Schlagzahl 13).
 - [x] Endwertung (Schläger und Gesamtschläge/Gesamtpar rechts) und bestätigten Rundenneustart implementieren; Einzelergebnisse aus Speichergründen nicht gespeichert.
@@ -165,7 +170,7 @@ Abnahme: vollständige Runde vom Start bis zur korrekten Endwertung ohne Neustar
 
 - [x] Kurze Schlag-, Banden-, Einloch- und Wassergeräusche mit TED erzeugen. Seit 2026-10-05 Effekte 51/38/53 aus c16-sound-fx auf beiden Stimmen, Wasser 72, Hole-in-one 83; Hörprüfung in VICE bestanden (2026-10-06).
 - [ ] Tonumschaltung ergänzen.
-- [ ] HUD-Kommentare mit Cooldown und Prioritäten hinzufügen.
+- [x] ~~HUD-Kommentare mit Cooldown und Prioritäten hinzufügen.~~ Entfällt (Nutzer 2026-10-07) zugunsten von Titel, Training und Mehrspieler.
 - [x] Bewegtes Wasser: diagonal laufender Schatten- und Helligkeitszyklus (src/water.asm, bis 538 Zyklen je Frame auf Bahn 13; Smoke-Bahn ohne Wasser, Messung mit Wasser steht aus).
 - [ ] Hole-in-one-Sternchen und Abschlussfanfare im verbleibenden Budget ergänzen.
 - [ ] Physikreplays mit und ohne Effekte vergleichen: identische Ballzustände verlangen.

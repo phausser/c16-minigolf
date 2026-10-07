@@ -46,6 +46,17 @@ clear_attributes:
     sta ATTR_BASE + $300,x
     inx
     bne clear_attributes
+; Row 24 as the HUD: blanks in HUD colours, then the strip characters.
+; The title screen paints the row as lawn; the game calls this again.
+install_hud_row:
+    ldx #39
+hud_row_clear:
+    lda #32
+    sta SCREEN_BASE + 24 * 40,x
+    lda #HUD_FOREGROUND_COLOR
+    sta ATTR_BASE + 24 * 40,x
+    dex
+    bpl hud_row_clear
     ldx #HUD_LEFT_CELLS - 1
 hud_codes_left:
     txa

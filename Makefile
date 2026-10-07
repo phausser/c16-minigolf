@@ -19,10 +19,10 @@ all: $(PRG) $(TEST_PRG)
 build:
 	mkdir -p build
 
-build/assets.inc: tools/generate_assets.py tools/course_codec.py tests/course_reference.py $(COURSES) | build
+build/assets.inc: tools/generate_assets.py tools/course_codec.py tests/course_reference.py $(COURSES) assets/title.json | build
 	$(PYTHON) tools/generate_assets.py
 
-build/assets-test.inc: tools/generate_assets.py tools/course_codec.py tests/course_reference.py assets/test-course.json | build
+build/assets-test.inc: tools/generate_assets.py tools/course_codec.py tests/course_reference.py assets/test-course.json assets/title.json | build
 	$(PYTHON) tools/generate_assets.py --test
 
 $(PRG): $(SOURCES) build/assets.inc

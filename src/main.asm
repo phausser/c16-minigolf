@@ -76,6 +76,10 @@ start:
 !ifdef START_HOLE {           ; make play HOLE=n: begin the round at hole n
     lda #START_HOLE - 1
     sta HOLE
+} else {
+!ifndef TEST_BUILD {          ; tests and smoke start on the hole directly
+    jmp title_screen
+}
 }
     jsr start_hole
 main_loop:
@@ -135,30 +139,36 @@ start_hole:
     sta TED_CONTROL1
     rts
 
-; Fire after holing: add the score, then the next hole, the summary after
-; the last one, and from the summary a new round.
+; Fire after holing: add the strokes of the player, then the next player
+; on the same hole or the next hole; the summary after the last one.
+; Practice returns to the menu after its one hole.
 next_hole:
-    lda HOLE
-    cmp #COURSE_COUNT
-    bcs new_round
+    lda practice
+    bne new_round
+    ldx player
     clc
-    lda TOTAL
+    lda totals,x
     adc SHOTS
-    sta TOTAL
+    sta totals,x
+    inx
+    cpx player_count
+    bcc next_player
+    ldx #0
+    stx player
     inc HOLE
     lda HOLE
     cmp #COURSE_COUNT
     bcc start_hole
-    lda #1
-    sta FIRE_LOCK
-    jmp draw_summary
+    jmp summary_screen
 new_round:
-    lda #0
-    sta HOLE
-    sta TOTAL
-    beq start_hole
+    jmp title_screen
+; The hole is drawn already: only the ball goes back to the tee.
+next_player:
+    stx player
+    jsr restore_dynamic
+    jmp initialise_state
 
-; Clears per-hole state (HOLE and TOTAL lie beyond it), unpacks HOLE and
+; Clears per-hole state (HOLE lies beyond it), unpacks HOLE and
 ; puts the ball on the tee; fire must be released before the first shot.
 ; The accepted keys survive, so fire held into a new hole still needs a
 ; release before it charges.
@@ -202,6 +212,7 @@ clear_state:
 !source "src/initialise_video.asm"
 !source "src/circle_diagonal_guard.asm"
 !source "src/water.asm"
+!source "src/title.asm"
 square_lo:
 !for square_index, 0, 255 { !byte <(square_index*square_index) }
 square_hi:
@@ -212,6 +223,9 @@ square_hi:
 } else {
 !source "build/assets.inc"
 }
+; The assets define TITLE_PATTERNS, so this check follows them.
+!if COURSE_CHAR + TITLE_PATTERNS > PREVIEW_CHAR { !error "title patterns overlap the preview" }
+!if PREVIEW_CHAR + PREVIEW_COLUMNS * PREVIEW_ROWS > 128 { !error "preview exceeds the charset" }
 ; Test-only stress image: verify the safe copier even after the destination
 ; grows over the original SYS loader and part of its source image.
 !ifdef RELOCATION_TEST_PADDING { !fill RELOCATION_TEST_PADDING, $a5 }

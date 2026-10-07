@@ -1,5 +1,5 @@
-; Joystick port 1: $FF08 selector $FB, active-low left/right bits 2/3,
-; fire bit 6. Keyboard rows stay released while reading the joystick.
+; Joystick port 1: $FF08 selector $FB, active-low up/down bits 0/1,
+; left/right bits 2/3, fire bit 6. Keyboard rows stay released while reading the joystick.
 ; P is read separately with both joystick ports deselected.
 scan_keyboard:
     lda #$ff
@@ -12,6 +12,12 @@ scan_keyboard:
     and #12
     lsr
     lsr
+    sta KEY_CURRENT
+    lda TEMP
+    and #3                    ; up/down: KEY_UP and KEY_DOWN for the menu
+    asl
+    asl
+    ora KEY_CURRENT
     sta KEY_CURRENT
     lda TEMP
     and #$40

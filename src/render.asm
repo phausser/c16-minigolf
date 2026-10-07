@@ -268,6 +268,18 @@ draw_status:
     inx
     txa
     jsr hud_number
+    ldx player_count          ; several players: "P" and whose turn it is
+    dex
+    beq status_left_done
+    lda #HUD_GAP
+    jsr hud_put
+    lda #HUD_PLAYER
+    jsr hud_put
+    ldx player
+    inx
+    txa
+    jsr hud_number
+status_left_done:
     lda #HUD_LEFT_X
     sta HUD_X
     jsr hud_flush
@@ -277,12 +289,6 @@ draw_status:
     lda SHOTS
     jmp hud_right
 
-; Round summary: club and "total strokes/total par" right aligned.
-draw_summary:
-    jsr hud_clear
-    lda #TOTAL_PAR
-    pha
-    lda TOTAL
 ; A = strokes. The caller pushed the par and jumped here; it is pulled
 ; below, before the final rts.
 hud_right:
@@ -475,6 +481,7 @@ HUD_SLASH = 10
 HUD_FLAG = 11
 HUD_CLUB = 12
 HUD_GAP = 13                  ; two more blank columns after an icon
+HUD_PLAYER = 14
 hud_font:
 !byte %11100000,%10100000,%10100000,%10100000,%11100000 ; 0
 !byte %01000000,%11000000,%01000000,%01000000,%11100000 ; 1
@@ -490,20 +497,21 @@ hud_font:
 !byte %11000000,%11110000,%11000000,%10000000,%10000000 ; flag
 !byte %00001000,%00010000,%00100000,%01000000,%11100000 ; club
 !byte 0,0,0,0,0                                         ; gap
+!byte %11100000,%10100000,%11100000,%10000000,%10000000 ; P
 hud_font_advance:
-!byte 4,4,4,4,4,4,4,4,4,4,4,5,6,2
-!if * - hud_font_advance != HUD_GAP + 1 | hud_font_advance - hud_font != (HUD_GAP + 1) * 5 {
-    !error "hud_font and hud_font_advance need HUD_GAP + 1 glyphs"
+!byte 4,4,4,4,4,4,4,4,4,4,4,5,6,2,4
+!if * - hud_font_advance != HUD_PLAYER + 1 | hud_font_advance - hud_font != (HUD_PLAYER + 1) * 5 {
+    !error "hud_font and hud_font_advance need HUD_PLAYER + 1 glyphs"
 }
-; Left strip cells 0..1, right strip cells 2..6 (screen columns 35..39).
-HUD_CELLS = 7
-HUD_LEFT_CELLS = 2
+; Left strip cells 0..3, right strip cells 4..8 (screen columns 35..39).
+HUD_CELLS = 9
+HUD_LEFT_CELLS = 4
 HUD_RIGHT_COLUMN = 40 - (HUD_CELLS - HUD_LEFT_CELLS)
 HUD_LEFT_X = 1
 HUD_RIGHT_END = HUD_CELLS * 8 - 1 ; last strip column, left blank like HUD_LEFT_X - 1
 HUD_GLYPHS = CHARSET_BASE + HUD_CHAR * 8
 !if >HUD_GLYPHS != >(HUD_GLYPHS + HUD_CELLS * 8 + 7) { !error "HUD strip must not cross a page" }
-hud_text:                     ; club, gap, three digits, slash, two digits
+hud_text:                     ; flag, gap, 2 digits, gap, P, digit or club, gap, 3 digits, /, 2 digits
 !fill 8
 BAR_COLUMN = 15
 BAR_CELLS = 10

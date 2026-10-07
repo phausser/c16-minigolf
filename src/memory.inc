@@ -67,7 +67,6 @@ CANDIDATE_COUNT = $4c
 FIRE_LOCK = $4d             ; require release after pause/rolling/restart
 STATE_END = $4e
 HOLE = $4e                 ; current hole, 0-based; COURSE_COUNT = summary
-TOTAL = $4f                ; strokes of the finished holes
 BALL_SCREEN_X = $50          ; rounded integer word
 BALL_SCREEN_Y = $52
 PHYS_INDEX = $53
