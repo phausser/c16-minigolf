@@ -62,6 +62,102 @@ draw_hidden_done:
     lda #$22                  ; red border: the 64-character budget overflowed
     sta TED_BORDER
 draw_course_done:
+    ; Fall through: obstacles get the floor colour.
+
+; Lawn cells that the lawn of row 0 cannot reach in orthogonal steps lie
+; inside obstacles and take the floor colour. Bit 7 marks reached lawn
+; while it spreads, sweeping forwards and backwards until nothing changes.
+LAWN_HUE = CHECKER_COLOR_EVEN & 15
+!if (CHECKER_COLOR_ODD & 15) != LAWN_HUE | (COURSE_SURFACE_COLOR & 15) = LAWN_HUE | WATER_HUE = LAWN_HUE { !error "the lawn needs a hue of its own" }
+!if <ATTR_BASE != 0 { !error "the backward sweep needs a page-aligned ATTR_BASE" }
+whiten_obstacles:
+    ldx #39
+obstacle_seed:
+    lda ATTR_BASE,x
+    ora #$80
+    sta ATTR_BASE,x
+    dex
+    bpl obstacle_seed
+obstacle_sweep:
+    lda #0
+    sta obstacle_changed
+    sta COURSE_PTR
+    lda #>ATTR_BASE
+    sta COURSE_PTR + 1
+obstacle_forward:             ; cells 40..959 at COURSE_PTR + 40
+    jsr obstacle_cell
+    inc COURSE_PTR
+    bne obstacle_forward_page
+    inc COURSE_PTR + 1
+obstacle_forward_page:
+    lda COURSE_PTR
+    cmp #<(ATTR_BASE + 920)
+    bne obstacle_forward
+    lda COURSE_PTR + 1
+    cmp #>(ATTR_BASE + 920)
+    bne obstacle_forward
+obstacle_backward:
+    lda COURSE_PTR
+    bne obstacle_backward_page
+    dec COURSE_PTR + 1
+obstacle_backward_page:
+    dec COURSE_PTR
+    jsr obstacle_cell
+    lda COURSE_PTR
+    bne obstacle_backward
+    lda COURSE_PTR + 1
+    cmp #>ATTR_BASE
+    bne obstacle_backward
+    lda obstacle_changed
+    bne obstacle_sweep
+    ldx #240
+obstacle_paint:
+!for quarter, 0, 3 {
+    lda ATTR_BASE - 1 + quarter * 240,x
+    jsr obstacle_colour
+    sta ATTR_BASE - 1 + quarter * 240,x
+}
+    dex
+    bne obstacle_paint
+    rts
+
+; COURSE_PTR + 40 = cell: unreached lawn beside reached cells is reached.
+obstacle_cell:
+    ldy #40
+    lda (COURSE_PTR),y
+    and #$8f
+    cmp #LAWN_HUE
+    bne obstacle_cell_done
+    ldy #0
+    lda (COURSE_PTR),y
+    ldy #39
+    ora (COURSE_PTR),y
+    ldy #41
+    ora (COURSE_PTR),y
+    ldy #80
+    ora (COURSE_PTR),y
+    bpl obstacle_cell_done
+    ldy #40
+    lda (COURSE_PTR),y
+    ora #$80
+    sta (COURSE_PTR),y
+    sta obstacle_changed
+obstacle_cell_done:
+    rts
+
+; Reached lawn loses its mark, unreached lawn takes the floor colour.
+obstacle_colour:
+    tay
+    bmi obstacle_reached
+    and #15
+    cmp #LAWN_HUE
+    bne obstacle_keep
+    ldy #COURSE_SURFACE_COLOR
+obstacle_keep:
+    tya
+    rts
+obstacle_reached:
+    and #$7f
     rts
 
 ; Drop the oldest scratch row, keep the two just shaped, and fill the next.
@@ -886,6 +982,8 @@ shape_cells_left:
 pattern_count:
 !byte 0
 pattern_overflow:
+!byte 0
+obstacle_changed:
 !byte 0
 last_row:                     ; last course row: 20, or 23 on the title
 !byte 20

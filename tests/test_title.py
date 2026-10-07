@@ -83,7 +83,8 @@ class TitleTests(unittest.TestCase):
                 self.assertEqual(got, want, column)
             else:
                 self.assertNotIn(S['FIGURE_CHAR'], got, column)
-        self.assertEqual(self.r.screen_text(15, 5, 30, self.floor), ' '*8+'*'+' '*21)
+        # Row 15 up to column 33: column 34 holds the tip of the right notch.
+        self.assertEqual(self.r.screen_text(15, 5, 29, self.floor), ' '*8+'*'+' '*20)
         self.assertEqual(self.holes_text(), self.holes_expected(0))
         self.assertEqual(self.r.get('pattern_overflow'), 0)
         for slot in range(3):

@@ -13,6 +13,8 @@ hole, shadowed inside at the top left. Cells with floor are white with black
 ink, other playfield cells black ink on green horizontal stripes two cells high, rows 0 and 21..23 equal stripe colors, row 24
 the HUD palette. Water areas are whole floor cells with black ink on a
 one blue (WATER_COLOR_EVEN = _ODD). Row 24 is entirely the HUD palette.
+Solid cells that the lawn of row 0 cannot reach in orthogonal steps through
+solid, outer or hidden cells lie inside obstacles: their stripes are white.
 """
 
 FRAME_WIDTH = 6
@@ -92,6 +94,16 @@ def render(course, s):
                 bitmap[bitmap_offset(cx+dx, cy+dy)] |= 128 >> ((cx+dx) % 8)
     water = {(row, col) for x1, y1, x2, y2 in course.get('hazards', [])
              for row in range(y1//8, y2//8) for col in range(x1//8, x2//8)}
+    lawn = {(row, col) for row in range(24) for col in range(40)
+            if classes.get((row, col)) in ('solid', 'outer', None)}
+    reached = {(0, col) for col in range(40)}
+    todo = list(reached)
+    while todo:
+        row, col = todo.pop()
+        for near in ((row-1, col), (row+1, col), (row, col-1), (row, col+1)):
+            if near in lawn and near not in reached:
+                reached.add(near)
+                todo.append(near)
     hud = attribute(s['HUD_FOREGROUND_COLOR'], s['HUD_BACKGROUND_COLOR'])
     luminance, color = [hud[0]]*1024, [hud[1]]*1024
     for row in range(24):
@@ -101,7 +113,9 @@ def render(course, s):
             if kind in ('floor', 'edge'):
                 pair = attribute(s['COURSE_MARKER_COLOR'], s['COURSE_SURFACE_COLOR'])
             elif kind:
-                pair = attribute(s['COURSE_FRAME_COLOR'], checker)
+                inside = (row, col) not in reached     # an obstacle
+                pair = attribute(s['COURSE_FRAME_COLOR'],
+                                 s['COURSE_SURFACE_COLOR'] if inside else checker)
             else:
                 pair = attribute(checker, checker)
             if (row, col) in water:
