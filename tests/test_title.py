@@ -46,23 +46,23 @@ class TitleTests(unittest.TestCase):
         return self.r.bus[self.S['SCREEN_BASE']+row*40+column]
 
     def holes_text(self):
-        """Rows 16 (arrows, numbers, outline cells as ?) and 18 (ball)
-        from column 5."""
-        return self.r.screen_text(16, 5, 30, self.floor), self.r.screen_text(18, 5, 30, self.floor)
+        """From column 9: rows 15 and 16 (arrows, outline cells as ?) and
+        row 18 (ball and numbers)."""
+        return tuple(self.r.screen_text(row, 9, 21, self.floor) for row in (15, 16, 18))
 
     @staticmethod
     def holes_expected(first, ball=None):
-        cells, balls = [' ']*30, [' ']*30
-        cells[0] = '<' if first else ' '
-        cells[29] = '>' if first+3 < len(COURSES) else ' '
+        top, middle, below = [' ']*21, [' ']*21, [' ']*21
+        middle[0] = '<' if first else ' '
+        middle[20] = '>' if first+3 < len(COURSES) else ' '
         for slot in range(3):
+            start = 2+6*slot              # the outline's first cell
+            top[start:start+5] = middle[start:start+5] = '?????'
             number = str(first+slot+1)
-            start = 5+9*slot              # the outline's first cell
-            cells[start-1-len(number):start-1] = number
-            cells[start:start+5] = '?????'
+            below[start+5-len(number):start+5] = number
             if ball == first+slot:
-                balls[start+2] = '*'
-        return ''.join(cells), ''.join(balls)
+                below[start+4-len(number)] = '*'
+        return ''.join(top), ''.join(middle), ''.join(below)
 
     def text(self, row, column, count):
         letters = 'MINGOLFPAYRCTSE'
@@ -89,7 +89,7 @@ class TitleTests(unittest.TestCase):
         for slot in range(3):
             for column in range(5):
                 for row in range(3):
-                    self.assertEqual(self.code(15+row, 10+9*slot+column),
+                    self.assertEqual(self.code(15+row, 11+6*slot+column),
                                      S['PREVIEW_CHAR']+slot*15+column*3+row)
         for hole in range(4):                  # three shown, the next one ready
             self.assertEqual(self.block(hole), preview_bitmap(COURSES[hole]), hole)
@@ -138,7 +138,7 @@ class TitleTests(unittest.TestCase):
         self.press(UP)
         self.assertEqual(self.r.get('menu_row'), 0)
         self.assertEqual(self.code(10, 23), S['BALL_CHAR'])
-        self.assertEqual(self.holes_text()[1], ' '*30)
+        self.assertEqual(self.holes_text(), self.holes_expected(0))
 
     def start(self):
         self.r.bus.joysticks = [FIRE, 0]

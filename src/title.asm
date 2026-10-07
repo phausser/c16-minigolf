@@ -16,9 +16,10 @@ TITLE_CHAR_LIMIT = PREVIEW_CHAR - TITLE_CHAR
 HEADER = SCREEN_BASE + 4 * 40 + 16
 FIGURE_ROW = SCREEN_BASE + 8 * 40    ; and the row below, then the ball
 PREVIEW_ROW = SCREEN_BASE + 15 * 40  ; three rows of outlines, then the ball
-HOLE_ROW = PREVIEW_ROW + 40          ; numbers and arrows
-ARROW_LEFT_COLUMN = 5
-ARROW_RIGHT_COLUMN = 34
+HOLE_ROW = PREVIEW_ROW + 40          ; arrows
+NUMBER_ROW = PREVIEW_ROW + 120       ; ball and number below each outline
+ARROW_LEFT_COLUMN = 9
+ARROW_RIGHT_COLUMN = 29
 ; A preview block holds its outline column by column: pixel (x, y) at
 ; block + (x / 8) * 24 + y; course cell (x + 1, y + 1) is pixel (x, y).
 
@@ -135,7 +136,12 @@ title_ball_hole:
     tax
     pla
     ldy slot_columns,x
-    sta PREVIEW_ROW + 120 + 2,y   ; below the middle of the outline
+    ldx practice_hole
+    cpx #9
+    bcs title_ball_number     ; two digits from hole 10 on
+    iny
+title_ball_number:
+    sta NUMBER_ROW + 2,y      ; right before the number
     rts
 
 title_start:
@@ -215,15 +221,15 @@ title_window_codes:           ; carry stays clear: codes < 128
     iny
     dex
     bne title_window_codes
-    lda #<HOLE_ROW
+    lda #<NUMBER_ROW
     sta COPY_TARGET
-    lda #>HOLE_ROW
+    lda #>NUMBER_ROW
     sta COPY_TARGET + 1
     ldx POINT_INDEX
     lda slot_columns,x
+    clc
+    adc #4                    ; last digit under the outline's right end
     tay
-    dey
-    dey                       ; last digit, a gap before the outline
     lda window_first
     sec                       ; numbers count from 1
     adc POINT_INDEX
@@ -519,10 +525,10 @@ figure_columns:
 !byte 13, 15, 16, 18, 19, 20, 22, 23, 24, 25
 player_ball_columns:
 !byte 13, 15, 19, 23
-; First column of each shown outline: its number ends two cells left of
-; it, the ball lies below its middle.
+; First column of each shown outline, one cell between them. Below it the
+; number, right aligned, with the ball right before it.
 slot_columns:
-!byte 10, 19, 28
+!byte 11, 17, 23
 preview_columns:
 !byte 0, 24, 48, 72, 96
 block_codes:
