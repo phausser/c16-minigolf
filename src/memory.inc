@@ -198,25 +198,26 @@ CHARSET_BASE = $3800
 SCRATCH_BASE = $3c00         ; three cell rows of bitmap while a hole is drawn
 SCRATCH_END = $4000
 COLOR_BASE = ATTR_BASE       ; physics reads the foreground hue here
-; Charset slots. Screen code 32 stays blank (the charset is cleared).
-; Font codes 0..26 (src/font.inc): white on black in the game, black on
-; the white floor on the title screen.
-BLANK_CHAR = 0
-DIGIT_CHAR = 8               ; 0..9
-BALL_CHAR = 18
-ARROW_LEFT_CHAR = 19
-ARROW_RIGHT_CHAR = 20
-FLAG_CHAR = 21
-CLUB_CHAR = 22
-SLASH_CHAR = 23
-PLAYER_CHAR = 24
-FONT_GLYPHS = 25             ; codes with 5-row glyphs, blank included
-FIGURE_CHAR = 25             ; big player figure, top and bottom cell
-DYNAMIC_CHAR = 33            ; twelve cells under the ball and the aim dots
-BAR_CHAR = 45                ; six power-bar shapes (BAR_GLYPHS)
+; Charset slots. Font codes 0..34 (src/font.inc): white on black in the
+; game, black on the white floor on the title screen.
+BLANK_CHAR = 0               ; letters 1..15 (LETTER_M ...)
+DIGIT_CHAR = 16              ; 0..9
+BALL_CHAR = 26
+ARROW_LEFT_CHAR = 27
+ARROW_RIGHT_CHAR = 28
+FLAG_CHAR = 29
+CLUB_CHAR = 30
+SLASH_CHAR = 31
+PLAYER_CHAR = 32
+FONT_GLYPHS = 33             ; codes with 5-row glyphs, blank included
+FIGURE_CHAR = 33             ; golfer, top and bottom cell
+DYNAMIC_CHAR = 35            ; twelve cells under the ball and the aim dots
+BAR_CHAR = 47                ; six power-bar shapes (BAR_GLYPHS)
 COURSE_CHAR = 64             ; static hole patterns up to FONT_CHAR
 ; The font image (src/font.inc) lives in the last charset cells for good:
 ; holes stay below it, and so do the title frame and previews.
-FONT_CHAR = 111
+FONT_CHAR = 106
 FONT_STORE = CHARSET_BASE + FONT_CHAR * 8
 COURSE_CHAR_LIMIT = FONT_CHAR - COURSE_CHAR
+!if FONT_STORE + (FONT_GLYPHS - 1) * 5 + 16 > CHARSET_BASE + $400 { !error "the font image exceeds the charset" }
+!if DYNAMIC_CHAR < FIGURE_CHAR + 2 { !error "dynamic cells overlap the font" }

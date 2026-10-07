@@ -1,19 +1,21 @@
 ; Title menu on a rectangular course, black glyphs on the white floor:
-; MINIGOLF, then one to four player figures, then three holes as 1:8
-; outlines with their numbers and arrows towards further holes. The golf
-; ball marks the choice: up/down switches the row, left/right moves in
-; it, fire starts. Five outlines are kept drawn, the three shown and one
-; on either side, so that the row slides without visible drawing.
-TITLE_CHAR = 27               ; title frame from here on (intern_pattern)
-PREVIEW_CHAR = 36             ; five preview blocks of 5 x 3 cells
-PREVIEW_BLOCKS = 5
+; MINIGOLF; PLAY over one to four golfers; PRACTISE over three holes as
+; 1:8 outlines with their numbers and arrows towards further holes. The
+; golf ball marks the choice: up/down switches the row, left/right moves
+; in it, fire starts. Hole h is drawn in block h mod 4: the three shown
+; and the next one in the direction of the last slide. A hole that is not
+; ready is drawn into its block while that block is not shown, so the row
+; never shows drawing.
+TITLE_CHAR = 35               ; title frame from here on (intern_pattern)
+PREVIEW_CHAR = 44             ; four preview blocks of 5 x 3 cells
+PREVIEW_BLOCKS = 4
 PREVIEW_BLOCK = 5 * 3
 TITLE_CHAR_LIMIT = PREVIEW_CHAR - TITLE_CHAR
 !if PREVIEW_CHAR + PREVIEW_BLOCKS * PREVIEW_BLOCK > FONT_CHAR { !error "previews overlap the font image" }
 !if TITLE_CHAR < FIGURE_CHAR + 2 { !error "the title frame overlaps the font" }
-HEADER = SCREEN_BASE + 7 * 40 + 16
+HEADER = SCREEN_BASE + 6 * 40 + 16
 FIGURE_ROW = SCREEN_BASE + 10 * 40   ; and the row below
-PREVIEW_ROW = SCREEN_BASE + 14 * 40  ; three rows of outlines
+PREVIEW_ROW = SCREEN_BASE + 15 * 40  ; three rows of outlines
 HOLE_ROW = PREVIEW_ROW + 40          ; numbers, balls and arrows
 ARROW_LEFT_COLUMN = 3
 ARROW_RIGHT_COLUMN = 35
@@ -39,6 +41,10 @@ title_forget:
     sta block_holes,x
     dex
     bpl title_forget
+    ldx #title_labels - title_texts
+    jsr print_texts
+    lda #3
+    sta window_ahead          ; ready the hole right of the row
     jsr title_window
     lda #BALL_CHAR
     jsr title_ball
@@ -95,6 +101,7 @@ title_hole_step:
     cmp #COURSE_COUNT
     bcs title_ball_moved
     sta practice_hole
+    ldx #$ff                  ; sliding left: ready the hole left of it
     cmp window_first
     bcc title_slide           ; left of the window: it starts here
     sbc #2
@@ -102,8 +109,10 @@ title_hole_step:
     cmp window_first
     beq title_ball_moved
     bcc title_ball_moved      ; inside the window
+    ldx #3
 title_slide:                  ; right of it: it ends here
     sta window_first
+    stx window_ahead
     jsr title_window
 title_ball_moved:
     lda #BALL_CHAR
@@ -149,7 +158,7 @@ title_clear_totals:
     ldx #1
 title_players:
     stx player_count
-    ; Back to the game charset: HUD font, blank 32, power bar, course area.
+    ; Back to the game charset: HUD font, power bar, course area.
     lda #$0b
     sta TED_CONTROL1
     lda #COURSE_CHAR
@@ -179,8 +188,8 @@ menu_input:
     lda KEY_ACTIONS
     rts
 
-; Shows holes window_first..+2 from their drawn blocks, with numbers and
-; arrows, then draws the neighbours on either side out of sight.
+; Shows holes window_first..+2 from their blocks, with numbers and
+; arrows, then draws window_first + window_ahead (3 or -1) out of sight.
 title_window:
     lda #2
     sta POINT_INDEX           ; slot 2..0
@@ -242,23 +251,18 @@ title_arrow_left:
     ldx #ARROW_RIGHT_CHAR
 title_arrow_right:
     stx HOLE_ROW + ARROW_RIGHT_COLUMN
-    jsr preview_hole          ; window_first + 3, if there is one
-    ldx window_first
-    dex
-    txa                       ; $ff left of hole 1: none
+    lda window_first
+    clc
+    adc window_ahead          ; $ff left of hole 1: none
 
-; A = hole. Draws it into block hole mod 5 unless it is there already.
+; A = hole. Draws it into block hole mod 4 unless it is there already.
 ; Returns X = the block, or X = PREVIEW_BLOCKS without such a hole.
 preview_hole:
     ldx #PREVIEW_BLOCKS
     cmp #COURSE_COUNT
     bcs preview_hole_done
     sta TEMP
-preview_mod:
-    sec
-    sbc #PREVIEW_BLOCKS
-    bcs preview_mod
-    adc #PREVIEW_BLOCKS
+    and #PREVIEW_BLOCKS - 1
     tax
     lda TEMP
     cmp block_holes,x
@@ -482,16 +486,39 @@ draw_title_frame:
     jsr emit_hidden_row
     lda #$ff
     jsr install_font
-    ldx #7
-title_header:
-    lda header_codes,x
-    sta HEADER,x
-    dex
-    bpl title_header
+    ldx #0                    ; MINIGOLF
+; X = offset into title_texts: screen address, codes, $ff, ... up to an
+; address with high byte 0.
+print_texts:
+    lda title_texts,x
+    sta COPY_TARGET
+    lda title_texts + 1,x
+    beq print_texts_done
+    sta COPY_TARGET + 1
+    inx
+    inx
+    ldy #0
+print_text_char:
+    lda title_texts,x
+    inx
+    cmp #$ff
+    beq print_texts
+    sta (COPY_TARGET),y
+    iny
+    bne print_text_char
+print_texts_done:
     rts
 
-header_codes:                 ; M I N I G O L F
-!byte 1, 2, 3, 2, 4, 5, 6, 7
+title_texts:
+    !word HEADER
+    !byte LETTER_M, LETTER_I, LETTER_N, LETTER_I, LETTER_G, LETTER_O, LETTER_L, LETTER_F, $ff
+    !byte 0, 0
+title_labels:
+    !word SCREEN_BASE + 8 * 40 + 18
+    !byte LETTER_P, LETTER_L, LETTER_A, LETTER_Y, $ff
+    !word SCREEN_BASE + 13 * 40 + 16
+    !byte LETTER_P, LETTER_R, LETTER_A, LETTER_C, LETTER_T, LETTER_I, LETTER_S, LETTER_E, $ff
+    !byte 0, 0
 ; Columns of the figures, then the ball left of each group.
 figure_columns:
 !byte 6, 13, 14, 21, 22, 23, 30, 31, 32, 33
@@ -520,6 +547,8 @@ window_first:                 ; first hole shown
 !byte 0
 block_holes:                  ; hole drawn in each block, $ff: none
 !fill PREVIEW_BLOCKS, $ff
+window_ahead:                 ; 3 after sliding right, $ff after sliding left
+!byte 3
 practice:                     ; nonzero: one hole, then back to the menu
 !byte 0
 player_count:

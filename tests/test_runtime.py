@@ -227,10 +227,8 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.bus[0xff14] & 0xf8, 0x30)
         self.assertEqual(self.r.bus[0xff15] & 0x7f, 0)
         self.assertEqual(self.r.bus[0xff19] & 0x7f, S['BORDER_COLOR'])
-        row = [S['BLANK_CHAR']]*40
-        self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1024], [32]*960+row+[32]*24)
+        self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1024], [S['BLANK_CHAR']]*1024)
         self.assertEqual(self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+1024], [S['HUD_FOREGROUND_COLOR']]*1024)
-        self.assertEqual(self.r.bus[S['CHARSET_BASE']+32*8:S['CHARSET_BASE']+33*8], [0]*8)
         # The font image survives; its glyphs are white on black, rows 1..5.
         self.assertEqual(self.r.bus[S['FONT_STORE']:S['CHARSET_BASE']+1024], font)
         image = S['font_image']

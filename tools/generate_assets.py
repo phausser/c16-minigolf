@@ -172,8 +172,8 @@ def expanded_segments(course):
     return encoded
 
 
-# Charset cells 64..110 (src/memory.inc: COURSE_CHAR_LIMIT; the font image follows).
-COURSE_CHAR_LIMIT = 47
+# Charset cells 64..105 (src/memory.inc: COURSE_CHAR_LIMIT; the font image follows).
+COURSE_CHAR_LIMIT = 42
 
 
 def generate(test=False):

@@ -39,18 +39,18 @@ class TitleTests(unittest.TestCase):
             self.r.frames(0, 2)
 
     def block(self, hole):
-        base = self.S['CHARSET_BASE']+(self.S['PREVIEW_CHAR']+hole % 5*15)*8
+        base = self.S['CHARSET_BASE']+(self.S['PREVIEW_CHAR']+hole % 4*15)*8
         return self.r.bus[base:base+120]
 
     def code(self, row, column):
         return self.r.bus[self.S['SCREEN_BASE']+row*40+column]
 
     def holes_text(self):
-        return self.r.screen_text(15, 3, 33, self.floor)
+        return self.r.screen_text(16, 3, 33, self.floor)
 
     @staticmethod
     def holes_expected(first, ball=None):
-        """Row 15 from column 3: arrows, ball, numbers, outline cells (?)."""
+        """Row 16 from column 3: arrows, ball, numbers, outline cells (?)."""
         cells = [' ']*33
         cells[0] = '<' if first else ' '
         cells[32] = '>' if first+3 < len(COURSES) else ' '
@@ -63,9 +63,17 @@ class TitleTests(unittest.TestCase):
                 cells[i] = '*'
         return ''.join(cells)
 
+    def text(self, row, column, count):
+        letters = 'MINGOLFPAYRCTSE'
+        names = {self.S[f'LETTER_{c}']: c for c in letters}
+        base = self.S['SCREEN_BASE']+row*40+column
+        return ''.join(names.get(code, '?') for code in self.r.bus[base:base+count])
+
     def test_picture_header_figures_and_first_holes(self):
         S = self.S
-        self.assertEqual(self.r.bus[S['HEADER']:S['HEADER']+8], [1, 2, 3, 2, 4, 5, 6, 7])
+        self.assertEqual(self.text(6, 16, 8), 'MINIGOLF')
+        self.assertEqual(self.text(8, 18, 4), 'PLAY')
+        self.assertEqual(self.text(13, 16, 8), 'PRACTISE')
         figures = [6, 13, 14, 21, 22, 23, 30, 31, 32, 33]
         for column in range(40):
             want = (S['FIGURE_CHAR'], S['FIGURE_CHAR']+1) if column in figures else None
@@ -80,9 +88,9 @@ class TitleTests(unittest.TestCase):
         for slot in range(3):
             for column in range(5):
                 for row in range(3):
-                    self.assertEqual(self.code(14+row, 9+10*slot+column),
+                    self.assertEqual(self.code(15+row, 9+10*slot+column),
                                      S['PREVIEW_CHAR']+slot*15+column*3+row)
-        for hole in range(4):                  # three shown, one ready right
+        for hole in range(4):                  # three shown, the next one ready
             self.assertEqual(self.block(hole), preview_bitmap(COURSES[hole]), hole)
         # The title glyphs are black on the white floor.
         glyph = S['CHARSET_BASE']+(S['DIGIT_CHAR']+1)*8
@@ -106,14 +114,23 @@ class TitleTests(unittest.TestCase):
         self.press(RIGHT)
         self.assertEqual((self.r.get('practice_hole'), self.r.get('window_first')), (3, 1))
         self.assertEqual([self.block(hole) for hole in (1, 2, 3)], shown)
-        self.assertEqual(self.block(0), preview_bitmap(COURSES[0]))
-        self.assertEqual(self.block(4), preview_bitmap(COURSES[4]))
+        self.assertEqual(self.block(4), preview_bitmap(COURSES[4]))   # ready ahead
         self.assertEqual(self.holes_text(), self.holes_expected(1, 3))
         self.press(RIGHT, 20)
         self.assertEqual((self.r.get('practice_hole'), self.r.get('window_first')), (17, 15))
         self.assertEqual(self.holes_text(), self.holes_expected(15, 17))
         for hole in range(14, 18):
             self.assertEqual(self.block(hole), preview_bitmap(COURSES[hole]), hole)
+        # Turning round: the hole left of the row is drawn into a block that
+        # is not shown, the shown ones stay as they are.
+        self.press(LEFT, 2)
+        shown = [self.block(hole) for hole in (15, 16)]
+        self.press(LEFT)
+        self.assertEqual((self.r.get('practice_hole'), self.r.get('window_first')), (14, 14))
+        self.assertEqual([self.block(hole) for hole in (15, 16)], shown)
+        self.assertEqual(self.block(14), preview_bitmap(COURSES[14]))
+        self.assertEqual(self.block(13), preview_bitmap(COURSES[13]))  # ready ahead
+        self.assertEqual(self.holes_text(), self.holes_expected(14, 14))
         self.press(LEFT, 20)
         self.assertEqual((self.r.get('practice_hole'), self.r.get('window_first')), (0, 0))
         self.assertEqual(self.holes_text(), self.holes_expected(0, 0))
@@ -136,7 +153,8 @@ class TitleTests(unittest.TestCase):
         self.assertEqual([self.r.get(n) for n in ('player_count', 'player', 'practice', 'HOLE')], [2, 0, 0, 0])
         self.assertEqual((self.r.get('intern_base'), self.r.get('intern_limit')),
                          (S['COURSE_CHAR'], S['COURSE_CHAR_LIMIT']))
-        self.assertEqual(self.r.bus[S['CHARSET_BASE']+32*8:S['CHARSET_BASE']+33*8], [0]*8)
+        blank = S['CHARSET_BASE']+S['BLANK_CHAR']*8
+        self.assertEqual(self.r.bus[blank:blank+8], [0]*8)
         self.r.call('draw_status')
         self.r.assert_status(self, 1, 0, COURSES[0]['par'], 1)
 

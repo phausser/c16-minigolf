@@ -34,7 +34,7 @@ clear_charset_next:
     jsr install_font
 
     ldx #0
-    lda #32                   ; space, until draw_course and the HUD write
+    lda #BLANK_CHAR           ; until draw_course and the HUD write
 clear_screen:
     sta SCREEN_BASE,x
     sta SCREEN_BASE + $100,x
