@@ -1,8 +1,8 @@
 ; Title menu on a rectangular course, black glyphs on the white floor:
 ; MINIGOLF; PLAY over one to four golfers; PRACTISE over three holes as
 ; 1:8 outlines with their numbers and arrows towards further holes. The
-; golf ball marks the choice: up/down switches the row, left/right moves
-; in it, fire starts. Hole h is drawn in block h mod 4: the three shown
+; golf ball below marks the choice: up/down switches the row, left/right
+; moves in it, fire starts. Hole h is drawn in block h mod 4: the three shown
 ; and the next one in the direction of the last slide. A hole that is not
 ; ready is drawn into its block while that block is not shown, so the row
 ; never shows drawing.
@@ -13,12 +13,12 @@ PREVIEW_BLOCK = 5 * 3
 TITLE_CHAR_LIMIT = PREVIEW_CHAR - TITLE_CHAR
 !if PREVIEW_CHAR + PREVIEW_BLOCKS * PREVIEW_BLOCK > FONT_CHAR { !error "previews overlap the font image" }
 !if TITLE_CHAR < FIGURE_CHAR + 2 { !error "the title frame overlaps the font" }
-HEADER = SCREEN_BASE + 6 * 40 + 16
-FIGURE_ROW = SCREEN_BASE + 10 * 40   ; and the row below
-PREVIEW_ROW = SCREEN_BASE + 15 * 40  ; three rows of outlines
-HOLE_ROW = PREVIEW_ROW + 40          ; numbers, balls and arrows
-ARROW_LEFT_COLUMN = 3
-ARROW_RIGHT_COLUMN = 35
+HEADER = SCREEN_BASE + 4 * 40 + 16
+FIGURE_ROW = SCREEN_BASE + 8 * 40    ; and the row below, then the ball
+PREVIEW_ROW = SCREEN_BASE + 15 * 40  ; three rows of outlines, then the ball
+HOLE_ROW = PREVIEW_ROW + 40          ; numbers and arrows
+ARROW_LEFT_COLUMN = 5
+ARROW_RIGHT_COLUMN = 34
 ; A preview block holds its outline column by column: pixel (x, y) at
 ; block + (x / 8) * 24 + y; course cell (x + 1, y + 1) is pixel (x, y).
 
@@ -119,13 +119,13 @@ title_ball_moved:
     jsr title_ball
     jmp title_loop
 
-; A = screen code left of the chosen figures or hole number.
+; A = screen code below the chosen golfers or hole.
 title_ball:
     ldx menu_row
     bne title_ball_hole
     ldx menu_players
     ldy player_ball_columns,x
-    sta FIGURE_ROW + 40,y
+    sta FIGURE_ROW + 80,y
     rts
 title_ball_hole:
     pha
@@ -134,8 +134,8 @@ title_ball_hole:
     sbc window_first
     tax
     pla
-    ldy hole_ball_columns,x
-    sta HOLE_ROW,y
+    ldy slot_columns,x
+    sta PREVIEW_ROW + 120 + 2,y   ; below the middle of the outline
     rts
 
 title_start:
@@ -202,13 +202,8 @@ title_window_slot:
     bcs title_window_next     ; no such hole
     lda block_codes,x
     ldx POINT_INDEX
-    ldy hole_ball_columns,x
-    tax                       ; first code of the block
-    tya
+    ldy slot_columns,x
     clc
-    adc #4                    ; the outline starts four cells right
-    tay
-    txa
     ldx #5
 title_window_codes:           ; carry stays clear: codes < 128
     sta PREVIEW_ROW,y
@@ -225,10 +220,10 @@ title_window_codes:           ; carry stays clear: codes < 128
     lda #>HOLE_ROW
     sta COPY_TARGET + 1
     ldx POINT_INDEX
-    lda hole_ball_columns,x
+    lda slot_columns,x
     tay
-    iny
-    iny                       ; last digit two cells right of the ball
+    dey
+    dey                       ; last digit, a gap before the outline
     lda window_first
     sec                       ; numbers count from 1
     adc POINT_INDEX
@@ -396,14 +391,16 @@ preview_axis_done:
     ldx SEG_OFFSET
     rts
 
-; End of the round, one row per player: player sign and number, club and
-; "strokes/par", a ball beside the best. Fire returns to the menu.
-SUMMARY_ROW = SCREEN_BASE + 10 * 40
-SUMMARY_COLUMN = 14           ; player sign; ball left, numbers right
+; End of the round, one row per player: club, player and strokes, a ball
+; beside the best; below them flag and (par). Fire returns to the menu.
+SUMMARY_ROW = SCREEN_BASE + 7 * 40
+SUMMARY_COLUMN = 15           ; club; ball left, strokes up to column 20
 summary_screen:
     ldx #$ff
     txs
     jsr draw_title_frame
+    ldx #summary_par - title_texts
+    jsr print_texts
     lda #$ff
     sta TEMP                  ; best total
     ldx player_count
@@ -424,32 +421,23 @@ summary_best_next:
 summary_row:
     stx player
     lda totals,x
+    ldy #SUMMARY_COLUMN + 5
+    jsr print_digits
+    ldx player
+    lda totals,x
     cmp TEMP
-    bne summary_score
+    bne summary_sign
     lda #BALL_CHAR
     ldy #SUMMARY_COLUMN - 1
     sta (COPY_TARGET),y
-summary_score:
-    lda #TOTAL_PAR
-    ldy #SUMMARY_COLUMN + 10
-    jsr print_number
-    ldx player
-    lda totals,x
-    ldy #SUMMARY_COLUMN + 7
-    jsr print_number
-    ldy #SUMMARY_COLUMN + 8
-    lda #SLASH_CHAR
-    sta (COPY_TARGET),y
-    ldy #SUMMARY_COLUMN + 3
-    lda #CLUB_CHAR
-    sta (COPY_TARGET),y
-    lda player
+summary_sign:
+    txa
     clc
     adc #DIGIT_CHAR + 1
     ldy #SUMMARY_COLUMN + 1
     sta (COPY_TARGET),y
     dey
-    lda #PLAYER_CHAR
+    lda #CLUB_CHAR
     sta (COPY_TARGET),y
     lda COPY_TARGET
     clc
@@ -514,20 +502,27 @@ title_texts:
     !byte LETTER_M, LETTER_I, LETTER_N, LETTER_I, LETTER_G, LETTER_O, LETTER_L, LETTER_F, $ff
     !byte 0, 0
 title_labels:
-    !word SCREEN_BASE + 8 * 40 + 18
+    !word SCREEN_BASE + 6 * 40 + 18
     !byte LETTER_P, LETTER_L, LETTER_A, LETTER_Y, $ff
     !word SCREEN_BASE + 13 * 40 + 16
     !byte LETTER_P, LETTER_R, LETTER_A, LETTER_C, LETTER_T, LETTER_I, LETTER_S, LETTER_E, $ff
     !byte 0, 0
-; Columns of the figures, then the ball left of each group.
+summary_par:                  ; flag and (par), the par below the strokes
+    !word SCREEN_BASE + 16 * 40 + SUMMARY_COLUMN
+    !byte FLAG_CHAR, BLANK_CHAR, BLANK_CHAR, PAREN_LEFT_CHAR
+    !byte (TOTAL_PAR > 9) * (DIGIT_CHAR + TOTAL_PAR / 10)   ; blank below 10
+    !byte DIGIT_CHAR + TOTAL_PAR % 10, PAREN_RIGHT_CHAR, $ff
+    !byte 0, 0
+; Golfers in groups of one to four, one cell apart; the ball below each
+; group's middle.
 figure_columns:
-!byte 6, 13, 14, 21, 22, 23, 30, 31, 32, 33
+!byte 13, 15, 16, 18, 19, 20, 22, 23, 24, 25
 player_ball_columns:
-!byte 5, 12, 20, 29
-; Ball left of each shown hole: number in the next two cells, then a gap
-; and the outline.
-hole_ball_columns:
-!byte 5, 15, 25
+!byte 13, 15, 19, 23
+; First column of each shown outline: its number ends two cells left of
+; it, the ball lies below its middle.
+slot_columns:
+!byte 10, 19, 28
 preview_columns:
 !byte 0, 24, 48, 72, 96
 block_codes:

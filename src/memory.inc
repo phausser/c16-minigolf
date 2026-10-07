@@ -207,12 +207,12 @@ ARROW_LEFT_CHAR = 27
 ARROW_RIGHT_CHAR = 28
 FLAG_CHAR = 29
 CLUB_CHAR = 30
-SLASH_CHAR = 31
-PLAYER_CHAR = 32
+PAREN_LEFT_CHAR = 31
+PAREN_RIGHT_CHAR = 32
 FONT_GLYPHS = 33             ; codes with 5-row glyphs, blank included
 FIGURE_CHAR = 33             ; golfer, top and bottom cell
 DYNAMIC_CHAR = 35            ; twelve cells under the ball and the aim dots
-BAR_CHAR = 47                ; six power-bar shapes (BAR_GLYPHS)
+BAR_CHAR = 47                ; eight power-bar shapes (BAR_GLYPHS)
 COURSE_CHAR = 64             ; static hole patterns up to FONT_CHAR
 ; The font image (src/font.inc) lives in the last charset cells for good:
 ; holes stay below it, and so do the title frame and previews.

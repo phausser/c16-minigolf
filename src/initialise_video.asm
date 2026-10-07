@@ -68,8 +68,9 @@ hud_row_clear:
 clear_playfield:
     rts
 
-; Six bar shapes: rows 1 and 5 outline the frame, rows 2..4 hold
-; bar_glyph_rows. The charset is already clear.
+; Bar shapes: rows 1, 2, 5 and 6 are the frame's 2-pixel edges, rows 3..4
+; hold bar_glyph_rows (the partial shape is rebuilt by draw_power). Rows 0
+; and 7 stay clear: the charset is cleared before.
 install_bar_glyphs:
     ldx #0
 build_bar:
@@ -77,17 +78,18 @@ build_bar:
     clc
     adc #BAR_CHAR
     jsr charset_address
-    lda #$ff
-    ldy #1
-    sta (FONT_PTR),y
-    ldy #5
-    sta (FONT_PTR),y
-    lda bar_glyph_rows,x
-    dey
+    ldy #6
 build_bar_row:
+    lda #$ff
+    cpy #3
+    beq build_bar_inner
+    cpy #4
+    bne build_bar_store
+build_bar_inner:
+    lda bar_glyph_rows,x
+build_bar_store:
     sta (FONT_PTR),y
     dey
-    cpy #1
     bne build_bar_row
     inx
     cpx #BAR_GLYPHS

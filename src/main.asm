@@ -226,6 +226,7 @@ square_hi:
 }
 ; The assets define TITLE_PATTERNS, so this check follows them.
 !if TITLE_PATTERNS > TITLE_CHAR_LIMIT { !error "title frame and a preview page exceed the charset" }
+!if TOTAL_PAR > 99 { !error "the summary shows a two-digit par" }
 ; Test-only stress image: verify the safe copier even after the destination
 ; grows over the original SYS loader and part of its source image.
 !ifdef RELOCATION_TEST_PADDING { !fill RELOCATION_TEST_PADDING, $a5 }

@@ -255,50 +255,67 @@ aim_shift_y:
     bne aim_shift_y
     rts
 
-; Status row 24 in the font, one glyph per cell: flag and hole number on
-; the left, with several players the player sign and number beside them;
-; club and "strokes/par" on the right. Numbers come first: print_number
-; blanks the cell left of them, where the signs go afterwards.
+; Status row 24 in the font, one glyph per cell. Left aligned: flag, hole
+; and (par). Right aligned: club, player, strokes on this hole and
+; (strokes in total). The power bar lies between them.
 STATUS_ROW = SCREEN_BASE + 24 * 40
+STATUS_CLEAR = 12             ; cells 0..11 and 28..39 hold the texts
 draw_status:
     lda #<STATUS_ROW
     sta COPY_TARGET
     lda #>STATUS_ROW
     sta COPY_TARGET + 1
+    ldx #STATUS_CLEAR - 1
+    lda #BLANK_CHAR
+status_clear:
+    sta STATUS_ROW,x
+    sta STATUS_ROW + 40 - STATUS_CLEAR,x
+    dex
+    bpl status_clear
+    ldy #0
+    lda #FLAG_CHAR
+    sta (COPY_TARGET),y
+    iny
     ldx HOLE
     inx
     txa
-    ldy #2
-    jsr print_number
-    lda #FLAG_CHAR
-    sta STATUS_ROW
-    ldx player_count
-    dex
-    beq status_right
-    ldx player
-    inx
-    txa
-    ldy #5
-    jsr print_number
-    lda #PLAYER_CHAR
-    sta STATUS_ROW + 4
-status_right:
+    jsr put_number
+    iny                       ; one blank cell
+    lda #PAREN_LEFT_CHAR
+    sta (COPY_TARGET),y
+    iny
     ldx HOLE
     lda course_par,x
-    ldy #38
-    jsr print_number
+    jsr put_number
+    lda #PAREN_RIGHT_CHAR
+    sta (COPY_TARGET),y
+    ldy #39                   ; the right text from its last cell leftwards
+    sta (COPY_TARGET),y
+    dey
+    ldx player
+    lda totals,x
+    clc
+    adc SHOTS
+    jsr print_digits
+    lda #PAREN_LEFT_CHAR
+    sta (COPY_TARGET),y
+    dey
+    dey
     lda SHOTS
-    ldy #36
-    jsr print_number
-    lda #SLASH_CHAR
-    sta STATUS_ROW + 37
+    jsr print_digits
+    dey
+    lda player
+    clc
+    adc #DIGIT_CHAR + 1
+    sta (COPY_TARGET),y
+    dey
     lda #CLUB_CHAR
-    sta STATUS_ROW + 33
+    sta (COPY_TARGET),y
     rts
 
 ; A = 0..255, written leftwards from (COPY_TARGET),Y without leading
-; zeros, then one blank cell. Clobbers X.
-print_number:
+; zeros; Y ends left of the number. Clobbers X.
+print_digits:
     ldx #$ff
     sec
 print_tens:
@@ -309,22 +326,53 @@ print_tens:
     sta (COPY_TARGET),y
     dey
     txa
-    bne print_number
+    bne print_digits
+    rts
+
+; As print_digits, then one blank cell left of the number.
+print_number:
+    jsr print_digits
     lda #BLANK_CHAR
     sta (COPY_TARGET),y
     rts
 
-; Ten-cell frame centred in row 24: 1-pixel outline in glyph rows 1..5,
-; edges and the 25/50/75 % ticks inside. The first 5 * POWER / 2 pixels
-; (80 at full power) fill rows 1..5; the one partly filled cell uses
-; the glyph rebuilt here.
+; A = 0..255, written rightwards from (COPY_TARGET),Y; Y ends right of
+; the number. Clobbers X.
+put_number:
+    cmp #10
+    bcc put_number_end
+    iny
+    cmp #100
+    bcc put_number_end
+    iny
+put_number_end:
+    sty TEXT_COLUMN
+    jsr print_digits
+    ldy TEXT_COLUMN
+    iny
+    rts
+
+; Ten cells centred in row 24: a frame 80 x 6 pixels in cell rows 1..6
+; with 2-pixel edges, inside rows 3..4 from pixel 2 to 77 with ticks at
+; 25, 50 and 75 % (pixels 21, 40, 59). POWER 1..32 fills the first
+; 2 * POWER + POWER / 4 + POWER / 8 inner pixels (76 at full power); the
+; one partly filled cell uses the glyph rebuilt here.
 draw_power:
     lda POWER
     lsr
+    lsr
+    lsr
+    sta TEMP
+    lda POWER
+    lsr
+    lsr
+    clc
+    adc TEMP
     sta TEMP
     lda POWER
     asl
-    adc TEMP                  ; POWER <= 32: carry clear
+    adc TEMP                  ; carry clear: at most 76
+    adc #2                    ; counted from the outer edge
     sta TEMP
     ldx #0
 power_bar_cell:
@@ -341,7 +389,6 @@ power_bar_part:
     beq power_bar_store
     lda bar_masks,y
     ora bar_frame,x
-    sta BAR_PARTIAL_GLYPH + 2
     sta BAR_PARTIAL_GLYPH + 3
     sta BAR_PARTIAL_GLYPH + 4
     lda #0
@@ -360,36 +407,46 @@ wall_offsets_y:
 !byte 0,$ff,$ff,$ff,0,1,1,1
 BAR_COLUMN = 15
 BAR_CELLS = 10
-; Glyph offsets from BAR_CHAR: empty frame with each inner pattern, full, partial.
-BAR_FULL = 4
-BAR_PARTIAL = 5
-BAR_GLYPHS = 6
+; Glyph offsets from BAR_CHAR: frame with each inner pattern, full, partial.
+BAR_FULL = 6
+BAR_PARTIAL = 7
+BAR_GLYPHS = 8
 BAR_PARTIAL_GLYPH = CHARSET_BASE + (BAR_CHAR + BAR_PARTIAL) * 8
+; Inner rows 3..4 of each bar shape (rows 1, 2, 5, 6 are the frame).
 bar_glyph_rows:
-!byte $00,$80,$08,$01,$ff,$00
-; Rows 2..4 per cell: left edge, ticks at pixels 20, 40 and 60, right edge.
+!byte %........           ; plain
+!byte %##......           ; left edge
+!byte %.....#..           ; tick at pixel 21
+!byte %#.......           ; tick at pixel 40
+!byte %...#....           ; tick at pixel 59
+!byte %......##           ; right edge
+!byte %########           ; full
+!byte %........           ; partial, rebuilt by draw_power
+; Inner rows of the ten cells, left to right: edges and ticks.
 bar_frame:
-!byte $80,$00,$08,$00,$00,$80,$00,$08,$00,$01
+!byte %##......, %........, %.....#.., %........, %........
+!byte %#......., %........, %...#...., %........, %......##
 bar_empty:
 !byte BAR_CHAR + 1, BAR_CHAR, BAR_CHAR + 2, BAR_CHAR, BAR_CHAR
-!byte BAR_CHAR + 1, BAR_CHAR, BAR_CHAR + 2, BAR_CHAR, BAR_CHAR + 3
+!byte BAR_CHAR + 3, BAR_CHAR, BAR_CHAR + 4, BAR_CHAR, BAR_CHAR + 5
 !if bar_empty - bar_frame != BAR_CELLS | * - bar_empty != BAR_CELLS {
     !error "bar_frame and bar_empty need BAR_CELLS entries"
 }
 bar_masks:                    ; index 1..7: filled pixels from the left
-!byte $00,$80,$c0,$e0,$f0,$f8,$fc,$fe
+!byte %........, %#......., %##......, %###....., %####...., %#####..., %######.., %#######.
 
 ; Inverted ball rows (the pixels to keep) for alignments 0..7: left byte
 ; column, then the right one. Row 1 leaves the highlight pixel set.
 !macro ball_mask_row .shape, .shift, .right {
 !if .right { !byte ((.shape << (8 - .shift)) & $ff) XOR $ff } else { !byte (.shape >> .shift) XOR $ff }
 }
+; The ball, 5 x 5 pixels; the gap in row 1 is the highlight.
 !macro ball_mask_rows .shift, .right {
-    +ball_mask_row $70, .shift, .right
-    +ball_mask_row $b8, .shift, .right
-    +ball_mask_row $f8, .shift, .right
-    +ball_mask_row $f8, .shift, .right
-    +ball_mask_row $70, .shift, .right
+    +ball_mask_row %.###...., .shift, .right
+    +ball_mask_row %#.###..., .shift, .right
+    +ball_mask_row %#####..., .shift, .right
+    +ball_mask_row %#####..., .shift, .right
+    +ball_mask_row %.###...., .shift, .right
 }
 ball_masks:
 !for ball_shift, 0, 7 { +ball_mask_rows ball_shift, 0 }
@@ -434,11 +491,11 @@ cup_pixel_more:
     bpl cup_row
     rts
 
-cup_rows:
-!byte %00011100
-!byte %00111110
-!byte %01111111
-!byte %01111001
-!byte %01110001
-!byte %00110010
-!byte %00011100
+cup_rows:                     ; 7 x 7 pixels in bits 6..0, bit 7 unused
+!byte %...###..
+!byte %..#####.
+!byte %.#######
+!byte %.####..#
+!byte %.###...#
+!byte %..##..#.
+!byte %...###..
