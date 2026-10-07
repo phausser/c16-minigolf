@@ -64,38 +64,32 @@ draw_hidden_done:
 draw_course_done:
     ; Fall through: obstacles get the floor colour.
 
-; Lawn cells that the lawn of row 0 cannot reach in orthogonal steps lie
-; inside obstacles and take the floor colour. Bit 7 marks reached lawn
-; while it spreads, sweeping forwards and backwards until nothing changes.
+; Solid and outer cells are emitted with bit 7 set: lawn not reached yet.
+; Lawn reaches them in orthogonal steps from the hidden rows, sweeping
+; forwards and backwards until nothing changes; what stays unreached lies
+; inside an obstacle and takes the floor colour in a last sweep.
 LAWN_HUE = CHECKER_COLOR_EVEN & 15
 !if (CHECKER_COLOR_ODD & 15) != LAWN_HUE | (COURSE_SURFACE_COLOR & 15) = LAWN_HUE | WATER_HUE = LAWN_HUE { !error "the lawn needs a hue of its own" }
 !if <ATTR_BASE != 0 { !error "the backward sweep needs a page-aligned ATTR_BASE" }
 whiten_obstacles:
-    ldx #39
-obstacle_seed:
-    lda ATTR_BASE,x
-    ora #$80
-    sta ATTR_BASE,x
-    dex
-    bpl obstacle_seed
-obstacle_sweep:
+    ldx #0
+obstacle_sweep:               ; X = 0: spread the lawn, $80: paint
+    stx obstacle_mode
     lda #0
     sta obstacle_changed
-    sta COURSE_PTR
+    sta COURSE_PTR            ; ATTR_BASE is page-aligned
     lda #>ATTR_BASE
     sta COURSE_PTR + 1
-obstacle_forward:             ; cells 40..959 at COURSE_PTR + 40
-    jsr obstacle_cell
+obstacle_forward:             ; cells from 40 at COURSE_PTR + 40; beyond
+    jsr obstacle_cell         ; row 24 nothing has bit 7 set
     inc COURSE_PTR
-    bne obstacle_forward_page
+    bne obstacle_forward
     inc COURSE_PTR + 1
-obstacle_forward_page:
-    lda COURSE_PTR
-    cmp #<(ATTR_BASE + 920)
-    bne obstacle_forward
     lda COURSE_PTR + 1
-    cmp #>(ATTR_BASE + 920)
+    cmp #(>ATTR_BASE) + 4
     bne obstacle_forward
+    bit obstacle_mode
+    bmi obstacle_done
 obstacle_backward:
     lda COURSE_PTR
     bne obstacle_backward_page
@@ -108,57 +102,42 @@ obstacle_backward_page:
     lda COURSE_PTR + 1
     cmp #>ATTR_BASE
     bne obstacle_backward
-    lda obstacle_changed
+    ldx obstacle_changed      ; reached lawn, bit 7 clear: spread again
     bne obstacle_sweep
-    ldx #240
-obstacle_paint:
-!for quarter, 0, 3 {
-    lda ATTR_BASE - 1 + quarter * 240,x
-    jsr obstacle_colour
-    sta ATTR_BASE - 1 + quarter * 240,x
-}
-    dex
-    bne obstacle_paint
-    rts
+    ldx #$80
+    bne obstacle_sweep
 
-; COURSE_PTR + 40 = cell: unreached lawn beside reached cells is reached.
+; COURSE_PTR + 40 = cell. Unreached lawn beside reached lawn is reached.
 obstacle_cell:
     ldy #40
     lda (COURSE_PTR),y
+    bpl obstacle_done
+    bit obstacle_mode
+    bmi obstacle_paint
+    ldx #3
+obstacle_near:
+    ldy obstacle_neighbours,x
+    lda (COURSE_PTR),y
     and #$8f
     cmp #LAWN_HUE
-    bne obstacle_cell_done
-    ldy #0
-    lda (COURSE_PTR),y
-    ldy #39
-    ora (COURSE_PTR),y
-    ldy #41
-    ora (COURSE_PTR),y
-    ldy #80
-    ora (COURSE_PTR),y
-    bpl obstacle_cell_done
+    beq obstacle_reach
+    dex
+    bpl obstacle_near
+obstacle_done:
+    rts
+obstacle_reach:
     ldy #40
     lda (COURSE_PTR),y
-    ora #$80
+    and #$7f
     sta (COURSE_PTR),y
     sta obstacle_changed
-obstacle_cell_done:
     rts
-
-; Reached lawn loses its mark, unreached lawn takes the floor colour.
-obstacle_colour:
-    tay
-    bmi obstacle_reached
-    and #15
-    cmp #LAWN_HUE
-    bne obstacle_keep
-    ldy #COURSE_SURFACE_COLOR
-obstacle_keep:
-    tya
+obstacle_paint:
+    lda #COURSE_SURFACE_COLOR
+    sta (COURSE_PTR),y
     rts
-obstacle_reached:
-    and #$7f
-    rts
+obstacle_neighbours:
+!byte 0,39,41,80
 
 ; Drop the oldest scratch row, keep the two just shaped, and fill the next.
 slide_window:
@@ -954,13 +933,14 @@ intern_copy:
 ; (luminance in bits 6..4, hue in bits 3..0). Black is the global background.
 ; Class * 4 + ((row XOR (column AND 1)) AND 3): the lawn follows row bit 1,
 ; so it forms horizontal stripes two cells high; water colours follow bit 0 (both equal now).
-!macro lawn_ink { !byte CHECKER_COLOR_EVEN,CHECKER_COLOR_EVEN,CHECKER_COLOR_ODD,CHECKER_COLOR_ODD }
+; Bit 7 on solid and outer cells: not reached yet (whiten_obstacles).
+!macro lawn_ink .unreached { !byte CHECKER_COLOR_EVEN | .unreached,CHECKER_COLOR_EVEN | .unreached,CHECKER_COLOR_ODD | .unreached,CHECKER_COLOR_ODD | .unreached }
 course_ink:
 !byte COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR
 !byte COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR
-+lawn_ink                     ; solid
-+lawn_ink                     ; outer
-+lawn_ink                     ; hidden
++lawn_ink $80                 ; solid
++lawn_ink $80                 ; outer
++lawn_ink 0                   ; hidden
 !byte WATER_COLOR_EVEN,WATER_COLOR_ODD,WATER_COLOR_EVEN,WATER_COLOR_ODD
 
 window_row:
@@ -984,6 +964,8 @@ pattern_count:
 pattern_overflow:
 !byte 0
 obstacle_changed:
+!byte 0
+obstacle_mode:
 !byte 0
 last_row:                     ; last course row: 20, or 23 on the title
 !byte 20
