@@ -8,7 +8,7 @@
 ; scratch, free once the hole is drawn. Each step patches its two colours.
 ; Physics finds water by the cell hue, which never changes.
 WATER_PHASES = 4
-WATER_STEP_FRAMES = 12         ; frames per step, at least WATER_PHASES
+WATER_STEP_FRAMES = 10         ; frames per step, at least WATER_PHASES
 !if WATER_STEP_FRAMES < WATER_PHASES { !error "a step redraws one phase per frame" }
 WATER_CODE = SCRATCH_BASE + 64     ; below: ball cells off the playfield
 WATER_CODE_END = SCRATCH_END - 32  ; room for every phase's LDA, LDA, RTS

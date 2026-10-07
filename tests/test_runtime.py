@@ -2,6 +2,7 @@
 import copy
 import json
 import math
+import re
 import os
 import shutil
 from pathlib import Path
@@ -21,6 +22,9 @@ from course_reference import render, legacy_picture, static_patterns
 S = symbols()
 PRG = (ROOT/'build/minigolf-test.prg').read_bytes()
 COURSE = json.loads((ROOT/'assets/test-course.json').read_text())
+# The ball as drawn in src/render.asm, 5 x 5 pixels centred on the ball.
+BALL_ROWS = re.findall(r'\+ball_mask_row %([.#]{8})', (ROOT/'src/render.asm').read_text())
+assert len(BALL_ROWS) == 5, BALL_ROWS
 
 
 class KeyboardBus(list):
@@ -79,7 +83,6 @@ class Runtime:
         self.bus[load:load+len(prg)-2] = prg[2:]
         self.cpu.pc = self.S['loader']
         self.run_until(self.S['start'])
-        self.call('copy_font_image')   # as start does first
 
     def run_until(self, address, limit=20000000):
         for _ in range(limit):
@@ -215,8 +218,7 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(bus[S['RUNTIME_BASE']:S['RUNTIME_BASE']+len(expected)], list(expected))
 
     def test_video_registers_charset_and_screen(self):
-        self.r.bus[S['ATTR_BASE']:S['FONT_STORE']] = [0x55]*(S['FONT_STORE']-S['ATTR_BASE'])
-        font = self.r.bus[S['FONT_STORE']:S['CHARSET_BASE']+1024].copy()
+        self.r.bus[S['ATTR_BASE']:S['SCRATCH_END']] = [0x55]*(S['SCRATCH_END']-S['ATTR_BASE'])
         self.r.call('initialise_video')
         self.assertEqual(self.r.bus[0xff06], 0x0b)
         self.assertEqual(self.r.bus[0xff07], 0x08)
@@ -227,8 +229,7 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.bus[0xff19] & 0x7f, S['BORDER_COLOR'])
         self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1024], [S['BLANK_CHAR']]*1024)
         self.assertEqual(self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+1024], [S['HUD_FOREGROUND_COLOR']]*1024)
-        # The font image survives; its glyphs are white on black, rows 1..5.
-        self.assertEqual(self.r.bus[S['FONT_STORE']:S['CHARSET_BASE']+1024], font)
+        # The font's glyphs are white on black, rows 1..5.
         image = S['font_image']
         for code in range(1, S['FONT_GLYPHS']):
             address = S['CHARSET_BASE']+code*8
@@ -369,12 +370,9 @@ class HardwareTests(unittest.TestCase):
                 self.r.put('PAUSED',1)
                 self.r.call('draw_dynamic')
                 expected = bytearray(8000)
-                for dy in range(-2,3):
-                    for dx in range(-2,3):
-                        # 5x5 disc minus the highlight pixel at the top left.
-                        if (dx,dy) == (-1,-1):
-                            continue
-                        if dx*dx+dy*dy <= 5 and 0 <= x+dx < 320 and 8 <= y+dy < 168:
+                for dy, row in enumerate(BALL_ROWS, -2):
+                    for dx, pixel in enumerate(row[:5], -2):
+                        if pixel == '#' and 0 <= x+dx < 320 and 8 <= y+dy < 168:
                             expected[bitmap_offset(x+dx,y+dy)] |= 128 >> ((x+dx)%8)
                 self.assertEqual(bytes(self.picture()[0]), expected, (x,y))
                 self.assertLessEqual(self.r.get('DYNAMIC_COUNT'), 4)
@@ -696,10 +694,10 @@ class HardwareTests(unittest.TestCase):
             best = min(totals[:count])
             for p in range(count):
                 mark = '*' if totals[p] == best else ' '
-                self.assertEqual(self.r.screen_text(7+2*p, 14, 7, floor),
+                self.assertEqual(self.r.screen_text(12+2*p, 14, 7, floor),
                                  f'{mark}C{p+1}{totals[p]:>4}', totals)
-            self.assertEqual(self.r.screen_text(7+2*count, 14, 7, floor), ' '*7)
-            self.assertEqual(self.r.screen_text(16, 14, 8, floor), f' F  ({par:>2})')
+            self.assertEqual(self.r.screen_text(12+2*count, 14, 7, floor), ' '*7)
+            self.assertEqual(self.r.screen_text(21, 14, 8, floor), f' F  ({par:>2})')
 
     def test_game_build_plays_the_18_drafts_in_order(self):
         from course_codec import encode

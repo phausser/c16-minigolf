@@ -42,15 +42,16 @@ def render(course, s):
     def pixels(row, col):
         return [(col*8+dx, row*8+dy) for dy in range(8) for dx in range(8)]
 
+    last_row = course.get('last_row', 20)    # the title reaches row 23
     black = set()
     classes = {}
-    for row in range(1, 21):
+    for row in range(1, last_row+1):
         for col in range(40):
             cell = [playable(x, y) for x, y in pixels(row, col)]
             classes[row, col] = 'floor' if all(cell) else 'solid' if not any(cell) else 'edge'
             black |= {p for p, floor in zip(pixels(row, col), cell)
                       if not floor and any(cell)}
-    for row in range(1, 21):
+    for row in range(1, last_row+1):
         for col in range(40):
             if classes[row, col] != 'edge':
                 continue
@@ -145,7 +146,7 @@ def static_patterns(course):
         'COURSE_FRAME_COLOR', 'WATER_COLOR_ODD', 'WATER_COLOR_EVEN')}
     bitmap, _, _ = render(course, dummy)
     patterns = {bytes([0xff]*8)}
-    for row in range(1, 21):
+    for row in range(1, course.get('last_row', 20)+1):
         for col in range(40):
             base = row*320+col*8
             patterns.add(bytes(bitmap[base+i] ^ 0xff for i in range(8)))

@@ -4,7 +4,8 @@
 ; become the cell colour and clear bits the global black background.
 ; Water is classified before shaping and counts as floor, so walls beside
 ; it keep their frame while the water cell itself stays a plain disc-free
-; floor cell. Rows 0 and 21..23 are a solid green checker.
+; floor cell. Rows 1..last_row hold the course (20 in the game, 23 on the
+; title screen); row 0 and the rows after last_row up to 23 are lawn.
 FRAME_WIDTH = 6
 draw_course:
     lda #0
@@ -34,26 +35,28 @@ draw_shape_loop:
     jsr emit_playfield_row
 draw_shape_advance:
     lda shape_row
-    cmp #20
+    cmp last_row
     beq draw_shape_done
     jsr slide_window
     inc shape_row
     bne draw_shape_loop
 draw_shape_done:
-    lda #20
+    lda last_row
     jsr emit_playfield_row
     lda #0
     jsr emit_hidden_row
-    ldx #21
+    ldx last_row
 draw_hidden:
+    inx
+    cpx #24
+    beq draw_hidden_done
     txa
     pha                       ; emit clobbers X (ink index, row pointer)
     jsr emit_hidden_row
     pla
     tax
-    inx
-    cpx #24
     bne draw_hidden
+draw_hidden_done:
     lda pattern_overflow
     beq draw_course_done
     lda #$22                  ; red border: the 64-character budget overflowed
@@ -87,8 +90,8 @@ slide_rest:
     adc #2
     jmp fill_window_row
 
-; A = absolute cell row. window_row selects its scratch slot. Rows 1..20
-; are classified as soon as they are filled: shaping row r needs only the
+; A = absolute cell row. window_row selects its scratch slot. Rows
+; 1..last_row are classified as soon as they are filled: shaping row r needs only the
 ; classes of rows r-1..r+1, and shaping may then turn cells of row r+1
 ; into outer edges.
 fill_window_row:
@@ -96,8 +99,10 @@ fill_window_row:
     jsr fill_window_pixels
     lda fill_target
     beq fill_window_done
-    cmp #21
+    cmp last_row
+    beq fill_window_classify
     bcs fill_window_done
+fill_window_classify:
     jmp classify_row
 fill_window_done:
     rts
@@ -336,6 +341,15 @@ classify_clear:
     sta ATTR_BASE + 719,x
     dex
     bne classify_clear
+    ldx last_row              ; a course down to row 23 shapes against row 24
+    cpx #23
+    bcc classify_cleared
+    ldx #39
+classify_clear_24:
+    sta ATTR_BASE + 24 * 40,x
+    dex
+    bpl classify_clear_24
+classify_cleared:
     rts
 
 ; A = absolute row resident in the window. Cells already marked as water
@@ -873,6 +887,8 @@ pattern_count:
 !byte 0
 pattern_overflow:
 !byte 0
+last_row:                     ; last course row: 20, or 23 on the title
+!byte 20
 intern_base:
 !byte COURSE_CHAR
 intern_limit:

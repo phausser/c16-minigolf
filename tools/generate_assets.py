@@ -110,7 +110,7 @@ def validate(course):
             b = contour[(i+1) % len(contour)]
             if any(not isinstance(n, int) or n % 2 for n in a):
                 raise ValueError('vertices must use the two-pixel integer grid')
-            if not (8 <= a[0] <= 310 and 8 <= a[1] <= 166):
+            if not (8 <= a[0] <= 310 and 8 <= a[1] <= 8*course.get('last_row', 20)+6):
                 raise ValueError('vertex outside safe playfield')
             dx,dy = b[0]-a[0], b[1]-a[1]
             if any(n % 8 for n in a):
@@ -172,8 +172,8 @@ def expanded_segments(course):
     return encoded
 
 
-# Charset cells 64..105 (src/memory.inc: COURSE_CHAR_LIMIT; the font image follows).
-COURSE_CHAR_LIMIT = 42
+# Charset cells 64..127 (src/memory.inc: COURSE_CHAR_LIMIT).
+COURSE_CHAR_LIMIT = 64
 
 
 def generate(test=False):

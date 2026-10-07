@@ -72,7 +72,6 @@ start:
     sta TED_SOUND
     lda #$ff
     sta TED_IRQ_STATUS
-    jsr copy_font_image
     jsr initialise_video
 !ifdef START_HOLE {           ; make play HOLE=n: begin the round at hole n
     lda #START_HOLE - 1
@@ -214,6 +213,7 @@ clear_state:
 !source "src/circle_diagonal_guard.asm"
 !source "src/water.asm"
 !source "src/title.asm"
+!source "src/font.inc"
 square_lo:
 !for square_index, 0, 255 { !byte <(square_index*square_index) }
 square_hi:
@@ -233,9 +233,6 @@ square_hi:
 runtime_end:
 }
 payload_end:
-; The font image must not overlap its store at the end of the charset.
-!if * < SCRATCH_BASE { !fill SCRATCH_BASE - *, 0 }   ; above the charset
-!source "src/font.inc"
 load_end:
 !if runtime_end > CLASS_SENTINEL { !error "runtime overlaps the class sentinel" }
 !if load_end > $4000 { !error "PRG exceeds physical C16 RAM" }

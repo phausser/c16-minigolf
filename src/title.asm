@@ -1,4 +1,4 @@
-; Title menu on a rectangular course, black glyphs on the white floor:
+; Title menu shaped like a course, black glyphs on the white floor:
 ; MINIGOLF; PLAY over one to four golfers; PRACTISE over three holes as
 ; 1:8 outlines with their numbers and arrows towards further holes. The
 ; golf ball below marks the choice: up/down switches the row, left/right
@@ -7,15 +7,16 @@
 ; ready is drawn into its block while that block is not shown, so the row
 ; never shows drawing.
 TITLE_CHAR = 35               ; title frame from here on (intern_pattern)
-PREVIEW_CHAR = 44             ; four preview blocks of 5 x 3 cells
+PREVIEW_CHAR = 68             ; four preview blocks of 5 x 3 cells
 PREVIEW_BLOCKS = 4
 PREVIEW_BLOCK = 5 * 3
 TITLE_CHAR_LIMIT = PREVIEW_CHAR - TITLE_CHAR
-!if PREVIEW_CHAR + PREVIEW_BLOCKS * PREVIEW_BLOCK > FONT_CHAR { !error "previews overlap the font image" }
+!if PREVIEW_CHAR + PREVIEW_BLOCKS * PREVIEW_BLOCK > 128 { !error "previews exceed the charset" }
 !if TITLE_CHAR < FIGURE_CHAR + 2 { !error "the title frame overlaps the font" }
+TITLE_LAST_ROW = 23           ; the title course reaches down to row 23
 HEADER = SCREEN_BASE + 4 * 40 + 16
-FIGURE_ROW = SCREEN_BASE + 8 * 40    ; and the row below, then the ball
-PREVIEW_ROW = SCREEN_BASE + 15 * 40  ; three rows of outlines, then the ball
+FIGURE_ROW = SCREEN_BASE + 13 * 40   ; and the row below, then the ball
+PREVIEW_ROW = SCREEN_BASE + 18 * 40  ; three rows of outlines, then the number
 HOLE_ROW = PREVIEW_ROW + 40          ; arrows
 NUMBER_ROW = PREVIEW_ROW + 120       ; ball and number below each outline
 ARROW_LEFT_COLUMN = 9
@@ -171,6 +172,8 @@ title_players:
     sta intern_base
     lda #COURSE_CHAR_LIMIT
     sta intern_limit
+    lda #20
+    sta last_row
     ldx #0
     txa
 title_clear_font:
@@ -399,7 +402,7 @@ preview_axis_done:
 
 ; End of the round, one row per player: club, player and strokes, a ball
 ; beside the best; below them flag and (par). Fire returns to the menu.
-SUMMARY_ROW = SCREEN_BASE + 7 * 40
+SUMMARY_ROW = SCREEN_BASE + 12 * 40
 SUMMARY_COLUMN = 15           ; club; ball left, strokes up to column 20
 summary_screen:
     ldx #$ff
@@ -464,7 +467,7 @@ summary_loop:
     beq summary_loop
     jmp title_screen
 
-; Rectangle course with display off, lawn in row 24, the font in black on
+; The title course with display off, lawn in row 24, the font in black on
 ; white and MINIGOLF. The course catalogue starts at TITLE_CHAR.
 draw_title_frame:
     lda #$0b
@@ -473,6 +476,8 @@ draw_title_frame:
     sta intern_base
     lda #TITLE_CHAR_LIMIT
     sta intern_limit
+    lda #TITLE_LAST_ROW
+    sta last_row
     ldx #TITLE_COURSE
     jsr decode_course
     jsr draw_course
@@ -508,13 +513,13 @@ title_texts:
     !byte LETTER_M, LETTER_I, LETTER_N, LETTER_I, LETTER_G, LETTER_O, LETTER_L, LETTER_F, $ff
     !byte 0, 0
 title_labels:
-    !word SCREEN_BASE + 6 * 40 + 18
+    !word SCREEN_BASE + 12 * 40 + 18
     !byte LETTER_P, LETTER_L, LETTER_A, LETTER_Y, $ff
-    !word SCREEN_BASE + 13 * 40 + 16
+    !word SCREEN_BASE + 17 * 40 + 16
     !byte LETTER_P, LETTER_R, LETTER_A, LETTER_C, LETTER_T, LETTER_I, LETTER_S, LETTER_E, $ff
     !byte 0, 0
 summary_par:                  ; flag and (par), the par below the strokes
-    !word SCREEN_BASE + 16 * 40 + SUMMARY_COLUMN
+    !word SCREEN_BASE + 21 * 40 + SUMMARY_COLUMN
     !byte FLAG_CHAR, BLANK_CHAR, BLANK_CHAR, PAREN_LEFT_CHAR
     !byte (TOTAL_PAR > 9) * (DIGIT_CHAR + TOTAL_PAR / 10)   ; blank below 10
     !byte DIGIT_CHAR + TOTAL_PAR % 10, PAREN_RIGHT_CHAR, $ff

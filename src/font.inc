@@ -1,8 +1,6 @@
-; Font image, one row per pixel line: edit the dots and hashes. It is not
-; part of the runtime: start copies it into the charset cells from
-; FONT_CHAR on, which nothing else uses. install_font expands it into
-; codes 0..FONT_GLYPHS-1 (pixel rows 1..5, column 7 free; code 0 blank)
-; and the two cells of the golfer.
+; Font image, one row per pixel line: edit the dots and hashes.
+; install_font expands it into codes 0..FONT_GLYPHS-1 (pixel rows 1..5,
+; column 7 free; code 0 blank) and the two cells of the golfer.
 ; Codes: letters from LETTER_M, DIGIT_CHAR 0..9, then BALL_CHAR, the
 ; arrows, FLAG_CHAR, CLUB_CHAR, the parentheses; FIGURE_CHAR: the
 ; golfer, 8 x 16.
@@ -24,17 +22,17 @@ LETTER_S = 14
 LETTER_E = 15
 font_image:
 ; M
-!byte %##...##.
-!byte %###.###.
+!byte %.#####..
+!byte %##.#.##.
 !byte %##.#.##.
 !byte %##...##.
 !byte %##...##.
 ; I
-!byte %.####...
 !byte %..##....
 !byte %..##....
 !byte %..##....
-!byte %.####...
+!byte %..##....
+!byte %..##....
 ; N
 !byte %.#####..
 !byte %##...##.
@@ -62,11 +60,11 @@ font_image:
 ; F
 !byte %.######.
 !byte %##......
-!byte %#####...
+!byte %######..
 !byte %##......
 !byte %##......
 ; P
-!byte %######..
+!byte %.#####..
 !byte %##...##.
 !byte %######..
 !byte %##......
@@ -81,10 +79,10 @@ font_image:
 !byte %##...##.
 !byte %##...##.
 !byte %.#####..
-!byte %...##...
 !byte %..##....
+!byte %.##.....
 ; R
-!byte %######..
+!byte %.#####..
 !byte %##...##.
 !byte %######..
 !byte %##..##..
@@ -120,7 +118,7 @@ font_image:
 !byte %##...##.
 !byte %.#####..
 ; 1
-!byte %..###...
+!byte %..##....
 !byte %...##...
 !byte %...##...
 !byte %...##...
@@ -144,7 +142,7 @@ font_image:
 !byte %.....##.
 !byte %.....##.
 ; 5
-!byte %#######.
+!byte %.######.
 !byte %##......
 !byte %######..
 !byte %.....##.
@@ -224,8 +222,8 @@ font_image:
 !byte %#####...
 !byte %#####...
 !byte %######..
-!byte %###.##..
-!byte %###..#..
+!byte %######..
+!byte %####....
 !byte %.##..#..
 !byte %.##..#..
 !byte %.##..#..

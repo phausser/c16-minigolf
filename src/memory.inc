@@ -213,11 +213,6 @@ FONT_GLYPHS = 33             ; codes with 5-row glyphs, blank included
 FIGURE_CHAR = 33             ; golfer, top and bottom cell
 DYNAMIC_CHAR = 35            ; twelve cells under the ball and the aim dots
 BAR_CHAR = 47                ; eight power-bar shapes (BAR_GLYPHS)
-COURSE_CHAR = 64             ; static hole patterns up to FONT_CHAR
-; The font image (src/font.inc) lives in the last charset cells for good:
-; holes stay below it, and so do the title frame and previews.
-FONT_CHAR = 106
-FONT_STORE = CHARSET_BASE + FONT_CHAR * 8
-COURSE_CHAR_LIMIT = FONT_CHAR - COURSE_CHAR
-!if FONT_STORE + (FONT_GLYPHS - 1) * 5 + 16 > CHARSET_BASE + $400 { !error "the font image exceeds the charset" }
+COURSE_CHAR = 64             ; up to 64 static hole patterns
+COURSE_CHAR_LIMIT = 64
 !if DYNAMIC_CHAR < FIGURE_CHAR + 2 { !error "dynamic cells overlap the font" }

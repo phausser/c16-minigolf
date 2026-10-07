@@ -19,14 +19,11 @@ initialise_video:
 
     ldx #0
     txa
-clear_charset:                ; up to the font image (copied by start)
+clear_charset:
     sta CHARSET_BASE,x
     sta CHARSET_BASE + $100,x
     sta CHARSET_BASE + $200,x
-    cpx #<FONT_STORE
-    bcs clear_charset_next
     sta CHARSET_BASE + $300,x
-clear_charset_next:
     inx
     bne clear_charset
     jsr install_bar_glyphs
@@ -96,25 +93,14 @@ build_bar_store:
     bne build_bar
     rts
 
-; Font image to its charset cells; start runs this once after relocation.
-!if >FONT_STORE != >(CHARSET_BASE + $3ff) { !error "the font store must lie in the last charset page" }
-copy_font_image:
-    ldx #font_image_end - font_image
-copy_font_byte:
-    lda font_image - 1,x
-    sta FONT_STORE - 1,x
-    dex
-    bne copy_font_byte
-    rts
-
 ; A = $00: white glyphs on black (HUD), $ff: black on the white floor
 ; (title). Expands the font image into codes 0..FONT_GLYPHS-1, pixel
 ; rows 1..5 (code 0 blank), and the big figure's two cells.
 install_font:
     sta TEMP
-    lda #<(FONT_STORE - 6)    ; rows 1..5 of code c: FONT_STORE + 5c - 6
+    lda #<(font_image - 6)    ; rows 1..5 of code c: font_image + 5c - 6
     sta COPY_SOURCE
-    lda #>(FONT_STORE - 6)
+    lda #>(font_image - 6)
     sta COPY_SOURCE + 1
     ldx #0
 font_glyph:
@@ -146,7 +132,7 @@ font_next:
     bne font_glyph
     ldx #15
 font_figure:
-    lda FONT_STORE + (FONT_GLYPHS - 1) * 5,x
+    lda font_image + (FONT_GLYPHS - 1) * 5,x
     eor TEMP
     sta CHARSET_BASE + FIGURE_CHAR * 8,x
     dex
