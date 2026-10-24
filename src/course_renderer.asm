@@ -68,8 +68,8 @@ draw_course_done:
 ; Lawn reaches them in orthogonal steps from the hidden rows, sweeping
 ; forwards and backwards until nothing changes; what stays unreached lies
 ; inside an obstacle and takes the floor colour in a last sweep. Reached
-; lawn has luminance 6 or 7; floor and drawn water at most 5 (hole_inks).
-!if (WATER_DRAWN_COLOR & $70) > $50 { !error "drawn water would count as lawn" }
+; lawn is darker than floor and drawn water (hole_inks).
+!if (WATER_DRAWN_COLOR & $70) <= LAWN_LUMINANCE << 4 { !error "drawn water would count as lawn" }
 !if <ATTR_BASE != 0 { !error "the backward sweep needs a page-aligned ATTR_BASE" }
 whiten_obstacles:
     ldx #0
@@ -118,9 +118,9 @@ obstacle_cell:
 obstacle_near:
     ldy obstacle_neighbours,x
     lda (COURSE_PTR),y
-    and #$e0                  ; bit 7 and luminance 6 or 7
-    cmp #$60
-    beq obstacle_reach
+    and #$f0                  ; bit 7 clear, luminance of the lawn
+    cmp #(LAWN_LUMINANCE + 1) << 4
+    bcc obstacle_reach
     dex
     bpl obstacle_near
 obstacle_done:

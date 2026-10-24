@@ -174,11 +174,11 @@ def expanded_segments(course):
 
 def course_colours(hole=None):
     """Inks of a hole (0-based; None: the title) from assets/colours.json:
-    floor [luminance, hue]; lawn hue, its checker at luminance 7 and 6."""
+    floor [luminance, hue]; lawn hue, its checker at luminance 4 and 3."""
     entry = json.loads((ROOT/'assets/colours.json').read_text())
     entry = entry['title'] if hole is None else entry['holes'][hole]
     luminance, hue = entry['floor']
-    lawn = 0x70 | entry['lawn']
+    lawn = 0x40 | entry['lawn']
     return {'COURSE_SURFACE_COLOR': luminance << 4 | hue,
             'CHECKER_COLOR_EVEN': lawn, 'CHECKER_COLOR_ODD': lawn-0x10}
 
