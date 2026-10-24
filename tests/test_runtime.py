@@ -309,7 +309,7 @@ class HardwareTests(unittest.TestCase):
             self.load_course({**self.WATER_COURSE, 'aim': direction})
             self.assertEqual(self.r.get('ANGLE'), direction)
 
-    def test_water_cells_are_blue_floor_without_frame(self):
+    def test_water_cells_are_floor_without_frame(self):
         self.load_course(self.WATER_COURSE)
         self.assertEqual(self.r.get('HAZARD_COUNT'), 2)
         self.r.call('initialise_video')

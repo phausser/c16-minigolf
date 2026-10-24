@@ -6,8 +6,9 @@ COURSE_MARKER_COLOR = (0 << 4) + 0 ; ball, aim marks, cup ring and inner edges
 COURSE_FRAME_COLOR = (0 << 4) + 0  ; one-cell frame around the course
 CHECKER_COLOR_EVEN = (7 << 4) + 1  ; non-playable area: 2x2 checker
 CHECKER_COLOR_ODD = (6 << 4) + 1   ; neighbouring squares, one luminance step
-WATER_COLOR_EVEN = (5 << 4) + 13    ; water areas: one light blue, no frame
+WATER_COLOR_EVEN = CHECKER_COLOR_EVEN ; water areas: the lawn colour, no frame
 WATER_COLOR_ODD = WATER_COLOR_EVEN  ; formerly a checker; kept for the tables
+WATER_DRAWN_COLOR = (4 << 4) + 1   ; drawn with display off, until water_init
 HUD_FOREGROUND_COLOR = (7 << 4) + 1
 HUD_BACKGROUND_COLOR = (0 << 4) + 0
 BORDER_COLOR = (0 << 4) + 0
@@ -15,11 +16,12 @@ BORDER_COLOR = (0 << 4) + 0
 !if COURSE_MARKER_COLOR = COURSE_SURFACE_COLOR {
     !error "markers must remain visible on the floor"
 }
-; Physics finds water by the foreground hue of the ball's cell.
+; Physics finds water by the foreground hue of the ball's cell, which is
+; never a lawn cell.
 WATER_HUE = WATER_COLOR_EVEN & 15
 !if (WATER_COLOR_ODD & 15) != WATER_HUE { !error "water needs one hue" }
-!if (COURSE_SURFACE_COLOR & 15) = WATER_HUE | (CHECKER_COLOR_EVEN & 15) = WATER_HUE | (CHECKER_COLOR_ODD & 15) = WATER_HUE {
-    !error "water hue must differ from floor and grass"
+!if (COURSE_SURFACE_COLOR & 15) = WATER_HUE | (WATER_DRAWN_COLOR & 15) != WATER_HUE {
+    !error "water hue must differ from the floor"
 }
 
 ; Hi-res attribute bytes for foreground/background color pairs.

@@ -67,9 +67,11 @@ draw_course_done:
 ; Solid and outer cells are emitted with bit 7 set: lawn not reached yet.
 ; Lawn reaches them in orthogonal steps from the hidden rows, sweeping
 ; forwards and backwards until nothing changes; what stays unreached lies
-; inside an obstacle and takes the floor colour in a last sweep.
-LAWN_HUE = CHECKER_COLOR_EVEN & 15
-!if (CHECKER_COLOR_ODD & 15) != LAWN_HUE | (COURSE_SURFACE_COLOR & 15) = LAWN_HUE | WATER_HUE = LAWN_HUE { !error "the lawn needs a hue of its own" }
+; inside an obstacle and takes the floor colour in a last sweep. Water
+; has the lawn's hue, but is drawn darker than the lawn checker.
+LAWN_MASK = $ef               ; bit 7, hue and the top two luminance bits
+LAWN_INK = CHECKER_COLOR_EVEN & LAWN_MASK
+!if (CHECKER_COLOR_ODD & LAWN_MASK) != LAWN_INK | (COURSE_SURFACE_COLOR & LAWN_MASK) = LAWN_INK | (WATER_DRAWN_COLOR & LAWN_MASK) = LAWN_INK { !error "the lawn needs an ink of its own" }
 !if <ATTR_BASE != 0 { !error "the backward sweep needs a page-aligned ATTR_BASE" }
 whiten_obstacles:
     ldx #0
@@ -118,8 +120,8 @@ obstacle_cell:
 obstacle_near:
     ldy obstacle_neighbours,x
     lda (COURSE_PTR),y
-    and #$8f
-    cmp #LAWN_HUE
+    and #LAWN_MASK
+    cmp #LAWN_INK
     beq obstacle_reach
     dex
     bpl obstacle_near
@@ -930,7 +932,7 @@ intern_copy:
 ; Index = class * 2 + checker parity. The value is the text-mode foreground
 ; (luminance in bits 6..4, hue in bits 3..0). Black is the global background.
 ; Class * 4 + ((row XOR column) AND 3): the lawn checker follows bit 1,
-; so its squares are 2x2 cells; water colours follow bit 0 (both equal now).
+; so its squares are 2x2 cells; water is one colour until water_init.
 ; Bit 7 on solid and outer cells: not reached yet (whiten_obstacles).
 !macro lawn_ink .unreached { !byte CHECKER_COLOR_EVEN | .unreached,CHECKER_COLOR_EVEN | .unreached,CHECKER_COLOR_ODD | .unreached,CHECKER_COLOR_ODD | .unreached }
 course_ink:
@@ -939,7 +941,7 @@ course_ink:
 +lawn_ink $80                 ; solid
 +lawn_ink $80                 ; outer
 +lawn_ink 0                   ; hidden
-!byte WATER_COLOR_EVEN,WATER_COLOR_ODD,WATER_COLOR_EVEN,WATER_COLOR_ODD
+!byte WATER_DRAWN_COLOR,WATER_DRAWN_COLOR,WATER_DRAWN_COLOR,WATER_DRAWN_COLOR
 
 window_row:
 !byte 0

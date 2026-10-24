@@ -6,9 +6,10 @@
 ; Colours: water_init generates one small program per phase from STA
 ; instructions for its cells' attributes (4 cycles a cell) in the renderer
 ; scratch, free once the hole is drawn. Each step patches its two colours.
-; Physics finds water by the cell hue, which never changes.
+; water_init finds the cells by WATER_DRAWN_COLOR; physics by the cell
+; hue, which never changes.
 WATER_PHASES = 4
-WATER_STEP_FRAMES = 10         ; frames per step, at least WATER_PHASES
+WATER_STEP_FRAMES = 8         ; frames per step, at least WATER_PHASES
 !if WATER_STEP_FRAMES < WATER_PHASES { !error "a step redraws one phase per frame" }
 WATER_CODE = SCRATCH_BASE + 64     ; below: ball cells off the playfield
 WATER_CODE_END = SCRATCH_END - 32  ; room for every phase's LDA, LDA, RTS
@@ -27,8 +28,7 @@ water_init_row:
     ldy #0
 water_init_cell:
     lda (COPY_TARGET),y
-    and #15
-    cmp #WATER_HUE
+    cmp #WATER_DRAWN_COLOR
     bne water_init_next
     lda (COPY_SOURCE),y
     cmp solid_code

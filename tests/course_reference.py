@@ -11,8 +11,8 @@ straight frame meets a slope closed. Other solid cells next to a whole floor cel
 faces such a cell, square at corners. The cup is a round 7-pixel
 hole, shadowed inside at the top left. Cells with floor are white with black
 ink, other playfield cells black ink on the lawn checker of 2x2 cells, rows 0 and 21..23 equal checker colors, row 24
-the HUD palette. Water areas are whole floor cells with black ink on a
-one blue (WATER_COLOR_EVEN = _ODD). Row 24 is entirely the HUD palette.
+the HUD palette. Water areas are whole floor cells with black ink on
+WATER_DRAWN_COLOR, until water_init gives them the lawn colour. Row 24 is entirely the HUD palette.
 Solid cells that the lawn of row 0 cannot reach in orthogonal steps through
 solid, outer or hidden cells lie inside obstacles: their checker is white.
 """
@@ -119,8 +119,7 @@ def render(course, s):
             else:
                 pair = attribute(checker, checker)
             if (row, col) in water:
-                pair = attribute(s['COURSE_MARKER_COLOR'],
-                                 s['WATER_COLOR_ODD'] if (row+col) % 2 else s['WATER_COLOR_EVEN'])
+                pair = attribute(s['COURSE_MARKER_COLOR'], s['WATER_DRAWN_COLOR'])
             luminance[row*40+col], color[row*40+col] = pair
     return bitmap, luminance, color
 
@@ -157,7 +156,7 @@ def static_patterns(course):
     dummy = {name: 0 for name in (
         'HUD_FOREGROUND_COLOR', 'HUD_BACKGROUND_COLOR', 'CHECKER_COLOR_ODD',
         'CHECKER_COLOR_EVEN', 'COURSE_MARKER_COLOR', 'COURSE_SURFACE_COLOR',
-        'COURSE_FRAME_COLOR', 'WATER_COLOR_ODD', 'WATER_COLOR_EVEN')}
+        'COURSE_FRAME_COLOR', 'WATER_DRAWN_COLOR')}
     bitmap, _, _ = render(course, dummy)
     patterns = {bytes([0xff]*8)}
     for row in range(1, course.get('last_row', 20)+1):
