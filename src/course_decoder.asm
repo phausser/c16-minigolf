@@ -1,7 +1,28 @@
 ; X = course index. Unpacks a version-5 stream (tools/course_codec.py)
 ; into course_segments plus start/cup variables. Runs of one direction merge
 ; into one segment; flags match tools/generate_assets.expanded_segments.
+; Floor and lawn inks first (course_inks).
 decode_course:
+    txa
+    asl
+    tay
+    lda course_inks + 1,y
+    sta lawn_ink
+    ora #$80                  ; solid and outer: not reached yet
+    sta lawn_ink - 2
+    sta lawn_ink - 4
+    sec
+    sbc #$10                  ; the darker squares
+    sta lawn_ink - 1
+    sta lawn_ink - 3
+    and #$7f
+    sta lawn_ink + 1
+    lda course_inks,y
+    ldy #3
+decode_floor:
+    sta floor_ink,y
+    dey
+    bpl decode_floor
     lda course_table_lo,x
     sta COURSE_PTR
     lda course_table_hi,x

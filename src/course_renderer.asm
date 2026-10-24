@@ -67,11 +67,9 @@ draw_course_done:
 ; Solid and outer cells are emitted with bit 7 set: lawn not reached yet.
 ; Lawn reaches them in orthogonal steps from the hidden rows, sweeping
 ; forwards and backwards until nothing changes; what stays unreached lies
-; inside an obstacle and takes the floor colour in a last sweep. Water
-; has the lawn's hue, but is drawn darker than the lawn checker.
-LAWN_MASK = $ef               ; bit 7, hue and the top two luminance bits
-LAWN_INK = CHECKER_COLOR_EVEN & LAWN_MASK
-!if (CHECKER_COLOR_ODD & LAWN_MASK) != LAWN_INK | (COURSE_SURFACE_COLOR & LAWN_MASK) = LAWN_INK | (WATER_DRAWN_COLOR & LAWN_MASK) = LAWN_INK { !error "the lawn needs an ink of its own" }
+; inside an obstacle and takes the floor colour in a last sweep. Reached
+; lawn has luminance 6 or 7; floor and drawn water at most 5 (hole_inks).
+!if (WATER_DRAWN_COLOR & $70) > $50 { !error "drawn water would count as lawn" }
 !if <ATTR_BASE != 0 { !error "the backward sweep needs a page-aligned ATTR_BASE" }
 whiten_obstacles:
     ldx #0
@@ -120,8 +118,8 @@ obstacle_cell:
 obstacle_near:
     ldy obstacle_neighbours,x
     lda (COURSE_PTR),y
-    and #LAWN_MASK
-    cmp #LAWN_INK
+    and #$e0                  ; bit 7 and luminance 6 or 7
+    cmp #$60
     beq obstacle_reach
     dex
     bpl obstacle_near
@@ -135,7 +133,7 @@ obstacle_reach:
     sta obstacle_changed
     rts
 obstacle_paint:
-    lda #COURSE_SURFACE_COLOR
+    lda floor_ink
     sta (COURSE_PTR),y
     rts
 obstacle_neighbours:
@@ -804,8 +802,8 @@ emit_code:
     sta (COPY_SOURCE),y
     tya
     eor emit_row
-    and #3                    ; bit 0: water (one colour), bit 1: 2x2 lawn checker
-    asl GLYPH
+    and #2                    ; 2x2 lawn checker
+    lsr
     asl GLYPH
     ora GLYPH
     tax
@@ -861,7 +859,7 @@ hidden_cell:
     sta GLYPH
     lda emit_row
     eor TEXT_COLUMN
-    and #3
+    and #2
     jmp emit_ink_store
 hidden_stored:
     inc TEXT_COLUMN
@@ -872,7 +870,7 @@ hidden_stored:
 
 ; Shared ink store used by the hidden row. Falls through from eor above.
 emit_ink_store:
-    asl GLYPH
+    lsr
     asl GLYPH
     ora GLYPH
     tax
@@ -929,19 +927,18 @@ intern_copy:
     pla
     rts
 
-; Index = class * 2 + checker parity. The value is the text-mode foreground
-; (luminance in bits 6..4, hue in bits 3..0). Black is the global background.
-; Class * 4 + ((row XOR column) AND 3): the lawn checker follows bit 1,
-; so its squares are 2x2 cells; water is one colour until water_init.
-; Bit 7 on solid and outer cells: not reached yet (whiten_obstacles).
-!macro lawn_ink .unreached { !byte CHECKER_COLOR_EVEN | .unreached,CHECKER_COLOR_EVEN | .unreached,CHECKER_COLOR_ODD | .unreached,CHECKER_COLOR_ODD | .unreached }
+; Index = class * 2 + checker parity, the parity ((row XOR column) AND 2) / 2:
+; 2x2 lawn squares. The value is the text-mode foreground (luminance in bits
+; 6..4, hue in bits 3..0). Black is the global background. decode_course
+; sets floor and lawn of the course. Bit 7 on solid and outer cells: not
+; reached yet (whiten_obstacles).
 course_ink:
-!byte COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR
-!byte COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR,COURSE_SURFACE_COLOR
-+lawn_ink $80                 ; solid
-+lawn_ink $80                 ; outer
-+lawn_ink 0                   ; hidden
-!byte WATER_DRAWN_COLOR,WATER_DRAWN_COLOR,WATER_DRAWN_COLOR,WATER_DRAWN_COLOR
+floor_ink:
+!fill 4                       ; floor, edge
+!fill 4                       ; solid, outer: lawn | $80
+lawn_ink:
+!fill 2                       ; hidden: lawn at luminance 7 and 6
+!byte WATER_DRAWN_COLOR,WATER_DRAWN_COLOR
 
 window_row:
 !byte 0

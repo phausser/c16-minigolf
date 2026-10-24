@@ -172,6 +172,17 @@ def expanded_segments(course):
     return encoded
 
 
+def course_colours(hole=None):
+    """Inks of a hole (0-based; None: the title) from assets/colours.json:
+    floor [luminance, hue]; lawn hue, its checker at luminance 7 and 6."""
+    entry = json.loads((ROOT/'assets/colours.json').read_text())
+    entry = entry['title'] if hole is None else entry['holes'][hole]
+    luminance, hue = entry['floor']
+    lawn = 0x70 | entry['lawn']
+    return {'COURSE_SURFACE_COLOR': luminance << 4 | hue,
+            'CHECKER_COLOR_EVEN': lawn, 'CHECKER_COLOR_ODD': lawn-0x10}
+
+
 # Charset cells 64..127 (src/memory.inc: COURSE_CHAR_LIMIT).
 COURSE_CHAR_LIMIT = 64
 
@@ -200,6 +211,9 @@ def generate(test=False):
         lines.append(bytes_section(f'course_data_{i}', data))
     lines.append('course_table_lo:\n!byte ' + ','.join(f'<course_data_{i}' for i in range(len(packed))))
     lines.append('course_table_hi:\n!byte ' + ','.join(f'>course_data_{i}' for i in range(len(packed))))
+    inks = [course_colours(i) for i in range(len(courses))]+[course_colours()]
+    lines.append('course_inks:                  ; floor, lawn per entry\n' + '\n'.join(
+        f"+hole_inks ${c['COURSE_SURFACE_COLOR']:02x}, ${c['CHECKER_COLOR_EVEN']:02x}" for c in inks))
     lines.append(bytes_section('course_par', [c.get('par', 0) for c in courses]))
     quarter = [round(math.cos(i*math.tau/128)*256) for i in range(33)]
     lines += [bytes_section('unit_cos_lo',quarter), bytes_section('unit_cos_hi',[v>>8 for v in quarter])]

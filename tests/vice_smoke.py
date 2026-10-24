@@ -12,6 +12,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'tools'))
 from check_build import symbols
+from generate_assets import course_colours
 sys.path.insert(0, str(ROOT/"tests"))
 from course_reference import render, legacy_picture
 
@@ -91,7 +92,7 @@ def main():
         return legacy_picture(bus, s)
 
     course = json.loads((ROOT/'assets/test-course.json').read_text())
-    _, luminance, color = render(course, s)
+    _, luminance, color = render(course, {**s, **course_colours(0)})
     # Rows 1..20: ink is the old background. Hidden rows and the HUD: the old foreground.
     expected_ink = []
     for cell in range(1000):

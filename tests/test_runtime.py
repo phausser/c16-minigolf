@@ -16,7 +16,7 @@ from py65.devices.mpu6502 import MPU
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT/'tools'))
 from check_build import symbols
-from generate_assets import validate
+from generate_assets import validate, course_colours
 from course_reference import render, legacy_picture, static_patterns
 
 S = symbols()
@@ -171,7 +171,7 @@ class HardwareTests(unittest.TestCase):
 
     def assert_picture(self, course):
         got = self.picture()
-        expected, luminance, color = render(course, self.r.S)
+        expected, luminance, color = render(course, {**self.r.S, **course_colours(0)})
         self.assertEqual(bytes(got[0]), bytes(expected))
         self.assertEqual(got[1][:1000], luminance[:1000])
         self.assertEqual(got[2][:1000], color[:1000])
@@ -185,12 +185,15 @@ class HardwareTests(unittest.TestCase):
         self.r.bus[base:base+8] = [0xff]*8
         for cell in range(40, 21*40):
             self.r.bus[self.r.S['SCREEN_BASE']+cell] = code
-            self.r.bus[self.r.S['ATTR_BASE']+cell] = self.r.S['COURSE_SURFACE_COLOR']
+            self.r.bus[self.r.S['ATTR_BASE']+cell] = course_colours(0)['COURSE_SURFACE_COLOR']
         self.r.put('DYNAMIC_COUNT', 0)
 
     def test_actual_loader_relocates_runtime(self):
         payload = S['payload_image']-0x1001+2
-        self.assertEqual(self.r.bus[S['RUNTIME_BASE']:S['runtime_end']], list(PRG[payload:payload+S['runtime_end']-S['RUNTIME_BASE']]))
+        image = list(PRG[payload:payload+S['runtime_end']-S['RUNTIME_BASE']])
+        ink = S['course_ink']-S['RUNTIME_BASE']      # set by decode_course
+        image[ink:ink+10] = self.r.bus[S['course_ink']:S['course_ink']+10]
+        self.assertEqual(self.r.bus[S['RUNTIME_BASE']:S['runtime_end']], image)
         self.assertEqual(self.r.cpu.sp, 255)
         self.assertTrue(self.r.cpu.p & self.r.cpu.INTERRUPT)
         self.assertFalse(self.r.cpu.p & self.r.cpu.DECIMAL)
@@ -315,7 +318,7 @@ class HardwareTests(unittest.TestCase):
         self.r.call('initialise_video')
         self.r.call('draw_course')
         self.assert_picture(self.WATER_COURSE)
-        self.assertEqual(self.r.bus[S['ATTR_BASE']+10*40+17] & 15, S['WATER_HUE'])
+        self.assertEqual(self.r.bus[S['ATTR_BASE']+10*40+17], S['WATER_DRAWN_COLOR'])
 
     def test_ball_rolling_into_water_rests_three_pixels_ashore(self):
         self.load_course(self.WATER_COURSE)
@@ -852,7 +855,7 @@ class HardwareTests(unittest.TestCase):
             game.call('initialise_state')
             game.call('draw_course')
             got = legacy_picture(game.bus, game.S)
-            expected, luminance, color = render(course, game.S)
+            expected, luminance, color = render(course, {**game.S, **course_colours(hole)})
             self.assertEqual(bytes(got[0]), bytes(expected), hole)
             self.assertEqual(got[1][:1000], luminance[:1000], hole)
             self.assertEqual(got[2][:1000], color[:1000], hole)

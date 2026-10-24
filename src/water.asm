@@ -1,13 +1,13 @@
 ; Moving water. Every water cell runs through the same cycle: none, 1 px,
 ; 2 px, 1 px of solid shadow on its left and top edge, and its luminance
-; drops by the same 0, 1, 2, 1 below the water colour. The phase is
+; drops by the same 0, 1, 2, 1 below the lawn colour. The phase is
 ; (row + column) mod 4, so the pattern runs diagonally down-right at
 ; constant speed. Four characters, one per phase.
 ; Colours: water_init generates one small program per phase from STA
 ; instructions for its cells' attributes (4 cycles a cell) in the renderer
 ; scratch, free once the hole is drawn. Each step patches its two colours.
-; water_init finds the cells by WATER_DRAWN_COLOR; physics by the cell
-; hue, which never changes.
+; water_init finds the cells by WATER_DRAWN_COLOR; physics by an ink
+; other than the floor's.
 WATER_PHASES = 4
 WATER_STEP_FRAMES = 8         ; frames per step, at least WATER_PHASES
 !if WATER_STEP_FRAMES < WATER_PHASES { !error "a step redraws one phase per frame" }
@@ -224,7 +224,7 @@ water_colours:
     ldy #1
     lda water_temp
     clc
-    adc #WATER_COLOR_EVEN
+    adc lawn_ink
     sta (COPY_TARGET),y
     lda water_odd_lo,x
     sta COPY_TARGET
@@ -232,7 +232,7 @@ water_colours:
     sta COPY_TARGET + 1
     lda water_temp
     clc
-    adc #WATER_COLOR_ODD
+    adc lawn_ink
     sta (COPY_TARGET),y
     rts
 

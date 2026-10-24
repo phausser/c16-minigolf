@@ -14,6 +14,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
 from check_build import symbols
+from generate_assets import course_colours
 
 class Monitor:
     def __init__(self):
@@ -105,9 +106,9 @@ def main():
     assert st['POWER'] == 1 and st['CHARGING'] == 1 and st['SHOTS'] == 0,st
     st = frames(62)
     assert st['POWER'] == 32 and st['SHOTS'] == 0,st
-    # Rows 21-23 are the green checker. The full bar is the widest glyph.
+    # Rows 21-23 are the lawn checker. The full bar is the widest glyph.
     grass = m.memory(0x3000+21*40, 0x3000+24*40-1)
-    assert all((v & 15) == s['CHECKER_COLOR_EVEN'] & 15 for v in grass), 'rows 21-23 are not the lawn checker'
+    assert all((v & 15) == course_colours(0)['CHECKER_COLOR_EVEN'] & 15 for v in grass), 'rows 21-23 are not the lawn checker'
     bar = m.memory(0x3400+24*40+s['BAR_COLUMN'], 0x3400+24*40+s['BAR_COLUMN']+s['BAR_CELLS']-1)
     assert list(bar) == [s['BAR_CHAR']+s['BAR_FULL']]*s['BAR_CELLS'], 'charge bar not filled'
     right = m.memory(0x3400+24*40+33, 0x3400+24*40+38)

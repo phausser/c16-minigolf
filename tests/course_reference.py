@@ -9,8 +9,10 @@ cells also get the bands below towards orthogonal whole floor cells, so a
 straight frame meets a slope closed. Other solid cells next to a whole floor cell
 (8-neighbourhood) get a black band of FRAME_WIDTH pixels on each side that
 faces such a cell, square at corners. The cup is a round 7-pixel
-hole, shadowed inside at the top left. Cells with floor are white with black
-ink, other playfield cells black ink on the lawn checker of 2x2 cells, rows 0 and 21..23 equal checker colors, row 24
+hole, shadowed inside at the top left. The floor and lawn inks of the hole
+(COURSE_SURFACE_COLOR, CHECKER_COLOR_EVEN/_ODD) come with s, see
+generate_assets.course_colours. Cells with floor have black
+ink on the floor, other playfield cells black ink on the lawn checker of 2x2 cells, rows 0 and 21..23 equal checker colors, row 24
 the HUD palette. Water areas are whole floor cells with black ink on
 WATER_DRAWN_COLOR, until water_init gives them the lawn colour. Row 24 is entirely the HUD palette.
 Solid cells that the lawn of row 0 cannot reach in orthogonal steps through

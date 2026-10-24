@@ -14,18 +14,22 @@ import zlib
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT/'tools'), str(ROOT/'tests')]
 from course_codec import encode
+from generate_assets import course_colours
 from test_runtime import Runtime, S
 
-# Approximate TED colors: hue -> RGB at full brightness, scaled by luminance.
-HUES = {0: (0, 0, 0), 1: (1, 1, 1), 5: (.35, 1, .35), 6: (.45, .45, 1),
-        13: (.55, .75, 1), 15: (.6, 1, .45)}
+# Approximate TED colors: hue -> RGB at middle luminance; higher luminance
+# also fades towards white.
+HUES = {0: (0, 0, 0), 1: (.6, .6, .6), 2: (.85, .25, .25), 3: (.2, .75, .75),
+        4: (.75, .25, .8), 5: (.25, .75, .25), 6: (.35, .35, .95), 7: (.8, .8, .2),
+        8: (.9, .5, .15), 9: (.65, .45, .15), 10: (.5, .75, .15), 11: (.95, .35, .6),
+        12: (.15, .7, .5), 13: (.3, .6, .95), 14: (.45, .3, .95), 15: (.4, .85, .35)}
 
 
 def rgb(luminance, hue):
     if hue == 0:
         return (0, 0, 0)
-    level = .12+luminance*.12
-    return tuple(min(255, int(255*level*c)) for c in HUES.get(hue, (1, 0, 1)))
+    level, white = .45+luminance*.12, max(0, luminance-4)*.2
+    return tuple(min(255, int(255*(min(1, level*c)*(1-white)+white))) for c in HUES[hue])
 
 
 def screen(r):
@@ -53,9 +57,12 @@ def render(index, course):
     r.bus[S['course_table_lo']] = address & 255
     r.bus[S['course_table_hi']] = address >> 8
     r.bus[address:address+len(data)] = list(data)
+    inks = course_colours(index)
+    r.bus[S['course_inks']:S['course_inks']+2] = [inks['COURSE_SURFACE_COLOR'], inks['CHECKER_COLOR_EVEN']]
     r.call('initialise_state')
     r.call('initialise_video')
     r.call('draw_course')
+    r.call('water_init')
     r.put('HOLE', index)
     r.call('draw_status')
     r.put('DYNAMIC_COUNT', 0)

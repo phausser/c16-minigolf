@@ -201,8 +201,9 @@ physics_contact_limit:
     inc CONTACT_LIMIT_HITS
 physics_substep_done:
 physics_steps_finished:
-    ; Water: foreground hue of the cell under the ball centre. The ball goes
-    ; back to where this frame began, at most 4 pixels from the edge, and rests.
+    ; Water: the cell under the ball centre has another ink than the floor.
+    ; The ball goes back to where this frame began, at most 4 pixels from
+    ; the edge, and rests.
     lda HAZARD_COUNT
     beq physics_dry
     lda BALL_POS_Y + 1
@@ -218,9 +219,8 @@ physics_steps_finished:
     lsr
     tay
     lda (COURSE_PTR),y
-    and #15
-    cmp #WATER_HUE
-    bne physics_dry
+    cmp floor_ink
+    beq physics_dry
     jsr ashore
     inc SHOTS                 ; one penalty stroke; the stroke limit below applies
     jsr stop_ball
