@@ -18,8 +18,7 @@ LETTER_Y = 10
 LETTER_R = 11
 LETTER_C = 12
 LETTER_T = 13
-LETTER_S = 14
-LETTER_E = 15
+LETTER_E = 14
 font_image:
 ; M
 !byte %.#####..
@@ -99,12 +98,6 @@ font_image:
 !byte %..##....
 !byte %..##....
 !byte %..##....
-; S
-!byte %.######.
-!byte %##......
-!byte %.#####..
-!byte %.....##.
-!byte %######..
 ; E
 !byte %.######.
 !byte %##......

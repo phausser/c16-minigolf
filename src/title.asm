@@ -1,5 +1,5 @@
 ; Title menu shaped like a course, black glyphs on the white floor:
-; MINIGOLF; PLAY over one to four golfers; PRACTISE over three holes as
+; MINIGOLF; PLAY over one to four golfers; PRACTICE over three holes as
 ; 1:8 outlines with their numbers and arrows towards further holes. The
 ; golf ball below marks the choice: up/down switches the row, left/right
 ; moves in it, fire starts. Hole h is drawn in block h mod 4: the three shown
@@ -15,8 +15,8 @@ TITLE_CHAR_LIMIT = PREVIEW_CHAR - TITLE_CHAR
 !if TITLE_CHAR < FIGURE_CHAR + 2 { !error "the title frame overlaps the font" }
 TITLE_LAST_ROW = 23           ; the title course reaches down to row 23
 HEADER = SCREEN_BASE + 4 * 40 + 16
-FIGURE_ROW = SCREEN_BASE + 13 * 40   ; and the row below, then the ball
-PREVIEW_ROW = SCREEN_BASE + 18 * 40  ; three rows of outlines, then the number
+FIGURE_ROW = SCREEN_BASE + 10 * 40   ; and the row below, then the ball
+PREVIEW_ROW = SCREEN_BASE + 17 * 40  ; three rows of outlines, then the number
 HOLE_ROW = PREVIEW_ROW + 40          ; arrows
 NUMBER_ROW = PREVIEW_ROW + 120       ; ball and number below each outline
 ARROW_LEFT_COLUMN = 9
@@ -400,9 +400,10 @@ preview_axis_done:
     ldx SEG_OFFSET
     rts
 
-; End of the round, one row per player: club, player and strokes, a ball
-; beside the best; below them flag and (par). Fire returns to the menu.
-SUMMARY_ROW = SCREEN_BASE + 12 * 40
+; End of the round in the lower field, one row per player: club, player and
+; strokes, a ball beside the best; below them flag and (par). Fire returns
+; to the menu.
+SUMMARY_ROW = SCREEN_BASE + 15 * 40
 SUMMARY_COLUMN = 15           ; club; ball left, strokes up to column 20
 summary_screen:
     ldx #$ff
@@ -450,7 +451,7 @@ summary_sign:
     sta (COPY_TARGET),y
     lda COPY_TARGET
     clc
-    adc #80                   ; every other row
+    adc #40
     sta COPY_TARGET
     bcc summary_next
     inc COPY_TARGET + 1
@@ -513,13 +514,13 @@ title_texts:
     !byte LETTER_M, LETTER_I, LETTER_N, LETTER_I, LETTER_G, LETTER_O, LETTER_L, LETTER_F, $ff
     !byte 0, 0
 title_labels:
-    !word SCREEN_BASE + 12 * 40 + 18
+    !word SCREEN_BASE + 9 * 40 + 18
     !byte LETTER_P, LETTER_L, LETTER_A, LETTER_Y, $ff
-    !word SCREEN_BASE + 17 * 40 + 16
-    !byte LETTER_P, LETTER_R, LETTER_A, LETTER_C, LETTER_T, LETTER_I, LETTER_S, LETTER_E, $ff
+    !word SCREEN_BASE + 16 * 40 + 16
+    !byte LETTER_P, LETTER_R, LETTER_A, LETTER_C, LETTER_T, LETTER_I, LETTER_C, LETTER_E, $ff
     !byte 0, 0
 summary_par:                  ; flag and (par), the par below the strokes
-    !word SCREEN_BASE + 21 * 40 + SUMMARY_COLUMN
+    !word SCREEN_BASE + 20 * 40 + SUMMARY_COLUMN
     !byte FLAG_CHAR, BLANK_CHAR, BLANK_CHAR, PAREN_LEFT_CHAR
     !byte (TOTAL_PAR > 9) * (DIGIT_CHAR + TOTAL_PAR / 10)   ; blank below 10
     !byte DIGIT_CHAR + TOTAL_PAR % 10, PAREN_RIGHT_CHAR, $ff

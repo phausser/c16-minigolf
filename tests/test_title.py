@@ -46,9 +46,9 @@ class TitleTests(unittest.TestCase):
         return self.r.bus[self.S['SCREEN_BASE']+row*40+column]
 
     def holes_text(self):
-        """From column 9: rows 18 and 19 (arrows, outline cells as ?) and
-        row 21 (ball and numbers)."""
-        return tuple(self.r.screen_text(row, 9, 21, self.floor) for row in (18, 19, 21))
+        """From column 9: rows 17 and 18 (arrows, outline cells as ?) and
+        row 20 (ball and numbers)."""
+        return tuple(self.r.screen_text(row, 9, 21, self.floor) for row in (17, 18, 20))
 
     @staticmethod
     def holes_expected(first, ball=None):
@@ -65,7 +65,7 @@ class TitleTests(unittest.TestCase):
         return ''.join(top), ''.join(middle), ''.join(below)
 
     def text(self, row, column, count):
-        letters = 'MINGOLFPAYRCTSE'
+        letters = 'MINGOLFPAYRCTE'
         names = {self.S[f'LETTER_{c}']: c for c in letters}
         base = self.S['SCREEN_BASE']+row*40+column
         return ''.join(names.get(code, '?') for code in self.r.bus[base:base+count])
@@ -73,24 +73,24 @@ class TitleTests(unittest.TestCase):
     def test_picture_header_figures_and_first_holes(self):
         S = self.S
         self.assertEqual(self.text(4, 16, 8), 'MINIGOLF')
-        self.assertEqual(self.text(12, 18, 4), 'PLAY')
-        self.assertEqual(self.text(17, 16, 8), 'PRACTISE')
+        self.assertEqual(self.text(9, 18, 4), 'PLAY')
+        self.assertEqual(self.text(16, 16, 8), 'PRACTICE')
         figures = [13, 15, 16, 18, 19, 20, 22, 23, 24, 25]
         for column in range(40):
             want = (S['FIGURE_CHAR'], S['FIGURE_CHAR']+1) if column in figures else None
-            got = (self.code(13, column), self.code(14, column))
+            got = (self.code(10, column), self.code(11, column))
             if want:
                 self.assertEqual(got, want, column)
             else:
                 self.assertNotIn(S['FIGURE_CHAR'], got, column)
-        # Row 15 up to column 33: column 34 holds the tip of the right notch.
-        self.assertEqual(self.r.screen_text(15, 5, 29, self.floor), ' '*8+'*'+' '*20)
+        # Row 12 between the walls (columns 5 to 33).
+        self.assertEqual(self.r.screen_text(12, 5, 29, self.floor), ' '*8+'*'+' '*20)
         self.assertEqual(self.holes_text(), self.holes_expected(0))
         self.assertEqual(self.r.get('pattern_overflow'), 0)
         for slot in range(3):
             for column in range(5):
                 for row in range(3):
-                    self.assertEqual(self.code(18+row, 11+6*slot+column),
+                    self.assertEqual(self.code(17+row, 11+6*slot+column),
                                      S['PREVIEW_CHAR']+slot*15+column*3+row)
         for hole in range(4):                  # three shown, the next one ready
             self.assertEqual(self.block(hole), preview_bitmap(COURSES[hole]), hole)
@@ -104,11 +104,11 @@ class TitleTests(unittest.TestCase):
         S = self.S
         self.press(RIGHT, 5)
         self.assertEqual(self.r.get('menu_players'), 3)
-        self.assertEqual(self.code(15, 23), S['BALL_CHAR'])
-        self.assertEqual(self.code(15, 13), S['BLANK_CHAR'])
+        self.assertEqual(self.code(12, 23), S['BALL_CHAR'])
+        self.assertEqual(self.code(12, 13), S['BLANK_CHAR'])
         self.press(DOWN)
         self.assertEqual(self.r.get('menu_row'), 1)
-        self.assertEqual(self.code(15, 23), S['BLANK_CHAR'])
+        self.assertEqual(self.code(12, 23), S['BLANK_CHAR'])
         self.assertEqual(self.holes_text(), self.holes_expected(0, 0))
         self.press(RIGHT, 2)
         self.assertEqual(self.r.get('window_first'), 0)
@@ -138,7 +138,7 @@ class TitleTests(unittest.TestCase):
         self.assertEqual(self.holes_text(), self.holes_expected(0, 0))
         self.press(UP)
         self.assertEqual(self.r.get('menu_row'), 0)
-        self.assertEqual(self.code(15, 23), S['BALL_CHAR'])
+        self.assertEqual(self.code(12, 23), S['BALL_CHAR'])
         self.assertEqual(self.holes_text(), self.holes_expected(0))
 
     def start(self):

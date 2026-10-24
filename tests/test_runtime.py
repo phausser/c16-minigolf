@@ -694,10 +694,10 @@ class HardwareTests(unittest.TestCase):
             best = min(totals[:count])
             for p in range(count):
                 mark = '*' if totals[p] == best else ' '
-                self.assertEqual(self.r.screen_text(12+2*p, 14, 7, floor),
+                self.assertEqual(self.r.screen_text(15+p, 14, 7, floor),
                                  f'{mark}C{p+1}{totals[p]:>4}', totals)
-            self.assertEqual(self.r.screen_text(12+2*count, 14, 7, floor), ' '*7)
-            self.assertEqual(self.r.screen_text(21, 14, 8, floor), f' F  ({par:>2})')
+            self.assertEqual(self.r.screen_text(15+count, 14, 7, floor), ' '*7)
+            self.assertEqual(self.r.screen_text(20, 14, 8, floor), f' F  ({par:>2})')
 
     def test_game_build_plays_the_18_drafts_in_order(self):
         from course_codec import encode
