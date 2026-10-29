@@ -107,8 +107,8 @@ class Runtime:
 
     def screen_text(self, row, column=0, count=40, floor=None):
         """Font codes of a screen row as text: digits, F flag, C club, ( ),
-        * ball, < > arrows, ' ' blank (and the floor code, if
-        given); '?' for anything else."""
+        * ball, < > arrows, ' ' blank (and the floor code, if given);
+        '?' for anything else."""
         names = {self.S[name]: char for char, name in self.GLYPHS.items()}
         if floor is not None:
             names[floor] = ' '
@@ -117,12 +117,27 @@ class Runtime:
         return ''.join(names.get(code, '?') for code in self.bus[base:base+count])
 
     def assert_status(self, test, hole, shots, par, player=1, total=None, message=None):
-        """Row 24: "F<hole> (<par>)" from the left, "C<player> <shots>
-        (<total>)" ending in the last column; total defaults to shots."""
+        """Row 24: "C<player> <shots> (<total>" from the left,
+        "F<hole> <par>" ending in the last column; total defaults to shots.
+        Club, player, flag and hole number use the course hue at luminance
+        4. The rest stays the white HUD colour. A one-digit hole also
+        colours the blank before the par."""
         total = shots if total is None else total
-        left, right = f'F{hole} ({par})', f'C{player or 1} {shots} ({total})'
+        player = player or 1
+        left, right = f'C{player} {shots} ({total}', f'F{hole} {par}'
+        right = right.rjust(12)
         test.assertEqual((self.screen_text(24, 0, 12), self.screen_text(24, 28, 12)),
-                         (left.ljust(12), right.rjust(12)), message)
+                         (left.ljust(12), right), message)
+        attrs = self.bus[self.S['ATTR_BASE']+24*40:self.S['ATTR_BASE']+25*40]
+        ink = (self.bus[self.S['lawn_ink']] + 0x10) & 0xff
+        hud = self.S['HUD_FOREGROUND_COLOR']
+        test.assertEqual(list(attrs[0:2]), [ink, ink], message)
+        test.assertEqual(list(attrs[2:12]), [hud] * 10, message)
+        flag = 28 + right.index('F')
+        test.assertEqual(list(attrs[flag:flag+3]), [ink, ink, ink], message)
+        par_at = flag + 1 + len(str(hole)) + 1
+        for index in range(par_at, par_at + len(str(par))):
+            test.assertEqual(attrs[index], hud, (message, index))
 
     def call_until(self, label, stop, limit=20000000):
         """Calls label and runs until it returns or reaches stop. Returns PC."""
@@ -803,8 +818,9 @@ class HardwareTests(unittest.TestCase):
                             want = x in inner
                         self.assertEqual(bool(glyph[row] & (0x80 >> bit)), want, (power, cell, row, bit))
 
-    def test_status_shows_hole_and_par_left_player_shots_and_total_right(self):
+    def test_status_shows_player_shots_and_total_left_hole_and_par_right(self):
         self.r.call('initialise_video')
+        self.assertEqual(self.r.get('lawn_ink'), course_colours(0)['CHECKER_COLOR_EVEN'])
         # One course in the test build: other holes read past course_par.
         self.r.put('player_count', 1)
         self.r.put('player', 0)

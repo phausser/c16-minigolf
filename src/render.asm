@@ -255,10 +255,13 @@ aim_shift_y:
     bne aim_shift_y
     rts
 
-; Status row 24 in the font, one glyph per cell. Left aligned: flag, hole
-; and (par). Right aligned: club, player, strokes on this hole and
-; (strokes in total). The power bar lies between them.
+; Status row 24 in the font, one glyph per cell. Left aligned: club and
+; player (course hue, luminance 4), strokes, the opening bracket and the
+; running total. Right aligned: flag and hole (same colour) and the par,
+; without a closing bracket. Other glyphs stay white. The power bar lies
+; between them.
 STATUS_ROW = SCREEN_BASE + 24 * 40
+STATUS_ATTR = ATTR_BASE + 24 * 40
 STATUS_CLEAR = 12             ; cells 0..11 and 28..39 hold the texts
 draw_status:
     lda #<STATUS_ROW
@@ -273,44 +276,48 @@ status_clear:
     dex
     bpl status_clear
     ldy #0
-    lda #FLAG_CHAR
+    lda #CLUB_CHAR
     sta (COPY_TARGET),y
     iny
-    ldx HOLE
-    inx
-    txa
-    jsr put_number
-    iny                       ; one blank cell
-    lda #PAREN_LEFT_CHAR
-    sta (COPY_TARGET),y
-    iny
-    ldx HOLE
-    lda course_par,x
-    jsr put_number
-    lda #PAREN_RIGHT_CHAR
-    sta (COPY_TARGET),y
-    ldy #39                   ; the right text from its last cell leftwards
-    sta (COPY_TARGET),y
-    dey
-    ldx player
-    lda totals,x
-    clc
-    adc SHOTS
-    jsr print_digits
-    lda #PAREN_LEFT_CHAR
-    sta (COPY_TARGET),y
-    dey
-    dey
-    lda SHOTS
-    jsr print_digits
-    dey
     lda player
     clc
     adc #DIGIT_CHAR + 1
     sta (COPY_TARGET),y
-    dey
-    lda #CLUB_CHAR
+    lda lawn_ink              ; course hue, one step brighter than the lawn
+    clc
+    adc #$10                  ; luminance 4
+    sta STATUS_ATTR
+    sta STATUS_ATTR + 1
+    iny
+    iny                       ; one blank cell
+    lda SHOTS
+    jsr put_number
+    iny
+    lda #PAREN_LEFT_CHAR
     sta (COPY_TARGET),y
+    iny
+    ldx player
+    lda totals,x
+    clc
+    adc SHOTS
+    jsr put_number
+    ldy #39                   ; par, blank, hole, flag from the right
+    ldx HOLE
+    lda course_par,x
+    jsr print_digits
+    dey
+    ldx HOLE
+    inx
+    txa
+    jsr print_digits
+    lda #FLAG_CHAR
+    sta (COPY_TARGET),y
+    lda lawn_ink
+    clc
+    adc #$10                  ; luminance 4, same hue
+    sta STATUS_ATTR,y         ; flag and up to two hole digits; a 1-digit
+    sta STATUS_ATTR + 1,y     ; hole colours the blank before the par too
+    sta STATUS_ATTR + 2,y
     rts
 
 ; A = 0..255, written leftwards from (COPY_TARGET),Y without leading

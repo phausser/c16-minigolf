@@ -88,8 +88,9 @@
 </main>
 <script>
 'use strict';
-// Game geometry: 320x200 bitmap, playfield rows 1..20, vertices on the
-// 8-pixel cell grid inside x 8..304, y 8..160 (tools/generate_assets.py).
+// Game geometry: 320x200 bitmap, playfield rows 1..last_row (20, or 23 on
+// the title). Vertices sit on the 8-pixel grid inside x 8..304 and
+// y 8..8*last_row+6 (tools/generate_assets.py).
 const W = 320, H = 200, SCALE = 3, MAX_SEGMENTS = 32, MAX_WATER = 7;
 const canvas = document.getElementById('view');
 const ctx = canvas.getContext('2d');
@@ -101,6 +102,8 @@ function blankCourse() {
   return { name: 'NEUE BAHN', par: 3, start: [48, 88], cup: [272, 88],
            outline: [[24, 32], [296, 32], [296, 144], [24, 144]], obstacles: [], hazards: [] };
 }
+function lastRow() { return course.last_row || 20; }
+function maxVertexY() { const y = 8 * lastRow() + 6; return y - y % 8; }
 function clone(c) { return JSON.parse(JSON.stringify(c)); }
 function remember() { history.push(clone(course)); if (history.length > 200) history.shift(); dirty = true; }
 function undo() { if (history.length) { course = history.pop(); dirty = true; refresh(); } }
@@ -178,7 +181,7 @@ function validate() {
     c.forEach((a, i) => {
       const b = c[(i + 1) % c.length];
       if (a[0] % 8 || a[1] % 8) errors.push(`${what}: Ecke ${a} nicht auf dem 8er-Raster`);
-      if (a[0] < 8 || a[0] > 310 || a[1] < 8 || a[1] > 166) errors.push(`${what}: Ecke ${a} außerhalb des Spielfelds`);
+      if (a[0] < 8 || a[0] > 310 || a[1] < 8 || a[1] > 8 * lastRow() + 6) errors.push(`${what}: Ecke ${a} außerhalb des Spielfelds`);
       if (!edgeOk(a, b)) errors.push(`${what}: Kante ${a} → ${b} nicht waagerecht/senkrecht/45°`);
       segments.push({ a, b, ci, i, n: c.length });
     });
@@ -240,8 +243,9 @@ function draw() {
   // grid
   ctx.lineWidth = 1 / SCALE; ctx.strokeStyle = 'rgba(255,255,255,.12)';
   ctx.beginPath();
-  for (let x = 0; x <= W; x += 8) { ctx.moveTo(x, 0); ctx.lineTo(x, 168); }
-  for (let y = 0; y <= 168; y += 8) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  const fieldBottom = 8 * (lastRow() + 1);
+  for (let x = 0; x <= W; x += 8) { ctx.moveTo(x, 0); ctx.lineTo(x, fieldBottom); }
+  for (let y = 0; y <= fieldBottom; y += 8) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
   ctx.stroke();
   // cup and ball
   disc(course.cup, 3.5, '#000');
@@ -272,8 +276,9 @@ function draw() {
 }
 function disc(p, r, color) { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(p[0] + .5, p[1] + .5, r, 0, Math.PI * 2); ctx.fill(); }
 
-// Mirrors tests/course_reference.py: unique inverted cells of rows 1..20,
-// plus the solid glyph. The canvas stroke is not exact enough to count.
+// Mirrors tests/course_reference.py: unique inverted cells of rows
+// 1..last_row, plus the solid glyph. The canvas stroke is not exact enough
+// to count. The title shares its charset with the previews (TITLE_CHAR_LIMIT).
 const FRAME_WIDTH = 6;
 function staticCharacterCount() {
   try {
@@ -295,13 +300,14 @@ function staticCharacterCount() {
     };
     const id = (r, c) => r * 40 + c;
     const black = new Set(), classes = new Map();
-    for (let row = 1; row <= 20; row++) for (let col = 0; col < 40; col++) {
+    const rows = lastRow();
+    for (let row = 1; row <= rows; row++) for (let col = 0; col < 40; col++) {
       const cell = pix(row, col).map(([x, y]) => inside(x, y));
       const kind = cell.every(Boolean) ? 'floor' : cell.some(Boolean) ? 'edge' : 'solid';
       classes.set(id(row, col), kind);
       pix(row, col).forEach(([x, y], i) => { if (!cell[i] && cell.some(Boolean)) black.add(x + y * 320); });
     }
-    for (let row = 1; row <= 20; row++) for (let col = 0; col < 40; col++) {
+    for (let row = 1; row <= rows; row++) for (let col = 0; col < 40; col++) {
       if (classes.get(id(row, col)) !== 'edge') continue;
       const right = !inside(col * 8 + 7, row * 8 + 4), up = !inside(col * 8 + 4, row * 8);
       for (const [dr, dc] of [[0, right ? 1 : -1], [up ? -1 : 1, 0]]) {
@@ -334,7 +340,7 @@ function staticCharacterCount() {
     for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++)
       if (dx * dx + dy * dy <= 12.25) black.add((cx + dx) + (cy + dy) * 320);
     const patterns = new Set(['255,255,255,255,255,255,255,255']);
-    for (let row = 1; row <= 20; row++) for (let col = 0; col < 40; col++) {
+    for (let row = 1; row <= rows; row++) for (let col = 0; col < 40; col++) {
       const bytes = [];
       for (let i = 0; i < 8; i++) {
         let value = 0;
@@ -352,13 +358,14 @@ function refresh() {
   draw();
   const { errors, segments } = validate();
   const chars = staticCharacterCount();
-  if (chars != null && chars > 64) errors.push(`Zeichen: ${chars}/64, höchstens 64`);
+  const charLimit = lastRow() > 20 ? 33 : 64;
+  if (chars != null && chars > charLimit) errors.push(`Zeichen: ${chars}/${charLimit}, höchstens ${charLimit}`);
   document.getElementById('checks').innerHTML = errors.length
     ? errors.slice(0, 12).map(e => `<li class="bad">${e}</li>`).join('')
     : '<li class="ok">Bahn gültig</li>';
   document.getElementById('stats').innerHTML =
     `Segmente: ${segments}/${MAX_SEGMENTS}<br>Wasserflächen: ${(course.hazards || []).length}/${MAX_WATER}<br>` +
-    `Zeichen: <b>${chars == null ? '—' : chars + '/64'}</b><br>` +
+    `Zeichen: <b>${chars == null ? '—' : chars + '/' + charLimit}</b><br>` +
     `Gepackt: <b>${packedSize()} Bytes</b> (+2 Zeiger)` +
     (files.length ? `<br>Alle Bahnen im Ordner: ${totalSize()} Bytes` : '');
   const name = document.getElementById('name'), par = document.getElementById('par');
@@ -378,7 +385,7 @@ function mouse(e) {
   const r = canvas.getBoundingClientRect();
   return [(e.clientX - r.left) * W / r.width, (e.clientY - r.top) * H / r.height];
 }
-function gridPoint(m) { return [Math.min(304, Math.max(8, snap(m[0], 8))), Math.min(160, Math.max(8, snap(m[1], 8)))]; }
+function gridPoint(m) { return [Math.min(304, Math.max(8, snap(m[0], 8))), Math.min(maxVertexY(), Math.max(8, snap(m[1], 8)))]; }
 function nearestVertex(m) {
   let best = null;
   contours().forEach((c, ci) => c.forEach((p, i) => {
@@ -483,8 +490,10 @@ document.getElementById('par').addEventListener('input', e => { remember(); cour
 
 // ---------- files ----------
 function serialise() {
-  const out = { name: course.name, par: course.par, start: course.start, cup: course.cup,
-                outline: course.outline, obstacles: course.obstacles };
+  const out = { name: course.name, par: course.par };
+  if (course.last_row) out.last_row = course.last_row;
+  Object.assign(out, { start: course.start, cup: course.cup,
+                       outline: course.outline, obstacles: course.obstacles });
   if ((course.hazards || []).length) out.hazards = course.hazards;
   if (course.aim) out.aim = course.aim;
   return JSON.stringify(out) + '\n';

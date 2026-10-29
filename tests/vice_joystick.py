@@ -111,8 +111,20 @@ def main():
     assert all((v & 15) == course_colours(0)['CHECKER_COLOR_EVEN'] & 15 for v in grass), 'rows 21-23 are not the lawn checker'
     bar = m.memory(0x3400+24*40+s['BAR_COLUMN'], 0x3400+24*40+s['BAR_COLUMN']+s['BAR_CELLS']-1)
     assert list(bar) == [s['BAR_CHAR']+s['BAR_FULL']]*s['BAR_CELLS'], 'charge bar not filled'
-    right = m.memory(0x3400+24*40+33, 0x3400+24*40+38)
-    assert right[0] == s['CLUB_CHAR'] and right[4] == s['SLASH_CHAR'], 'club, shots and par missing at the right'
+    # Full charge, before release: player 1, no shots yet, hole 1, par 0.
+    # "C1 0 (0" on the left, "F1 0" in columns 36..39. Club, player, flag
+    # and hole number use the course hue at luminance 4.
+    left = m.memory(0x3400+24*40, 0x3400+24*40+6)
+    assert list(left) == [s['CLUB_CHAR'], s['DIGIT_CHAR']+1, s['BLANK_CHAR'],
+                          s['DIGIT_CHAR'], s['PAREN_LEFT_CHAR'], s['DIGIT_CHAR']], list(left)
+    right = m.memory(0x3400+24*40+36, 0x3400+24*40+39)
+    assert list(right) == [s['FLAG_CHAR'], s['DIGIT_CHAR']+1, s['BLANK_CHAR'],
+                           s['DIGIT_CHAR']], list(right)
+    ink = (m.memory(s['lawn_ink'], s['lawn_ink'])[0] + 0x10) & 0xff
+    hud = s['HUD_FOREGROUND_COLOR']
+    attr = m.memory(0x3000+24*40, 0x3000+24*40+39)
+    assert list(attr[0:2]) == [ink, ink] and list(attr[36:39]) == [ink, ink, ink], list(attr)
+    assert attr[2] == hud and attr[3] == hud and attr[5] == hud and attr[39] == hud, list(attr)
     m.joystick(0)
     st = frames(2)
     assert st['SHOTS'] == 1 and st['ROLLING'] == 1 and st['POWER'] == 0,st

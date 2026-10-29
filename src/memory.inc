@@ -207,7 +207,7 @@ ARROW_LEFT_CHAR = 26
 ARROW_RIGHT_CHAR = 27
 FLAG_CHAR = 28
 CLUB_CHAR = 29
-PAREN_LEFT_CHAR = 30
+PAREN_LEFT_CHAR = 30         ; opening bracket, also the HUD sum sign
 PAREN_RIGHT_CHAR = 31
 FONT_GLYPHS = 32             ; codes with 5-row glyphs, blank included
 FIGURE_CHAR = 32             ; golfer, top and bottom cell
@@ -216,3 +216,5 @@ BAR_CHAR = 47                ; eight power-bar shapes (BAR_GLYPHS)
 COURSE_CHAR = 64             ; up to 64 static hole patterns
 COURSE_CHAR_LIMIT = 64
 !if DYNAMIC_CHAR < FIGURE_CHAR + 2 { !error "dynamic cells overlap the font" }
+!if DYNAMIC_CHAR + MAX_DYNAMIC_CELLS > BAR_CHAR { !error "dynamic cells overlap the bar" }
+!if BAR_CHAR + 8 > COURSE_CHAR { !error "the power bar overlaps the course charset" }
