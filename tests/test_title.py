@@ -94,9 +94,9 @@ class TitleTests(unittest.TestCase):
                                      S['PREVIEW_CHAR']+slot*15+column*3+row)
         for hole in range(4):                  # three shown, the next one ready
             self.assertEqual(self.block(hole), preview_bitmap(COURSES[hole]), hole)
-        # The title glyphs are black on the light gray floor.
-        self.assertEqual(self.r.bus[S['ATTR_BASE']+4*40+16], (6 << 4) + 1)
-        self.assertEqual(self.r.bus[S['ATTR_BASE']] & 0x7f, (3 << 4) + 1)
+        # The title glyphs are black on the light green floor.
+        self.assertEqual(self.r.bus[S['ATTR_BASE']+4*40+16], (6 << 4) + 5)
+        self.assertEqual(self.r.bus[S['ATTR_BASE']] & 0x7f, (3 << 4) + 5)
         glyph = S['CHARSET_BASE']+(S['DIGIT_CHAR']+1)*8
         image = S['font_image']+(S['DIGIT_CHAR']+1)*5-5
         self.assertEqual(self.r.bus[glyph:glyph+8],

@@ -19,5 +19,5 @@
     {"name": "Violett", "floor": [7, 4], "lawn": 4},
     {"name": "Gruen", "floor": [7, 5], "lawn": 5}
   ],
-  "title": {"name": "Titel", "floor": [6, 1], "lawn": 1}
+  "title": {"name": "Titel", "floor": [6, 5], "lawn": 5}
 }

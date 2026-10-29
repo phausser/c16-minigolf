@@ -177,15 +177,15 @@ def course_colours(hole=None):
 
     Floor and lawn share a hue other than black or gray. The floor is
     luminance 7; the lawn checker is luminance 3 and 2. The title is the
-    exception: light gray floor, darker gray lawn.
+    exception: light green floor, darker green lawn.
     """
     entry = json.loads((ROOT/'assets/colours.json').read_text())
     entry = entry['title'] if hole is None else entry['holes'][hole]
     luminance, hue = entry['floor']
     lawn_hue = entry['lawn']
     if hole is None:
-        if (luminance, hue, lawn_hue) != (6, 1, 1):
-            raise ValueError(f'{entry.get("name")} needs light gray on darker gray')
+        if (luminance, hue, lawn_hue) != (6, 5, 5):
+            raise ValueError(f'{entry.get("name")} needs light green on darker green')
     elif luminance != 7 or lawn_hue != hue or not 2 <= hue <= 15:
         raise ValueError(
             f'{entry.get("name")} needs floor luminance 7 and the same hue 2..15')
