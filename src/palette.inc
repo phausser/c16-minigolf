@@ -17,11 +17,19 @@ BORDER_COLOR = (0 << 4) + 0
 ; luminance 3, 2 and 1 (water.asm): physics tells it from the floor by the
 ; ink. The obstacle fill tells reached lawn by its lower luminance.
 ; Hue 0 is black and hue 1 is gray; both stay out of the course colours.
+; The title uses gray on purpose (title_inks).
 !macro hole_inks .floor, .lawn {
     !if (.lawn & $f0) != LAWN_LUMINANCE << 4 { !error "the lawn has LAWN_LUMINANCE" }
     !if (.floor & $f0) != 7 << 4 | (.floor & 15) != (.lawn & 15) | (.floor & 15) < 2 {
         !error "floor and lawn share one hue from 2 to 15, floor luminance 7"
     }
+    !byte .floor, .lawn
+}
+!macro title_inks .floor, .lawn {
+    !if (.floor & 15) != 1 { !error "the title floor is gray" }
+    !if (.lawn & 15) != 1 { !error "the title lawn is gray" }
+    !if (.floor & $f0) != 6 << 4 { !error "the title floor is light gray" }
+    !if (.lawn & $f0) != LAWN_LUMINANCE << 4 { !error "the title lawn has LAWN_LUMINANCE" }
     !byte .floor, .lawn
 }
 

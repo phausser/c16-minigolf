@@ -6,7 +6,7 @@
 ; and the next one in the direction of the last slide. A hole that is not
 ; ready is drawn into its block while that block is not shown, so the row
 ; never shows drawing.
-TITLE_CHAR = 35               ; title frame from here on (intern_pattern)
+TITLE_CHAR = 36               ; title frame from here on (intern_pattern)
 PREVIEW_CHAR = 68             ; four preview blocks of 5 x 3 cells
 PREVIEW_BLOCKS = 4
 PREVIEW_BLOCK = 5 * 3
@@ -400,63 +400,65 @@ preview_axis_done:
     ldx SEG_OFFSET
     rts
 
-; End of the round in the lower field, one row per player: club, player and
-; strokes, a ball beside the best; below them flag and (par). Fire returns
-; to the menu.
-SUMMARY_ROW = SCREEN_BASE + 15 * 40
-SUMMARY_COLUMN = 15           ; club; ball left, strokes up to column 20
+; End of the round in the lower field: RESULTS, then every player as
+; #, number and strokes, fewest strokes first. Equal scores keep the
+; lower number. Listed totals become $ff; the next round clears them.
+; Fire returns to the menu.
+SUMMARY_HEAD_ROW = 13
+SUMMARY_LIST_ROW = 15
+SUMMARY_ROW = SCREEN_BASE + SUMMARY_LIST_ROW * 40
+SUMMARY_COLUMN = 16           ; # and number; strokes end five cells later
 summary_screen:
     ldx #$ff
     txs
     jsr draw_title_frame
-    ldx #summary_par - title_texts
+    ldx #summary_head - title_texts
     jsr print_texts
-    lda #$ff
-    sta TEMP                  ; best total
-    ldx player_count
-    dex
-summary_best:
-    lda totals,x
-    cmp TEMP
-    bcs summary_best_next
-    sta TEMP
-summary_best_next:
-    dex
-    bpl summary_best
     lda #<SUMMARY_ROW
     sta COPY_TARGET
     lda #>SUMMARY_ROW
     sta COPY_TARGET + 1
     ldx #0
 summary_row:
-    stx player
-    lda totals,x
-    ldy #SUMMARY_COLUMN + 5
-    jsr print_digits
-    ldx player
-    lda totals,x
+    txa
+    pha
+    lda #$ff                  ; best remaining total
+    sta TEMP
+    ldy #0
+    ldx #0
+summary_find:
+    lda totals,y
     cmp TEMP
-    bne summary_sign
-    lda #BALL_CHAR
-    ldy #SUMMARY_COLUMN - 1
+    bcs summary_find_next     ; higher, or the same score seen earlier
+    sta TEMP
+    tya
+    tax
+summary_find_next:
+    iny
+    cpy player_count
+    bcc summary_find
+    lda #$ff
+    sta totals,x
+    ldy #SUMMARY_COLUMN
+    lda #HASH_CHAR
     sta (COPY_TARGET),y
-summary_sign:
+    iny
     txa
     clc
     adc #DIGIT_CHAR + 1
-    ldy #SUMMARY_COLUMN + 1
     sta (COPY_TARGET),y
-    dey
-    lda #CLUB_CHAR
-    sta (COPY_TARGET),y
+    ldy #SUMMARY_COLUMN + 5
+    lda TEMP
+    jsr print_digits
     lda COPY_TARGET
     clc
     adc #40
     sta COPY_TARGET
-    bcc summary_next
+    bcc summary_row_page
     inc COPY_TARGET + 1
-summary_next:
-    ldx player
+summary_row_page:
+    pla
+    tax
     inx
     cpx player_count
     bcc summary_row
@@ -519,11 +521,9 @@ title_labels:
     !word SCREEN_BASE + 16 * 40 + 16
     !byte LETTER_P, LETTER_R, LETTER_A, LETTER_C, LETTER_T, LETTER_I, LETTER_C, LETTER_E, $ff
     !byte 0, 0
-summary_par:                  ; flag and (par), the par below the strokes
-    !word SCREEN_BASE + 20 * 40 + SUMMARY_COLUMN
-    !byte FLAG_CHAR, BLANK_CHAR, BLANK_CHAR, PAREN_LEFT_CHAR
-    !byte (TOTAL_PAR > 9) * (DIGIT_CHAR + TOTAL_PAR / 10)   ; blank below 10
-    !byte DIGIT_CHAR + TOTAL_PAR % 10, PAREN_RIGHT_CHAR, $ff
+summary_head:
+    !word SCREEN_BASE + SUMMARY_HEAD_ROW * 40 + SUMMARY_COLUMN
+    !byte LETTER_R, LETTER_E, LETTER_S, LETTER_U, LETTER_L, LETTER_T, LETTER_S, $ff
     !byte 0, 0
 ; Golfers in groups of one to four, one cell apart; the ball below each
 ; group's middle.

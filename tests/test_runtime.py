@@ -102,13 +102,15 @@ class Runtime:
     def get(self, name):
         return self.bus[self.S[name]]
 
-    GLYPHS = {'F': 'FLAG_CHAR', 'C': 'CLUB_CHAR', '(': 'PAREN_LEFT_CHAR', ')': 'PAREN_RIGHT_CHAR',
+    GLYPHS = {'F': 'FLAG_CHAR', 'C': 'CLUB_CHAR', '(': 'PAREN_LEFT_CHAR', '#': 'HASH_CHAR',
+              'R': 'LETTER_R', 'E': 'LETTER_E', 'S': 'LETTER_S', 'U': 'LETTER_U',
+              'L': 'LETTER_L', 'T': 'LETTER_T',
               '*': 'BALL_CHAR', '<': 'ARROW_LEFT_CHAR', '>': 'ARROW_RIGHT_CHAR', ' ': 'BLANK_CHAR'}
 
     def screen_text(self, row, column=0, count=40, floor=None):
-        """Font codes of a screen row as text: digits, F flag, C club, ( ),
-        * ball, < > arrows, ' ' blank (and the floor code, if given);
-        '?' for anything else."""
+        """Font codes of a screen row as text: digits, letters used on the
+        title, F flag, C club, (, # hash, * ball, < > arrows, ' ' blank
+        (and the floor code, if given); '?' for anything else."""
         names = {self.S[name]: char for char, name in self.GLYPHS.items()}
         if floor is not None:
             names[floor] = ' '
@@ -699,23 +701,26 @@ class HardwareTests(unittest.TestCase):
         base = S['SCREEN_BASE']+row*40+column
         return self.r.bus[base:base+count]
 
-    def test_summary_lists_each_player_with_a_ball_beside_the_best(self):
+    def test_summary_lists_players_by_score_under_results(self):
         self.r.call('initialise_video')
-        par = json.loads((ROOT/'assets/test-course.json').read_text()).get('par', 0)
-        self.assertEqual(S['TOTAL_PAR'], par)
-        for totals in ([61, 0, 0, 0], [123, 7, 234, 7]):
-            count = 1 if totals[1] == 0 else 4
+        cases = (
+            (1, [61, 0, 0, 0], [(1, 61)]),
+            (4, [123, 7, 234, 7], [(2, 7), (4, 7), (1, 123), (3, 234)]),
+            (4, [5, 5, 4, 9], [(3, 4), (1, 5), (2, 5), (4, 9)]),
+        )
+        column = S['SUMMARY_COLUMN']
+        first = S['SUMMARY_LIST_ROW']
+        for count, totals, order in cases:
             self.r.bus[S['totals']:S['totals']+4] = totals
             self.r.put('player_count', count)
             self.assertEqual(self.r.call_until('summary_screen', 'summary_loop'), S['summary_loop'])
             floor = self.r.get('solid_code')
-            best = min(totals[:count])
-            for p in range(count):
-                mark = '*' if totals[p] == best else ' '
-                self.assertEqual(self.r.screen_text(15+p, 14, 7, floor),
-                                 f'{mark}C{p+1}{totals[p]:>4}', totals)
-            self.assertEqual(self.r.screen_text(15+count, 14, 7, floor), ' '*7)
-            self.assertEqual(self.r.screen_text(20, 14, 8, floor), f' F  ({par:>2})')
+            self.assertEqual(self.r.screen_text(S['SUMMARY_HEAD_ROW'], column, 7, floor), 'RESULTS')
+            for row, (player, score) in enumerate(order):
+                self.assertEqual(self.r.screen_text(first+row, column, 6, floor),
+                                 f'#{player}{score:>4}', (totals, row))
+            self.assertEqual(self.r.screen_text(first+count, column, 6, floor), ' '*6, totals)
+            self.assertNotIn('F', self.r.screen_text(20, column, 8, floor))
 
     def test_game_build_plays_the_18_drafts_in_order(self):
         from course_codec import encode

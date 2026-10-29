@@ -198,9 +198,9 @@ CHARSET_BASE = $3800
 SCRATCH_BASE = $3c00         ; three cell rows of bitmap while a hole is drawn
 SCRATCH_END = $4000
 COLOR_BASE = ATTR_BASE       ; physics reads the foreground hue here
-; Charset slots. Font codes 0..33 (src/font.inc): white on black in the
+; Charset slots. Font codes 0..35 (src/font.inc): white on black in the
 ; game, black on the white floor on the title screen.
-BLANK_CHAR = 0               ; letters 1..14 (LETTER_M ...)
+BLANK_CHAR = 0               ; letters 1..14 (LETTER_M ...), S and U follow the brackets
 DIGIT_CHAR = 15              ; 0..9
 BALL_CHAR = 25
 ARROW_LEFT_CHAR = 26
@@ -208,11 +208,10 @@ ARROW_RIGHT_CHAR = 27
 FLAG_CHAR = 28
 CLUB_CHAR = 29
 PAREN_LEFT_CHAR = 30         ; opening bracket, also the HUD sum sign
-PAREN_RIGHT_CHAR = 31
-FONT_GLYPHS = 32             ; codes with 5-row glyphs, blank included
-FIGURE_CHAR = 32             ; golfer, top and bottom cell
-DYNAMIC_CHAR = 35            ; twelve cells under the ball and the aim dots
-BAR_CHAR = 47                ; eight power-bar shapes (BAR_GLYPHS)
+FONT_GLYPHS = 34             ; codes with 5-row glyphs, blank included
+FIGURE_CHAR = 34             ; golfer, top and bottom cell
+DYNAMIC_CHAR = 36            ; twelve cells under the ball and the aim dots
+BAR_CHAR = 48                ; eight power-bar shapes (BAR_GLYPHS)
 COURSE_CHAR = 64             ; up to 64 static hole patterns
 COURSE_CHAR_LIMIT = 64
 !if DYNAMIC_CHAR < FIGURE_CHAR + 2 { !error "dynamic cells overlap the font" }

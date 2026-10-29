@@ -358,7 +358,7 @@ function refresh() {
   draw();
   const { errors, segments } = validate();
   const chars = staticCharacterCount();
-  const charLimit = lastRow() > 20 ? 33 : 64;
+  const charLimit = lastRow() > 20 ? 32 : 64;
   if (chars != null && chars > charLimit) errors.push(`Zeichen: ${chars}/${charLimit}, höchstens ${charLimit}`);
   document.getElementById('checks').innerHTML = errors.length
     ? errors.slice(0, 12).map(e => `<li class="bad">${e}</li>`).join('')

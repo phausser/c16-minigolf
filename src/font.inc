@@ -2,8 +2,8 @@
 ; install_font expands it into codes 0..FONT_GLYPHS-1 (pixel rows 1..5,
 ; column 7 free; code 0 blank) and the two cells of the golfer.
 ; Codes: letters from LETTER_M, DIGIT_CHAR 0..9, then BALL_CHAR, the
-; arrows, FLAG_CHAR, CLUB_CHAR and the parentheses;
-; FIGURE_CHAR: the golfer, 8 x 16.
+; arrows, FLAG_CHAR, CLUB_CHAR, the opening bracket, LETTER_S,
+; LETTER_U and HASH_CHAR; FIGURE_CHAR: the golfer, 8 x 16.
 
 LETTER_M = 1
 LETTER_I = 2
@@ -19,6 +19,9 @@ LETTER_R = 11
 LETTER_C = 12
 LETTER_T = 13
 LETTER_E = 14
+LETTER_S = 31                ; the former closing-bracket slot
+LETTER_U = 32
+HASH_CHAR = 33               ; player mark on the results list
 font_image:
 ; M
 !byte %.#####..
@@ -200,12 +203,24 @@ font_image:
 !byte %....#...
 !byte %...#....
 !byte %..####..
-; )
-!byte %..###...
-!byte %...##...
-!byte %...##...
-!byte %...##...
-!byte %..###...
+; S
+!byte %.######.
+!byte %##......
+!byte %.#####..
+!byte %.....##.
+!byte %######..
+; U
+!byte %##...##.
+!byte %##...##.
+!byte %##...##.
+!byte %##...##.
+!byte %.#####..
+; #
+!byte %.#.#.#..
+!byte %#######.
+!byte %.#.#.#..
+!byte %#######.
+!byte %.#.#.#..
 ; golfer, top and bottom cell
 !byte %....##..
 !byte %...####.
