@@ -443,9 +443,9 @@ bar_masks:                    ; index 1..7: filled pixels from the left
 ; The ball, 5 x 5 pixels; the gap in row 1 is the highlight.
 !macro ball_mask_rows .shift, .right {
     +ball_mask_row %.###...., .shift, .right
-    +ball_mask_row %#.###..., .shift, .right
-    +ball_mask_row %#####..., .shift, .right
-    +ball_mask_row %#####..., .shift, .right
+    +ball_mask_row %#...#..., .shift, .right
+    +ball_mask_row %#...#..., .shift, .right
+    +ball_mask_row %#...#..., .shift, .right
     +ball_mask_row %.###...., .shift, .right
 }
 ball_masks:
@@ -494,8 +494,8 @@ cup_pixel_more:
 cup_rows:                     ; 7 x 7 pixels in bits 6..0, bit 7 unused
 !byte %...###..
 !byte %..#####.
-!byte %.#######
-!byte %.####..#
 !byte %.###...#
-!byte %..##..#.
+!byte %.##....#
+!byte %.##....#
+!byte %..#...#.
 !byte %...###..
