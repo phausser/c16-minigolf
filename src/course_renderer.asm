@@ -937,7 +937,7 @@ floor_ink:
 !fill 4                       ; floor, edge
 !fill 4                       ; solid, outer: lawn | $80
 lawn_ink:
-!fill 2                       ; hidden: lawn at luminance 7 and 6
+!fill 2                       ; hidden: lawn at luminance 3 and 2
 !byte WATER_DRAWN_COLOR,WATER_DRAWN_COLOR
 
 window_row:

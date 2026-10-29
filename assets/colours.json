@@ -1,23 +1,23 @@
 {
   "holes": [
-    {"name": "Gruen tonal", "floor": [6, 5], "lawn": 5},
-    {"name": "Blau-Orange komplementaer", "floor": [5, 6], "lawn": 8},
-    {"name": "Koralle-Petrol harmonisch", "floor": [7, 2], "lawn": 12},
-    {"name": "Blau tonal", "floor": [6, 6], "lawn": 6},
-    {"name": "Orange-Blau komplementaer", "floor": [5, 8], "lawn": 6},
-    {"name": "Sand-Salbei harmonisch", "floor": [7, 9], "lawn": 15},
-    {"name": "Rot tonal", "floor": [6, 2], "lawn": 2},
-    {"name": "Violett-Gelb komplementaer", "floor": [5, 4], "lawn": 7},
-    {"name": "Gold-Marine harmonisch", "floor": [5, 7], "lawn": 14},
-    {"name": "Violett tonal", "floor": [6, 4], "lawn": 4},
-    {"name": "Gelb-Violett komplementaer", "floor": [6, 7], "lawn": 4},
-    {"name": "Rosa-Bordeaux harmonisch", "floor": [7, 11], "lawn": 2},
-    {"name": "Orange tonal", "floor": [6, 8], "lawn": 8},
-    {"name": "Gruen-Magenta komplementaer", "floor": [7, 5], "lawn": 11},
-    {"name": "Creme-Oliv harmonisch", "floor": [7, 7], "lawn": 10},
-    {"name": "Tuerkis tonal", "floor": [6, 3], "lawn": 3},
-    {"name": "Magenta-Gruen komplementaer", "floor": [5, 11], "lawn": 5},
-    {"name": "Apricot-Pflaume harmonisch", "floor": [7, 8], "lawn": 4}
+    {"name": "Rot", "floor": [7, 2], "lawn": 2},
+    {"name": "Tuerkis", "floor": [7, 3], "lawn": 3},
+    {"name": "Violett", "floor": [7, 4], "lawn": 4},
+    {"name": "Gruen", "floor": [7, 5], "lawn": 5},
+    {"name": "Blau", "floor": [7, 6], "lawn": 6},
+    {"name": "Gelb", "floor": [7, 7], "lawn": 7},
+    {"name": "Orange", "floor": [7, 8], "lawn": 8},
+    {"name": "Braun", "floor": [7, 9], "lawn": 9},
+    {"name": "Oliv", "floor": [7, 10], "lawn": 10},
+    {"name": "Magenta", "floor": [7, 11], "lawn": 11},
+    {"name": "Petrol", "floor": [7, 12], "lawn": 12},
+    {"name": "Hellblau", "floor": [7, 13], "lawn": 13},
+    {"name": "Marine", "floor": [7, 14], "lawn": 14},
+    {"name": "Hellgruen", "floor": [7, 15], "lawn": 15},
+    {"name": "Rot", "floor": [7, 2], "lawn": 2},
+    {"name": "Tuerkis", "floor": [7, 3], "lawn": 3},
+    {"name": "Violett", "floor": [7, 4], "lawn": 4},
+    {"name": "Gruen", "floor": [7, 5], "lawn": 5}
   ],
-  "title": {"name": "Titel", "floor": [5, 5], "lawn": 1}
+  "title": {"name": "Titel", "floor": [7, 5], "lawn": 5}
 }
