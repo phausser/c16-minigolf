@@ -75,14 +75,22 @@ class TitleTests(unittest.TestCase):
         self.assertEqual(self.text(4, 16, 8), 'MINIGOLF')
         self.assertEqual(self.text(9, 18, 4), 'PLAY')
         self.assertEqual(self.text(16, 16, 8), 'PRACTICE')
-        figures = [13, 15, 16, 18, 19, 20, 22, 23, 24, 25]
+        # Bits 7-6 are the ECM paper: black, red, blue, yellow per seat.
+        papers = {13: 0, 15: 0, 16: 1, 18: 0, 19: 1, 20: 2, 22: 0, 23: 1, 24: 2, 25: 3}
+        floor = (6 << 4) + 5
         for column in range(40):
-            want = (S['FIGURE_CHAR'], S['FIGURE_CHAR']+1) if column in figures else None
             got = (self.code(10, column), self.code(11, column))
-            if want:
-                self.assertEqual(got, want, column)
+            if column in papers:
+                base = (papers[column] << 6) | S['FIGURE_CHAR']
+                self.assertEqual(got, (base, base+1), column)
+                attr = S['ATTR_BASE']+column
+                self.assertEqual(self.r.bus[attr+10*40], floor, column)
+                self.assertEqual(self.r.bus[attr+11*40], floor, column)
             else:
-                self.assertNotIn(S['FIGURE_CHAR'], got, column)
+                self.assertTrue(all(code < 64 for code in got), (column, got))
+                glyphs = [code & 0x3f for code in got]
+                self.assertNotIn(S['FIGURE_CHAR'], glyphs, column)
+                self.assertNotIn(S['FIGURE_CHAR']+1, glyphs, column)
         # Row 12 between the walls (columns 5 to 33).
         self.assertEqual(self.r.screen_text(12, 5, 29, self.floor), ' '*8+'*'+' '*20)
         self.assertEqual(self.holes_text(), self.holes_expected(0))
@@ -101,6 +109,25 @@ class TitleTests(unittest.TestCase):
         image = S['font_image']+(S['DIGIT_CHAR']+1)*5-5
         self.assertEqual(self.r.bus[glyph:glyph+8],
                          [255]+[b ^ 255 for b in self.r.bus[image:image+5]]+[255, 255])
+
+    def test_ecm_covers_only_the_figure_rows(self):
+        """The raster mock advances one line per read. ECM goes on at line
+        82 and back off at line 98. A call that already passed line 82
+        waits for the next frame instead of enabling it mid-screen."""
+        bus = self.r.bus
+        bus.watch = []
+        self.r.call('title_figure_colors')
+        writes = [(addr, value, line) for addr, value, line in bus.watch if addr == 0xff06]
+        self.assertEqual(writes, [(0xff06, 0x5b, self.S['ECM_ON_LINE']),
+                                  (0xff06, 0x1b, self.S['ECM_OFF_LINE'])])
+        self.assertEqual(bus[0xff06], 0x1b)
+        bus.raster = 99                 # the next read returns line 100
+        bus.watch = []
+        self.r.call('title_figure_colors')
+        writes = [(addr, value, line) for addr, value, line in bus.watch if addr == 0xff06]
+        self.assertEqual(writes, [(0xff06, 0x5b, self.S['ECM_ON_LINE']),
+                                  (0xff06, 0x1b, self.S['ECM_OFF_LINE'])])
+        self.assertEqual(bus[0xff06], 0x1b)
 
     def test_ball_moves_and_holes_slide_without_redrawing_shown_ones(self):
         S = self.S
@@ -162,6 +189,7 @@ class TitleTests(unittest.TestCase):
         self.assertEqual(self.r.bus[blank:blank+8], [0]*8)
         self.r.call('draw_status')
         self.r.assert_status(self, 1, 0, COURSES[0]['par'], 1)
+        self.assertEqual(self.r.bus[0xff06], 0x1b)
 
     def test_fire_on_a_hole_starts_practice(self):
         self.press(DOWN)

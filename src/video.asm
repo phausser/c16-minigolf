@@ -111,20 +111,21 @@ punch_done:
     rts
 
 ; A = cell row 1..20, column from PIXEL_X. FONT_PTR = the cell's dynamic
-; character, copied from its static glyph on first use. Clobbers X and Y.
+; character, copied from its static glyph on first use. Clobbers X, Y and
+; COURSE_PTR. The screen cell is the attribute row plus $400.
 dynamic_cell:
-    tax
+    jsr class_row_pointer
     lda PIXEL_X + 1
     lsr
     lda PIXEL_X
     ror
     lsr
     lsr                       ; column = x >> 3, including x >= 256
-    clc
-    adc screen_rows_lo,x
+    clc                       ; class_row_pointer can return with carry set
+    adc COURSE_PTR
     sta COPY_TARGET
-    lda screen_rows_hi,x
-    adc #0
+    lda COURSE_PTR + 1
+    adc #4                    ; SCREEN_BASE = ATTR_BASE + $400
     sta COPY_TARGET + 1       ; screen address of the cell
     ldx DYNAMIC_COUNT
     beq dynamic_alloc
@@ -209,10 +210,6 @@ restore_done:
     rts
 
 !if CHARSET_BASE & $3ff { !error "glyph address math needs a 1 KB charset" }
-screen_rows_lo:
-!for cell_row, 0, 24 { !byte <(SCREEN_BASE + cell_row * 40) }
-screen_rows_hi:
-!for cell_row, 0, 24 { !byte >(SCREEN_BASE + cell_row * 40) }
 dynamic_codes:
 !for slot, 0, MAX_DYNAMIC_CELLS - 1 { !byte DYNAMIC_CHAR + slot }
 dynamic_glyphs_lo:
@@ -226,6 +223,8 @@ scratch_hi:
 !byte >SCRATCH_BASE,>SCRATCH_BASE + 320,>SCRATCH_BASE + 640
 
 ; COURSE_PTR = COLOR_BASE + A * 40, A = cell row 0..24. X is clobbered.
+; Carry stays set when the last add crosses a page; callers that add
+; another offset have to clear it first.
 class_row_pointer:
     asl
     asl

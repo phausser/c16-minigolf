@@ -147,20 +147,18 @@ water_emit_done:
     ldy water_temp
     rts
 
-; COPY_SOURCE = screen row TEMP, COPY_TARGET = its attributes.
+; COPY_TARGET = attribute row TEMP, COPY_SOURCE = the same screen row.
 water_row_pointers:
-    ldx TEMP
-    lda screen_rows_lo,x
-    sta COPY_SOURCE
-    lda screen_rows_hi,x
-    sta COPY_SOURCE + 1
-    sec
-    lda COPY_SOURCE
-    sbc #<(SCREEN_BASE - ATTR_BASE)
+    lda TEMP
+    jsr class_row_pointer
+    lda COURSE_PTR
     sta COPY_TARGET
-    lda COPY_SOURCE + 1
-    sbc #>(SCREEN_BASE - ATTR_BASE)
+    sta COPY_SOURCE
+    lda COURSE_PTR + 1
     sta COPY_TARGET + 1
+    clc
+    adc #4                    ; SCREEN_BASE = ATTR_BASE + $400
+    sta COPY_SOURCE + 1
     rts
 
 ; Once per frame: in the first four frames of a step redraw one phase,

@@ -255,11 +255,12 @@ aim_shift_y:
     bne aim_shift_y
     rts
 
-; Status row 24 in the font, one glyph per cell. Left aligned: club and
-; player (course hue, luminance 4), strokes, the opening bracket and the
-; running total. Right aligned: flag and hole (same colour) and the par,
-; without a closing bracket. Other glyphs stay white. The power bar lies
-; between them.
+; Status row 24 in the font, one glyph per cell. The whole text takes the
+; colour of the player whose turn it is (white, red, blue, yellow). Left
+; aligned: club, player, strokes, the opening bracket and the running
+; total. Right aligned: flag, hole and the par, without a closing bracket.
+; The power bar in columns BAR_COLUMN..+BAR_CELLS-1 stays the white
+; installed by install_hud_row, so it does not vanish on a white row.
 STATUS_ROW = SCREEN_BASE + 24 * 40
 STATUS_ATTR = ATTR_BASE + 24 * 40
 STATUS_CLEAR = 12             ; cells 0..11 and 28..39 hold the texts
@@ -283,11 +284,6 @@ status_clear:
     clc
     adc #DIGIT_CHAR + 1
     sta (COPY_TARGET),y
-    lda lawn_ink              ; course hue, one step brighter than the lawn
-    clc
-    adc #$10                  ; luminance 4
-    sta STATUS_ATTR
-    sta STATUS_ATTR + 1
     iny
     iny                       ; one blank cell
     lda SHOTS
@@ -312,13 +308,23 @@ status_clear:
     jsr print_digits
     lda #FLAG_CHAR
     sta (COPY_TARGET),y
-    lda lawn_ink
-    clc
-    adc #$10                  ; luminance 4, same hue
-    sta STATUS_ATTR,y         ; flag and up to two hole digits; a 1-digit
-    sta STATUS_ATTR + 1,y     ; hole colours the blank before the par too
-    sta STATUS_ATTR + 2,y
+    ldx player
+    lda player_inks,x
+    ldx #39
+status_ink:
+    cpx #BAR_COLUMN + BAR_CELLS
+    bcs status_ink_put
+    cpx #BAR_COLUMN
+    bcs status_ink_skip
+status_ink_put:
+    sta STATUS_ATTR,x
+status_ink_skip:
+    dex
+    bpl status_ink
     rts
+
+player_inks:
+!byte HUD_FOREGROUND_COLOR, PLAYER_COLOR_RED, PLAYER_COLOR_BLUE, PLAYER_COLOR_YELLOW
 
 ; A = 0..255, written leftwards from (COPY_TARGET),Y without leading
 ; zeros; Y ends left of the number. Clobbers X.

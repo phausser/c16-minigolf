@@ -12,6 +12,12 @@ WATER_DRAWN_COLOR = (7 << 4) + 0   ; drawn with display off, until water_init
 HUD_FOREGROUND_COLOR = (7 << 4) + 1
 HUD_BACKGROUND_COLOR = (0 << 4) + 0
 BORDER_COLOR = (0 << 4) + 0
+; Status ink of players 1..3. Player 0 uses HUD_FOREGROUND_COLOR (white):
+; black would vanish on the black HUD paper. The same three bytes are the
+; ECM paper colours in $FF16-$FF18; player 0 stays $FF15, which is black.
+PLAYER_COLOR_RED = (7 << 4) + 2
+PLAYER_COLOR_BLUE = (7 << 4) + 6
+PLAYER_COLOR_YELLOW = (7 << 4) + 7
 
 ; One entry of course_inks. Water runs through the lawn colour at
 ; luminance 3, 2 and 1 (water.asm): physics tells it from the floor by the

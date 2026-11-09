@@ -45,6 +45,9 @@ class KeyboardBus(list):
         return super().__getitem__(key)
 
     def __setitem__(self, key, value):
+        watch = getattr(self, 'watch', None)
+        if watch is not None and not isinstance(key, slice):
+            watch.append((key, value & 255, self.raster))
         if key == 0xfd30:
             self.row = value
         if key == 0xff08:
@@ -121,9 +124,8 @@ class Runtime:
     def assert_status(self, test, hole, shots, par, player=1, total=None, message=None):
         """Row 24: "C<player> <shots> (<total>" from the left,
         "F<hole> <par>" ending in the last column; total defaults to shots.
-        Club, player, flag and hole number use the course hue at luminance
-        4. The rest stays the white HUD colour. A one-digit hole also
-        colours the blank before the par."""
+        The whole row uses that player's ink. The power bar stays the
+        white HUD colour."""
         total = shots if total is None else total
         player = player or 1
         left, right = f'C{player} {shots} ({total}', f'F{hole} {par}'
@@ -131,15 +133,12 @@ class Runtime:
         test.assertEqual((self.screen_text(24, 0, 12), self.screen_text(24, 28, 12)),
                          (left.ljust(12), right), message)
         attrs = self.bus[self.S['ATTR_BASE']+24*40:self.S['ATTR_BASE']+25*40]
-        ink = (self.bus[self.S['lawn_ink']] + 0x10) & 0xff
+        ink = self.bus[self.S['player_inks']+player-1]
         hud = self.S['HUD_FOREGROUND_COLOR']
-        test.assertEqual(list(attrs[0:2]), [ink, ink], message)
-        test.assertEqual(list(attrs[2:12]), [hud] * 10, message)
-        flag = 28 + right.index('F')
-        test.assertEqual(list(attrs[flag:flag+3]), [ink, ink, ink], message)
-        par_at = flag + 1 + len(str(hole)) + 1
-        for index in range(par_at, par_at + len(str(par))):
-            test.assertEqual(attrs[index], hud, (message, index))
+        bar = self.S['BAR_COLUMN']
+        want = [hud if bar <= index < bar+self.S['BAR_CELLS'] else ink
+                for index in range(40)]
+        test.assertEqual(list(attrs), want, message)
 
     def call_until(self, label, stop, limit=20000000):
         """Calls label and runs until it returns or reaches stop. Returns PC."""
@@ -246,6 +245,9 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.bus[0xff13] & 0xfc, 0x38)
         self.assertEqual(self.r.bus[0xff14] & 0xf8, 0x30)
         self.assertEqual(self.r.bus[0xff15] & 0x7f, 0)
+        self.assertEqual(self.r.bus[0xff16] & 0x7f, S['PLAYER_COLOR_RED'])
+        self.assertEqual(self.r.bus[0xff17] & 0x7f, S['PLAYER_COLOR_BLUE'])
+        self.assertEqual(self.r.bus[0xff18] & 0x7f, S['PLAYER_COLOR_YELLOW'])
         self.assertEqual(self.r.bus[0xff19] & 0x7f, S['BORDER_COLOR'])
         self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1024], [S['BLANK_CHAR']]*1024)
         self.assertEqual(self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+1024], [S['HUD_FOREGROUND_COLOR']]*1024)
@@ -838,6 +840,9 @@ class HardwareTests(unittest.TestCase):
             self.r.call('draw_status')
             self.r.assert_status(self, hole+1, shots, par, 1, shots, (hole, shots))
         # Several players: whose turn it is and their running total.
+        self.assertEqual(list(self.r.bus[S['player_inks']:S['player_inks']+4]), [
+            S['HUD_FOREGROUND_COLOR'], S['PLAYER_COLOR_RED'],
+            S['PLAYER_COLOR_BLUE'], S['PLAYER_COLOR_YELLOW']])
         self.r.bus[S['totals']:S['totals']+4] = [10, 99, 0, 221]
         self.r.put('player_count', 4)
         for player, shots in ((3, 13), (1, 1), (0, 12), (3, 0)):

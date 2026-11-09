@@ -13,6 +13,13 @@ PREVIEW_BLOCK = 5 * 3
 TITLE_CHAR_LIMIT = PREVIEW_CHAR - TITLE_CHAR
 !if PREVIEW_CHAR + PREVIEW_BLOCKS * PREVIEW_BLOCK > 128 { !error "previews exceed the charset" }
 !if TITLE_CHAR < FIGURE_CHAR + 2 { !error "the title frame overlaps the font" }
+!if FIGURE_CHAR & 1 { !error "the figure's second cell is FIGURE_CHAR or 1" }
+!if FIGURE_CHAR >= 64 { !error "the figure must fit ECM's 64 characters" }
+; Y-scroll is 3 ($FF06 = $1B): character row N is fetched on TED line
+; 3+8*N. Row 10 at line 83, row 12 at line 99. ECM covers line 82 through
+; line 98, and is off before those two fetches.
+ECM_ON_LINE = 82
+ECM_OFF_LINE = 98
 TITLE_LAST_ROW = 23           ; the title course reaches down to row 23
 HEADER = SCREEN_BASE + 4 * 40 + 16
 FIGURE_ROW = SCREEN_BASE + 10 * 40   ; and the row below, then the ball
@@ -30,10 +37,14 @@ title_screen:
     jsr draw_title_frame
     ldx #9
 title_figures:
-    ldy figure_columns,x
-    lda #FIGURE_CHAR
+    lda figure_columns,x
+    and #$3f
+    tay
+    lda figure_columns,x
+    and #$c0                  ; ECM paper in bits 7-6
+    ora #FIGURE_CHAR
     sta FIGURE_ROW,y
-    lda #FIGURE_CHAR + 1
+    ora #1                    ; second cell, same paper
     sta FIGURE_ROW + 40,y
     dex
     bpl title_figures
@@ -53,6 +64,7 @@ title_forget:
     lda #$1b
     sta TED_CONTROL1
 title_loop:
+    jsr title_figure_colors
     jsr menu_input
     lsr
     bcs title_left
@@ -187,6 +199,28 @@ title_clear_font:
     jsr install_hud_row
     jsr start_hole
     jmp main_loop
+
+; ECM ($5B) only while rows 10 and 11 are fetched, then text mode ($1B)
+; again. The low raster byte wraps at 256, same as wait_for_frame. A call
+; that already missed line ECM_ON_LINE waits for the next frame instead of
+; turning ECM on over the preview.
+title_figure_colors:
+    lda TED_RASTER_LO
+    cmp #ECM_ON_LINE
+    bcs title_figure_colors
+title_figure_low:
+    lda TED_RASTER_LO
+    cmp #ECM_ON_LINE
+    bcc title_figure_low
+    lda #$5b
+    sta TED_CONTROL1
+title_figure_off:
+    lda TED_RASTER_LO
+    cmp #ECM_OFF_LINE
+    bcc title_figure_off
+    lda #$1b
+    sta TED_CONTROL1
+    rts
 
 ; One menu frame. A = the keys pressed in it.
 menu_input:
@@ -526,9 +560,10 @@ summary_head:
     !byte LETTER_R, LETTER_E, LETTER_S, LETTER_U, LETTER_L, LETTER_T, LETTER_S, $ff
     !byte 0, 0
 ; Golfers in groups of one to four, one cell apart; the ball below each
-; group's middle.
+; group's middle. Bits 7-6 are the ECM paper (0 black, 1 red, 2 blue,
+; 3 yellow); bits 5-0 are the column. Each group reads left to right.
 figure_columns:
-!byte 13, 15, 16, 18, 19, 20, 22, 23, 24, 25
+!byte 13, 15, 16|$40, 18, 19|$40, 20|$80, 22, 23|$40, 24|$80, 25|$c0
 player_ball_columns:
 !byte 13, 15, 19, 23
 ; First column of each shown outline, one cell between them. Below it the
