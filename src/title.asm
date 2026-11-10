@@ -18,17 +18,14 @@ TITLE_CHAR_LIMIT = PREVIEW_CHAR - TITLE_CHAR
 !if FIGURE_CHAR >= 64 { !error "the figure must fit ECM's 64 characters" }
 ; Y-scroll is 3 ($FF06 = $1B). Row N's colour fetch is TED line 3+8*N
 ; and its eight pixels start on line 4+8*N. The figure is rows 10 and 11,
-; pixels 84..99. ECM is on for all sixteen ($5B at 82, $1B at 100, before
-; row 12). $FF16-$FF18 are black on the head (84..87) and the legs
-; (93..99), and the player inks on the shirt (88..92). $FF15 stays black.
-ECM_ON_LINE = 82
-FIGURE_LINE = 84
-SHIRT_LINE = 88
-LEGS_LINE = 93
+; pixels 84..99. ECM is on from ECM_ON_LINE to ECM_OFF_LINE. $FF16-$FF18
+; take FIGURE_COLOR_1..3 from SHIRT_LINE, so the whole figure is that
+; colour. $FF15 stays black.
+ECM_ON_LINE = 80
+FIGURE_LINE = 80
+SHIRT_LINE = 82
+LEGS_LINE = 100
 ECM_OFF_LINE = 100
-!if SHIRT_LINE - FIGURE_LINE != 4 { !error "the head is four pixels" }
-!if LEGS_LINE - SHIRT_LINE != 5 { !error "the shirt is five pixels" }
-!if ECM_OFF_LINE - LEGS_LINE != 7 { !error "the legs are seven pixels" }
 TITLE_LAST_ROW = 23           ; the title course reaches down to row 23
 HEADER = SCREEN_BASE + 4 * 40 + 16
 FIGURE_ROW = SCREEN_BASE + 10 * 40   ; and the row below, then the ball
@@ -212,8 +209,8 @@ title_clear_font:
 ; ECM ($5B) while the sixteen figure pixels are drawn, then text mode
 ; ($1B) before row 12. The low raster byte wraps at 256, same as
 ; wait_for_frame. A call that already missed line ECM_ON_LINE waits for
-; the next frame instead of turning ECM on over the preview. Head and
-; legs use black paper; the shirt uses the three player inks.
+; the next frame instead of turning ECM on over the preview. The three
+; figure colours cover the whole golfer. Black paper is only outside it.
 title_figure_colors:
     lda TED_RASTER_LO
     cmp #ECM_ON_LINE
@@ -230,13 +227,14 @@ title_shirt:
     cmp #SHIRT_LINE
     bcc title_shirt
     ; Immediate and inline. The wait leaves at cycle 25 of this line;
-    ; a jsr to the absolute loads stored yellow at cycle 55, after that
-    ; golfer had already been drawn. These finish yellow at cycle 43.
-    lda #PLAYER_COLOR_RED
+    ; a jsr to the absolute loads would store the third colour at cycle 55,
+    ; after that golfer had already been drawn. These finish at cycle 43.
+    ; Same bytes as player_inks + 1..3.
+    lda #FIGURE_COLOR_1
     sta TED_COLOR1
-    lda #PLAYER_COLOR_BLUE
+    lda #FIGURE_COLOR_2
     sta TED_COLOR2
-    lda #PLAYER_COLOR_YELLOW
+    lda #FIGURE_COLOR_3
     sta TED_COLOR3
 title_legs:
     lda TED_RASTER_LO

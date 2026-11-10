@@ -14,7 +14,7 @@ initialise_video:
     sta TED_VIDEO
     lda #0
     sta TED_BACKGROUND
-    ldx #2                    ; ECM paper: red, blue, yellow. $FF15 stays black.
+    ldx #2                    ; ECM paper: FIGURE_COLOR_1..3. $FF15 stays black.
 init_player_paper:
     lda player_inks + 1,x
     sta TED_COLOR1,x

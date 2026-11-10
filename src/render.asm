@@ -256,7 +256,7 @@ aim_shift_y:
     rts
 
 ; Status row 24 in the font, one glyph per cell. The whole text takes the
-; colour of the player whose turn it is (white, red, blue, yellow). Left
+; colour of the player whose turn it is (white, then FIGURE_COLOR_1..3). Left
 ; aligned: club, player, strokes, the opening bracket and the running
 ; total. Right aligned: flag, hole and the par, without a closing bracket.
 ; The power bar in columns BAR_COLUMN..+BAR_CELLS-1 stays the white
@@ -324,7 +324,7 @@ status_ink_skip:
     rts
 
 player_inks:
-!byte HUD_FOREGROUND_COLOR, PLAYER_COLOR_RED, PLAYER_COLOR_BLUE, PLAYER_COLOR_YELLOW
+!byte HUD_FOREGROUND_COLOR, FIGURE_COLOR_1, FIGURE_COLOR_2, FIGURE_COLOR_3
 
 ; A = 0..255, written leftwards from (COPY_TARGET),Y without leading
 ; zeros; Y ends left of the number. Clobbers X.

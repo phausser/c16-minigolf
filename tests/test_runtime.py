@@ -248,9 +248,9 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.r.bus[0xff13] & 0xfc, 0x38)
         self.assertEqual(self.r.bus[0xff14] & 0xf8, 0x30)
         self.assertEqual(self.r.bus[0xff15] & 0x7f, 0)
-        self.assertEqual(self.r.bus[0xff16] & 0x7f, S['PLAYER_COLOR_RED'])
-        self.assertEqual(self.r.bus[0xff17] & 0x7f, S['PLAYER_COLOR_BLUE'])
-        self.assertEqual(self.r.bus[0xff18] & 0x7f, S['PLAYER_COLOR_YELLOW'])
+        self.assertEqual(self.r.bus[0xff16] & 0x7f, S['FIGURE_COLOR_1'])
+        self.assertEqual(self.r.bus[0xff17] & 0x7f, S['FIGURE_COLOR_2'])
+        self.assertEqual(self.r.bus[0xff18] & 0x7f, S['FIGURE_COLOR_3'])
         self.assertEqual(self.r.bus[0xff19] & 0x7f, S['BORDER_COLOR'])
         self.assertEqual(self.r.bus[S['SCREEN_BASE']:S['SCREEN_BASE']+1024], [S['BLANK_CHAR']]*1024)
         self.assertEqual(self.r.bus[S['ATTR_BASE']:S['ATTR_BASE']+1024], [S['HUD_FOREGROUND_COLOR']]*1024)
@@ -844,8 +844,8 @@ class HardwareTests(unittest.TestCase):
             self.r.assert_status(self, hole+1, shots, par, 1, shots, (hole, shots))
         # Several players: whose turn it is and their running total.
         self.assertEqual(list(self.r.bus[S['player_inks']:S['player_inks']+4]), [
-            S['HUD_FOREGROUND_COLOR'], S['PLAYER_COLOR_RED'],
-            S['PLAYER_COLOR_BLUE'], S['PLAYER_COLOR_YELLOW']])
+            S['HUD_FOREGROUND_COLOR'], S['FIGURE_COLOR_1'],
+            S['FIGURE_COLOR_2'], S['FIGURE_COLOR_3']])
         self.r.bus[S['totals']:S['totals']+4] = [10, 99, 0, 221]
         self.r.put('player_count', 4)
         for player, shots in ((3, 13), (1, 1), (0, 12), (3, 0)):

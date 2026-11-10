@@ -159,22 +159,25 @@ class TitleTests(unittest.TestCase):
                          [255]+[b ^ 255 for b in self.r.bus[image:image+5]]+[255, 255])
 
     def test_ecm_covers_only_the_figure_rows(self):
-        """The raster mock advances one line per read. ECM goes on at line
-        82 and back off at line 100. Papers are black on the head and the
-        legs, and the player inks on the five shirt lines. A call that
-        already passed line 82 waits for the next frame instead of
-        enabling ECM mid-screen."""
+        """The raster mock advances one line per read. ECM goes on at
+        ECM_ON_LINE. Papers are black until SHIRT_LINE, then the three
+        figure colours, then black again at LEGS_LINE. A call that
+        already passed ECM_ON_LINE waits for the next frame instead of
+        enabling ECM mid-screen. The legs wait consumes its line, so
+        when LEGS_LINE and ECM_OFF_LINE are the same the off wait's
+        read is the next mock line."""
         bus = self.r.bus
         inks = [bus[self.S['player_inks'] + 1 + index] for index in range(3)]
         on, shirt, legs, off = (self.S['ECM_ON_LINE'], self.S['SHIRT_LINE'],
                                 self.S['LEGS_LINE'], self.S['ECM_OFF_LINE'])
+        off_line = off if off != legs else (legs + 1) % 312 & 255
 
         def papers(line, values):
             return [(0xff16 + index, values[index], line) for index in range(3)]
 
         expected = ([(0xff06, 0x5b, on)] + papers(on, (0, 0, 0))
                     + papers(shirt, inks) + papers(legs, (0, 0, 0))
-                    + [(0xff06, 0x1b, off)] + papers(off, inks))
+                    + [(0xff06, 0x1b, off_line)] + papers(off_line, inks))
         bus.watch = []
         self.r.call('title_figure_colors')
         writes = [(addr, value, line) for addr, value, line in bus.watch
