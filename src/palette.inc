@@ -21,7 +21,7 @@ BORDER_COLOR = (0 << 4) + 0
 ; Luminance is 0..7, hue is 0..15 (0 black, 1 white, 2 red, 6 blue, 7 yellow).
 FIGURE_COLOR_1 = (3 << 4) + 2
 FIGURE_COLOR_2 = (4 << 4) + 6
-FIGURE_COLOR_3 = (5 << 4) + 3
+FIGURE_COLOR_3 = (3 << 4) + 5
 
 ; Water runs through the lawn colour at luminance 3, 2 and 1
 ; (water.asm). Physics tells water from the floor by the whole ink.

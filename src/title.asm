@@ -1,16 +1,18 @@
 ; Title menu shaped like a course, black glyphs on the floor colour:
-; MINIGOLF, one to four golfers, the four surfaces, three holes as 16x8
-; silhouettes, the ranges 1-18, 1-9 and 10-18, and PLAY at the bottom.
-; The playable interior is black; set bits keep the cell's floor colour.
-; No cup and no obstacles. The hollow ball marks the row left and right
-; change. A filled ball stays under the chosen player count, surface and
-; course. Up and down switch the row, fire on PLAY starts. Hole h
-; is drawn in block h mod 4: the three shown and the next one in the
-; direction of the last slide. A hole that is not ready is drawn into
-; its block while that block is not shown, so the row never shows drawing.
+; MINIGOLF, one to four golfers, the four surfaces, then one course line:
+; 1-18, 1-9, 10-18 and four holes. Each hole is a 16x8 silhouette under
+; its number. PLAY sits at the bottom. The playable interior is black;
+; set bits keep the cell's floor colour. No cup and no obstacles. The
+; hollow ball marks the row left and right change. A filled ball stays
+; under the chosen player count, surface and course. Up and down switch
+; the row, fire on PLAY starts. Hole h is drawn in block h mod 5: the
+; four shown and the next one in the direction of the last slide. A hole
+; that is not ready is drawn into its block while that block is not
+; shown, so the row never shows drawing.
 TITLE_CHAR = 36               ; title frame from here on (intern_pattern)
-PREVIEW_CHAR = 68             ; four 16 x 8 pictures, two cells each
-PREVIEW_BLOCKS = 4
+PREVIEW_CHAR = 68             ; 16 x 8 pictures, two cells each
+PREVIEW_BLOCKS = 5            ; four on the course line, one drawn while off it
+VISIBLE_HOLES = 4
 PREVIEW_BLOCK = 2
 ; B, D and the dash sit above the bar, so the frame must stop there.
 TITLE_CHAR_LIMIT = LETTER_B - TITLE_CHAR
@@ -19,30 +21,30 @@ TITLE_CHAR_LIMIT = LETTER_B - TITLE_CHAR
 !if FIGURE_CHAR & 1 { !error "the figure's second cell is FIGURE_CHAR or 1" }
 !if FIGURE_CHAR >= 64 { !error "the figure must fit ECM's 64 characters" }
 ; Y-scroll is 3 ($FF06 = $1B). Row N's colour fetch is TED line 3+8*N
-; and its eight pixels start on line 4+8*N. The figure is rows 10 and 11,
-; pixels 84..99. ECM is on from ECM_ON_LINE to ECM_OFF_LINE. $FF16-$FF18
+; and its eight pixels start on line 4+8*N. The figure is rows 9 and 10,
+; pixels 76..91. ECM is on from ECM_ON_LINE to ECM_OFF_LINE. $FF16-$FF18
 ; take FIGURE_COLOR_1..3 from SHIRT_LINE, so the whole figure is that
 ; colour. $FF15 stays black.
-ECM_ON_LINE = 80
-FIGURE_LINE = 80
-SHIRT_LINE = 82
-LEGS_LINE = 100
-ECM_OFF_LINE = 100
+ECM_ON_LINE = 72
+FIGURE_LINE = 72
+SHIRT_LINE = 74
+LEGS_LINE = 92
+ECM_OFF_LINE = 92
 TITLE_LAST_ROW = 23           ; the title course reaches down to row 23
 HEADER = SCREEN_BASE + 4 * 40 + 16
-FIGURE_ROW = SCREEN_BASE + 10 * 40   ; and the row below, then the ball
-SURFACE_ROW = SCREEN_BASE + 14 * 40
+FIGURE_ROW = SCREEN_BASE + 9 * 40    ; and the row below, then the ball
+SURFACE_ROW = SCREEN_BASE + 13 * 40
 SURFACE_COLUMN = 8
-RANGE_ROW = SCREEN_BASE + 16 * 40
-RANGE_COLUMN = 11
-PREVIEW_ROW = SCREEN_BASE + 18 * 40  ; pictures; the arrows share this row
+RANGE_ROW = SCREEN_BASE + 16 * 40    ; 1-18, 1-9, 10-18 and the four numbers
+RANGE_COLUMN = 6
+PREVIEW_ROW = SCREEN_BASE + 18 * 40  ; pictures under the numbers; arrows too
 HOLE_ROW = PREVIEW_ROW
-NUMBER_ROW = PREVIEW_ROW + 40        ; ball and number below each picture
+NUMBER_ROW = RANGE_ROW               ; the numbers share the range line
 PLAY_ROW = SCREEN_BASE + 20 * 40
 PLAY_COLUMN = 18
 PLAY_BALL_COLUMN = 19
-ARROW_LEFT_COLUMN = 9
-ARROW_RIGHT_COLUMN = 29
+ARROW_LEFT_COLUMN = 19
+ARROW_RIGHT_COLUMN = 33
 MENU_SURFACE = 1
 MENU_COURSE = 2
 MENU_PLAY = 3
@@ -58,8 +60,8 @@ title_forget:
     sta block_holes,x
     dex
     bpl title_forget
-    lda #3
-    sta window_ahead          ; ready the hole right of the row
+    lda #VISIBLE_HOLES
+    sta window_ahead          ; ready the hole just off the right
     jsr title_paint
 title_loop:
     jsr title_figure_colors
@@ -170,16 +172,12 @@ title_ball_hole:
     tax
     pla
     ldy slot_columns,x
-    ldx practice_hole
-    cpx #9
-    bcc title_ball_store      ; one digit: blank is the picture's left cell
-    dey                       ; two digits: blank is the cell left of it
-title_ball_store:
-    sta NUMBER_ROW,y
+    iny                       ; under the ones digit, same row as the ranges
+    sta RANGE_ROW + 40,y
     rts
 
 ; course_pick 0..2 is 1-18, 1-9, 10-18. From 3 on it is one hole.
-; That hole stays inside the three pictures.
+; That hole stays inside the four numbers on the course line.
 course_follow:
     lda course_pick
     cmp #3
@@ -188,7 +186,7 @@ course_follow:
     sta practice_hole
     lda window_first
     clc
-    adc #2
+    adc #VISIBLE_HOLES - 1
     cmp practice_hole
     bcc course_follow_right
     lda practice_hole
@@ -200,9 +198,9 @@ course_follow:
 course_follow_right:
     lda practice_hole
     sec
-    sbc #2
+    sbc #VISIBLE_HOLES - 1
     sta window_first
-    lda #3
+    lda #VISIBLE_HOLES
 course_follow_slide:
     sta window_ahead
     jsr title_window
@@ -261,7 +259,7 @@ title_clear_font:
     jmp main_loop
 
 ; ECM ($5B) while the sixteen figure pixels are drawn, then text mode
-; ($1B) before row 12. The low raster byte wraps at 256, same as
+; ($1B) before row 11. The low raster byte wraps at 256, same as
 ; wait_for_frame. A call that already missed line ECM_ON_LINE waits for
 ; the next frame instead of turning ECM on over the preview. The three
 ; figure colours cover the whole golfer. Black paper is only outside it.
@@ -328,11 +326,12 @@ menu_input:
     lda KEY_ACTIONS
     rts
 
-; Shows holes window_first..+2 from their blocks, with numbers and
-; arrows, then draws window_first + window_ahead (3 or -1) out of sight.
+; Shows holes window_first..+3 from their blocks, with numbers on the
+; course line and arrows, then draws window_first + window_ahead
+; (4 or -1) out of sight.
 title_window:
-    lda #2
-    sta POINT_INDEX           ; slot 2..0
+    lda #VISIBLE_HOLES - 1
+    sta POINT_INDEX           ; slot 3..0
 title_window_slot:
     lda window_first
     clc
@@ -358,7 +357,7 @@ title_window_codes:           ; carry stays clear: codes < 128
     ldx POINT_INDEX
     lda slot_columns,x
     clc
-    adc #1                    ; ones digit on the picture's right cell
+    adc #1                    ; ones digit; the column before it stays empty
     tay
     lda window_first
     sec                       ; numbers count from 1
@@ -376,7 +375,7 @@ title_arrow_left:
     ldx #BLANK_CHAR
     lda window_first
     clc
-    adc #3
+    adc #VISIBLE_HOLES
     cmp #COURSE_COUNT
     bcs title_arrow_right
     ldx #ARROW_RIGHT_CHAR
@@ -386,14 +385,18 @@ title_arrow_right:
     clc
     adc window_ahead          ; $ff left of hole 1: none
 
-; A = hole. Draws it into block hole mod 4 unless it is there already.
+; A = hole. Draws it into block hole mod 5 unless it is there already.
 ; Returns X = the block, or X = PREVIEW_BLOCKS without such a hole.
 preview_hole:
     ldx #PREVIEW_BLOCKS
     cmp #COURSE_COUNT
     bcs preview_hole_done
     sta TEMP
-    and #PREVIEW_BLOCKS - 1
+    sec
+preview_block:
+    sbc #PREVIEW_BLOCKS
+    bcs preview_block
+    adc #PREVIEW_BLOCKS
     tax
     lda TEMP
     cmp block_holes,x
@@ -826,8 +829,8 @@ title_labels:
     !byte LETTER_E, LETTER_R, LETTER_D, LETTER_E, 0, 0
     !byte LETTER_G, LETTER_U, LETTER_M, LETTER_M, LETTER_I, $ff
     !word RANGE_ROW + RANGE_COLUMN
-    !byte DIGIT_CHAR + 1, DASH_CHAR, DIGIT_CHAR + 1, DIGIT_CHAR + 8, 0, 0, 0
-    !byte DIGIT_CHAR + 1, DASH_CHAR, DIGIT_CHAR + 9, 0, 0, 0
+    !byte DIGIT_CHAR + 1, DASH_CHAR, DIGIT_CHAR + 1, DIGIT_CHAR + 8, 0
+    !byte DIGIT_CHAR + 1, DASH_CHAR, DIGIT_CHAR + 9, 0
     !byte DIGIT_CHAR + 1, DIGIT_CHAR, DASH_CHAR, DIGIT_CHAR + 1, DIGIT_CHAR + 8, $ff
     !word PLAY_ROW + PLAY_COLUMN
     !byte LETTER_P, LETTER_L, LETTER_A, LETTER_Y, $ff
@@ -843,14 +846,15 @@ figure_columns:
 !byte 13, 15, 16|$40, 18, 19|$40, 20|$80, 22, 23|$40, 24|$80, 25|$c0
 player_ball_columns:
 !byte 13, 15, 19, 23
-; First column of each picture. The number is right-aligned under the
-; two cells; the ball replaces the blank just left of the number.
+; Tens column of each number, and the picture's left cell under it.
+; The ones digit is the next column. The ball sits on the row below it.
+; The column before the tens digit stays blank.
 slot_columns:
-!byte 12, 18, 24
+!byte 21, 24, 27, 30
 surface_ball_columns:
 !byte 10, 16, 22, 29
 range_ball_columns:
-!byte 12, 19, 26
+!byte 7, 12, 17
 range_first:
 !byte 0, 0, 9
 range_last:
@@ -879,8 +883,8 @@ window_first:                 ; first hole shown
 !byte 0
 block_holes:                  ; hole drawn in each block, $ff: none
 !fill PREVIEW_BLOCKS, $ff
-window_ahead:                 ; 3 after sliding right, $ff after sliding left
-!byte 3
+window_ahead:                 ; VISIBLE_HOLES after sliding right, $ff after sliding left
+!byte VISIBLE_HOLES
 hole_last:                    ; first hole that is not in this round
 !byte COURSE_COUNT
 player_count:
