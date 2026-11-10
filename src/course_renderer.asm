@@ -62,13 +62,15 @@ draw_hidden_done:
     lda #$22                  ; red border: the course-character budget overflowed
     sta TED_BORDER
 draw_course_done:
+    ; The scratch bitmap overlaps square_hi and is stored now.
+    jsr build_square_lo
     ; Fall through: obstacles get the floor colour.
 
 ; Solid and outer cells are emitted with bit 7 set: lawn not reached yet.
 ; Lawn reaches them in orthogonal steps from the hidden rows, sweeping
 ; forwards and backwards until nothing changes; what stays unreached lies
 ; inside an obstacle and takes the floor colour in a last sweep. Reached
-; lawn is darker than floor and drawn water (hole_inks).
+; lawn is darker than floor and drawn water.
 !if (WATER_DRAWN_COLOR & $70) <= LAWN_LUMINANCE << 4 { !error "drawn water would count as lawn" }
 !if <ATTR_BASE != 0 { !error "the backward sweep needs a page-aligned ATTR_BASE" }
 whiten_obstacles:

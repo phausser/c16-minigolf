@@ -57,6 +57,10 @@ def validate_hazards(course):
         x, y = course[key]
         if (y//8, x//8) in cells:
             raise ValueError(f'{key} lies in water')
+    # 4 phases * (LDA #, LDA #, RTS) + STA absolute per cell. The program
+    # lives at $3C40 and must end before square_hi at $3F00 (src/memory.inc).
+    if 20 + 3 * len(cells) > 0x3F00 - 0x3C40:
+        raise ValueError('water colour program overlaps square_hi')
 
 
 MIN_PASSAGE = 10
@@ -172,26 +176,34 @@ def expanded_segments(course):
     return encoded
 
 
-def course_colours(hole=None):
-    """Inks of a hole (0-based; None: the title) from assets/colours.json.
+def surface_colours():
+    """The four title choices, in menu order: Beton, Gras, Erde, Gummi.
 
-    Floor and lawn share a hue other than black or gray. The floor is
-    luminance 7; the lawn checker is luminance 3 and 2. The title is the
-    exception: light green floor, darker green lawn.
+    Floor and lawn share a hue. The lawn checker is luminance 3 and 2.
+    The floor is brighter than the lawn and at least luminance 4, so the
+    obstacle sweep does not treat it as lawn. Hue 1 at luminance 7 is
+    white, so Beton stays at luminance 5. Gras is the default round.
     """
-    entry = json.loads((ROOT/'assets/colours.json').read_text())
-    entry = entry['title'] if hole is None else entry['holes'][hole]
-    luminance, hue = entry['floor']
-    lawn_hue = entry['lawn']
-    if hole is None:
-        if (luminance, hue, lawn_hue) != (6, 5, 5):
-            raise ValueError(f'{entry.get("name")} needs light green on darker green')
-    elif luminance != 7 or lawn_hue != hue or not 2 <= hue <= 15:
-        raise ValueError(
-            f'{entry.get("name")} needs floor luminance 7 and the same hue 2..15')
-    lawn = 0x30 | lawn_hue
-    return {'COURSE_SURFACE_COLOR': luminance << 4 | hue,
-            'CHECKER_COLOR_EVEN': lawn, 'CHECKER_COLOR_ODD': lawn-0x10}
+    entries = json.loads((ROOT/'assets/colours.json').read_text())['surfaces']
+    if [entry['name'] for entry in entries] != ['Beton', 'Gras', 'Erde', 'Gummi']:
+        raise ValueError('surface order is Beton, Gras, Erde, Gummi')
+    colours = []
+    for entry in entries:
+        luminance, hue = entry['floor']
+        lawn_hue = entry['lawn']
+        if lawn_hue != hue or hue == 0 or not 4 <= luminance <= 7:
+            raise ValueError(f'{entry["name"]} needs one hue and a brighter floor')
+        if hue == 1 and luminance >= 7:
+            raise ValueError(f'{entry["name"]} would be white')
+        lawn = 0x30 | lawn_hue
+        colours.append({'COURSE_SURFACE_COLOR': luminance << 4 | hue,
+                        'CHECKER_COLOR_EVEN': lawn, 'CHECKER_COLOR_ODD': lawn-0x10})
+    return colours
+
+
+def course_colours(hole=None):
+    """Inks a round actually draws. The reference uses Gras, surface 1."""
+    return surface_colours()[1]
 
 
 # Course glyphs occupy chars 64..95. Chars 96..127 are square_lo.
@@ -222,12 +234,12 @@ def generate(test=False):
         lines.append(bytes_section(f'course_data_{i}', data))
     lines.append('course_table_lo:\n!byte ' + ','.join(f'<course_data_{i}' for i in range(len(packed))))
     lines.append('course_table_hi:\n!byte ' + ','.join(f'>course_data_{i}' for i in range(len(packed))))
-    inks = [course_colours(i) for i in range(len(courses))]+[course_colours()]
-    ink_lines = [
-        f"+{'title_inks' if i == len(inks) - 1 else 'hole_inks'} "
-        f"${c['COURSE_SURFACE_COLOR']:02x}, ${c['CHECKER_COLOR_EVEN']:02x}"
-        for i, c in enumerate(inks)]
-    lines.append('course_inks:                  ; floor, lawn per entry\n' + '\n'.join(ink_lines))
+    colours = surface_colours()
+    lines.append('surface_floor:\n!byte ' + ','.join(
+        f"${c['COURSE_SURFACE_COLOR']:02x}" for c in colours))
+    lines.append('surface_lawn:\n!byte ' + ','.join(
+        f"${c['CHECKER_COLOR_EVEN']:02x}" for c in colours))
+    lines.append('GRAS_SURFACE = 1')
     lines.append(bytes_section('course_par', [c.get('par', 0) for c in courses]))
     quarter = [round(math.cos(i*math.tau/128)*256) for i in range(33)]
     lines += [bytes_section('unit_cos_lo',quarter), bytes_section('unit_cos_hi',[v>>8 for v in quarter])]

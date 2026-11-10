@@ -603,7 +603,6 @@ class HardwareTests(unittest.TestCase):
         self.r.bus[S['totals']:S['totals']+4] = [0]*4
         self.r.put('player_count', 3)
         self.r.put('player', 0)
-        self.r.put('practice', 0)
         self.r.put('HOLE', 0)
         self.r.call('initialise_state')
         self.assertEqual(self.hole_out(3), 'game')
@@ -620,22 +619,24 @@ class HardwareTests(unittest.TestCase):
         self.assertEqual(self.totals(), [3, 5, 13, 0])
         self.assertEqual(self.r.get('HOLE'), S['COURSE_COUNT'])
 
-    def test_practice_returns_to_the_menu_without_scoring(self):
+    def test_one_hole_round_scores_and_ends(self):
         self.r.call('initialise_video')
         self.r.bus[S['totals']:S['totals']+4] = [0]*4
         self.r.put('player_count', 1)
-        self.r.put('practice', 1)
+        self.r.put('player', 0)
+        self.r.put('HOLE', 4)
+        self.r.put('hole_last', 5)
         self.r.put('HOLED', 1)
+        self.r.put('SHOTS', 3)
         self.r.put('FIRE_LOCK', 0)
         self.r.put('KEY_PREVIOUS', 32)
-        self.assertEqual(self.r.call_until('apply_controls', 'title_screen'), S['title_screen'])
-        self.assertEqual(self.totals(), [0]*4)
+        self.assertEqual(self.r.call_until('apply_controls', 'summary_screen'), S['summary_screen'])
+        self.assertEqual(self.totals(), [3, 0, 0, 0])
 
     def test_holed_fire_waits_for_release_on_the_next_player(self):
         self.r.call('initialise_video')
         self.r.put('player_count', 2)
         self.r.put('player', 0)
-        self.r.put('practice', 0)
         self.tick(0)
         self.tick(0)
         self.r.put('HOLED',1)

@@ -197,8 +197,9 @@ Der Vergleich mit der Referenz hat im Kern gefunden und behoben:
 Damit das Zeitbudget hält, rechnet `multiply_fraction` das 8×8-Produkt über
 eine Quadrattabelle (ab = (a² + b² − (a − b)²)/2, `square_lo/hi` mit 256
 Einträgen). `square_lo` liegt im freien Bahnzeichensatz (Zeichen 96–127,
-seitenausgerichtet) und wird beim Lochstart erzeugt; `square_hi` bleibt
-im Programm. Kontaktbilder werden dadurch 1100–1700 Zyklen schneller,
+seitenausgerichtet). `square_hi` liegt seitenausgerichtet auf $3F00 und
+wird mit `square_lo` erzeugt, nachdem das Bahnbild den Scratch verlassen
+hat. Kontaktbilder werden dadurch 1100–1700 Zyklen schneller,
 und die Normierung der Eckennormale ist bezahlt.
 
 ## Grenzen

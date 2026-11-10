@@ -240,3 +240,17 @@ font_image:
 !byte %.###.##.
 font_image_end:
 !if font_image_end - font_image != (FONT_GLYPHS - 1) * 5 + 16 { !error "font image does not match FONT_GLYPHS" }
+!if LETTER_B < BAR_CHAR + 8 { !error "menu letters overlap the power bar" }
+!if LETTER_B + MENU_GLYPHS > COURSE_CHAR { !error "menu letters overlap course glyphs" }
+; Title cells for B, D and the dash. Row 0 and rows 6..7 stay floor
+; ($ff). Rows 1..5 are the letter with the source bits cleared.
+menu_glyphs:
+; B
+!byte $ff, $ff XOR %.#####.., $ff XOR %##...##., $ff XOR %######..
+!byte $ff XOR %##...##., $ff XOR %.#####.., $ff, $ff
+; D
+!byte $ff, $ff XOR %######.., $ff XOR %##...##., $ff XOR %##...##.
+!byte $ff XOR %##...##., $ff XOR %######.., $ff, $ff
+; -
+!byte $ff, $ff, $ff, $ff XOR %.#####.., $ff, $ff, $ff, $ff
+!if * - menu_glyphs != MENU_GLYPHS * 8 { !error "menu glyphs are not three cells" }

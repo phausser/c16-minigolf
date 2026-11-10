@@ -70,24 +70,35 @@ square_q:
     sta M_PRODUCT + 3
     rts
 
-; Low bytes of 0^2..255^2 at square_lo (charset chars 96..127).
-; (n+1)^2 = n^2 + 2*n + 1. Page aligned, so the indexed load stays
-; 4 cycles. Clobbers A, X, Y and TEMP. Course glyphs stop at char 95,
-; and the title pictures use chars 68..75, so neither stores this table.
-; start_hole rebuilds it with the display off.
+; 0^2..255^2: low bytes at square_lo (charset chars 96..127), high
+; bytes at square_hi (scratch page $3F00). (n+1)^2 = n^2 + 2*n + 1.
+; Both tables are page aligned, so the indexed load stays 4 cycles.
+; Clobbers A, X, Y, TEMP, GLYPH and POINT_INDEX. Course glyphs stop at
+; char 95 and the title pictures use chars 68..75, so neither stores
+; square_lo. The course bitmap overlaps square_hi while it is drawn;
+; draw_course and start_hole rebuild both tables with the display off.
 build_square_lo:
     ldx #0
-    ldy #0
+    stx POINT_INDEX           ; high byte of n^2
+    ldy #0                    ; low byte
 build_square_loop:
     tya
     sta square_lo,x
+    lda POINT_INDEX
+    sta square_hi,x
     txa
     asl
-    sta TEMP
+    sta TEMP                  ; (2*n) low; carry is (2*n) high
+    lda #0
+    rol
+    sta GLYPH
     tya
-    sec                       ; +1; also drops the carry left by asl
+    sec                       ; +1; drops the carry saved in GLYPH
     adc TEMP
     tay
+    lda POINT_INDEX
+    adc GLYPH
+    sta POINT_INDEX
     inx
     bne build_square_loop
     rts

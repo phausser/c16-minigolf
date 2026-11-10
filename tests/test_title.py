@@ -112,19 +112,23 @@ class TitleTests(unittest.TestCase):
         return ''.join(picture), ''.join(below)
 
     def text(self, row, column, count):
-        letters = 'MINGOLFPAYRCTE'
+        letters = 'MINGOLFPAYRCTESUBD'
         names = {self.S[f'LETTER_{c}']: c for c in letters}
+        names[self.S['DASH_CHAR']] = '-'
+        names.update({self.S['DIGIT_CHAR']+digit: str(digit) for digit in range(10)})
+        names[0] = ' '
         base = self.S['SCREEN_BASE']+row*40+column
         return ''.join(names.get(code, '?') for code in self.r.bus[base:base+count])
 
     def test_picture_header_figures_and_first_holes(self):
         S = self.S
         self.assertEqual(self.text(4, 16, 8), 'MINIGOLF')
-        self.assertEqual(self.text(9, 18, 4), 'PLAY')
-        self.assertEqual(self.text(16, 16, 8), 'PRACTICE')
+        self.assertEqual(self.text(14, 8, 24), 'BETON  GRAS  ERDE  GUMMI')
+        self.assertEqual(self.text(16, 11, 18), '1-18   1-9   10-18')
+        self.assertEqual(self.text(20, 18, 4), 'PLAY')
         # Bits 7-6 are the ECM paper: black, red, blue, yellow per seat.
         papers = {13: 0, 15: 0, 16: 1, 18: 0, 19: 1, 20: 2, 22: 0, 23: 1, 24: 2, 25: 3}
-        floor = (6 << 4) + 5
+        floor = (7 << 4) + 5
         for column in range(40):
             got = (self.code(10, column), self.code(11, column))
             if column in papers:
@@ -151,7 +155,7 @@ class TitleTests(unittest.TestCase):
         for hole in range(4):                  # three shown, the next one ready
             self.assertEqual(self.block(hole), preview_bitmap(COURSES[hole]), hole)
         # The title glyphs are black on the light green floor.
-        self.assertEqual(self.r.bus[S['ATTR_BASE']+4*40+16], (6 << 4) + 5)
+        self.assertEqual(self.r.bus[S['ATTR_BASE']+4*40+16], (7 << 4) + 5)
         self.assertEqual(self.r.bus[S['ATTR_BASE']] & 0x7f, (3 << 4) + 5)
         glyph = S['CHARSET_BASE']+(S['DIGIT_CHAR']+1)*8
         image = S['font_image']+(S['DIGIT_CHAR']+1)*5-5
@@ -195,13 +199,30 @@ class TitleTests(unittest.TestCase):
 
     def test_ball_moves_and_holes_slide_without_redrawing_shown_ones(self):
         S = self.S
+        grass = (7 << 4) + 5
         self.press(RIGHT, 5)
         self.assertEqual(self.r.get('menu_players'), 3)
         self.assertEqual(self.code(12, 23), S['BALL_CHAR'])
         self.assertEqual(self.code(12, 13), S['BLANK_CHAR'])
         self.press(DOWN)
         self.assertEqual(self.r.get('menu_row'), 1)
-        self.assertEqual(self.code(12, 23), S['BLANK_CHAR'])
+        self.assertEqual(self.code(15, 16), S['BALL_CHAR'])
+        self.assertEqual(self.r.bus[S['ATTR_BASE']+4*40+16], grass)
+        self.press(RIGHT)
+        self.assertEqual(self.r.bus[S['ATTR_BASE']+4*40+16], (7 << 4) + 9)
+        self.press(RIGHT)
+        self.assertEqual(self.r.bus[S['ATTR_BASE']+4*40+16], (7 << 4) + 2)
+        self.press(LEFT, 2)
+        self.assertEqual(self.r.bus[S['ATTR_BASE']+4*40+16], grass)
+        self.press(LEFT)
+        self.assertEqual(self.r.bus[S['ATTR_BASE']+4*40+16], (5 << 4) + 1)
+        self.press(RIGHT)
+        self.press(DOWN)
+        self.assertEqual(self.r.get('course_pick'), 0)
+        self.assertEqual(self.code(17, 12), S['BALL_CHAR'])
+        self.assertEqual(self.holes_text(), self.holes_expected(0))
+        # 1-18, 1-9, 10-18, then hole 1. Two more steps reach hole 3.
+        self.press(RIGHT, 3)
         self.assertEqual(self.holes_text(), self.holes_expected(0, 0))
         self.press(RIGHT, 2)
         self.assertEqual(self.r.get('window_first'), 0)
@@ -226,9 +247,15 @@ class TitleTests(unittest.TestCase):
         self.assertEqual(self.block(14), preview_bitmap(COURSES[14]))
         self.assertEqual(self.block(13), preview_bitmap(COURSES[13]))  # ready ahead
         self.assertEqual(self.holes_text(), self.holes_expected(14, 14))
-        self.press(LEFT, 20)
+        self.press(LEFT, 14)
         self.assertEqual((self.r.get('practice_hole'), self.r.get('window_first')), (0, 0))
         self.assertEqual(self.holes_text(), self.holes_expected(0, 0))
+        self.press(LEFT)
+        self.assertEqual(self.r.get('course_pick'), 2)
+        self.assertEqual(self.code(17, 26), S['BALL_CHAR'])
+        self.assertEqual(self.holes_text(), self.holes_expected(0))
+        self.press(UP)
+        self.press(UP)
         self.press(UP)
         self.assertEqual(self.r.get('menu_row'), 0)
         self.assertEqual(self.code(12, 23), S['BALL_CHAR'])
@@ -242,11 +269,13 @@ class TitleTests(unittest.TestCase):
             self.r.cpu.step()
         self.fail('the round did not start')
 
-    def test_fire_on_players_starts_the_round_with_the_game_charset(self):
+    def test_fire_on_play_starts_the_round_with_the_game_charset(self):
         S = self.S
         self.press(RIGHT)
+        self.press(DOWN, 3)
         self.start()
-        self.assertEqual([self.r.get(n) for n in ('player_count', 'player', 'practice', 'HOLE')], [2, 0, 0, 0])
+        self.assertEqual([self.r.get(n) for n in ('player_count', 'player', 'HOLE', 'hole_last')],
+                         [2, 0, 0, 18])
         self.assertEqual((self.r.get('intern_base'), self.r.get('intern_limit')),
                          (S['COURSE_CHAR'], S['COURSE_CHAR_LIMIT']))
         blank = S['CHARSET_BASE']+S['BLANK_CHAR']*8
@@ -267,11 +296,31 @@ class TitleTests(unittest.TestCase):
         self.assertGreater(self.r.get('SEGMENT_BYTES'), self.r.get('outline_bytes'))
         self.assertGreater(self.r.get('outline_bytes'), 0)
 
-    def test_fire_on_a_hole_starts_practice(self):
+    def test_fire_away_from_play_stays_on_the_menu(self):
+        self.press(FIRE)
+        self.assertEqual(self.r.cpu.pc, self.S['title_loop'])
+        self.assertEqual(self.r.get('menu_row'), 0)
+
+    def test_ranges_and_one_hole_set_the_round(self):
+        self.press(DOWN, 2)
+        self.press(RIGHT)
         self.press(DOWN)
-        self.press(RIGHT, 6)
         self.start()
-        self.assertEqual([self.r.get(n) for n in ('player_count', 'practice', 'HOLE')], [1, 1, 6])
+        self.assertEqual([self.r.get(n) for n in ('HOLE', 'hole_last', 'player_count')], [0, 9, 1])
+
+    def test_back_nine_starts_at_hole_ten(self):
+        self.press(DOWN, 2)
+        self.press(RIGHT, 2)
+        self.press(DOWN)
+        self.start()
+        self.assertEqual([self.r.get(n) for n in ('HOLE', 'hole_last')], [9, 18])
+
+    def test_fire_on_a_hole_plays_only_that_hole(self):
+        self.press(DOWN, 2)
+        self.press(RIGHT, 9)          # three ranges, then hole 7 (index 6)
+        self.press(DOWN)
+        self.start()
+        self.assertEqual([self.r.get(n) for n in ('player_count', 'HOLE', 'hole_last')], [1, 6, 7])
 
 
 if __name__ == '__main__':

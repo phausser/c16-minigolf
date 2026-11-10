@@ -14,7 +14,6 @@ import zlib
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT/'tools'), str(ROOT/'tests')]
 from course_codec import encode
-from generate_assets import course_colours
 from test_runtime import Runtime, S
 
 # Approximate TED colors: hue -> RGB at middle luminance; higher luminance
@@ -57,8 +56,6 @@ def render(index, course):
     r.bus[S['course_table_lo']] = address & 255
     r.bus[S['course_table_hi']] = address >> 8
     r.bus[address:address+len(data)] = list(data)
-    inks = course_colours(index)
-    r.bus[S['course_inks']:S['course_inks']+2] = [inks['COURSE_SURFACE_COLOR'], inks['CHECKER_COLOR_EVEN']]
     r.call('initialise_state')
     r.call('initialise_video')
     r.call('draw_course')

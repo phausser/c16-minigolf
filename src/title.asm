@@ -1,17 +1,18 @@
 ; Title menu shaped like a course, black glyphs on the floor colour:
-; MINIGOLF; PLAY over one to four golfers; PRACTICE over three holes as
-; 16x8 silhouettes with their numbers and arrows towards further holes.
+; MINIGOLF, one to four golfers, the four surfaces, three holes as 16x8
+; silhouettes, the ranges 1-18, 1-9 and 10-18, and PLAY at the bottom.
 ; The playable interior is black; set bits keep the cell's floor colour.
 ; No cup and no obstacles. The golf ball below marks the choice: up/down
-; switches the row, left/right moves in it, fire starts. Hole h is drawn
-; in block h mod 4: the three shown and the next one in the direction of
-; the last slide. A hole that is not ready is drawn into its block while
-; that block is not shown, so the row never shows drawing.
+; switches the row, left/right moves in it, fire on PLAY starts. Hole h
+; is drawn in block h mod 4: the three shown and the next one in the
+; direction of the last slide. A hole that is not ready is drawn into
+; its block while that block is not shown, so the row never shows drawing.
 TITLE_CHAR = 36               ; title frame from here on (intern_pattern)
 PREVIEW_CHAR = 68             ; four 16 x 8 pictures, two cells each
 PREVIEW_BLOCKS = 4
 PREVIEW_BLOCK = 2
-TITLE_CHAR_LIMIT = PREVIEW_CHAR - TITLE_CHAR
+; B, D and the dash sit above the bar, so the frame must stop there.
+TITLE_CHAR_LIMIT = LETTER_B - TITLE_CHAR
 !if PREVIEW_CHAR + PREVIEW_BLOCKS * PREVIEW_BLOCK > SQUARE_CHAR { !error "previews overlap square_lo" }
 !if TITLE_CHAR < FIGURE_CHAR + 2 { !error "the title frame overlaps the font" }
 !if FIGURE_CHAR & 1 { !error "the figure's second cell is FIGURE_CHAR or 1" }
@@ -29,46 +30,36 @@ ECM_OFF_LINE = 100
 TITLE_LAST_ROW = 23           ; the title course reaches down to row 23
 HEADER = SCREEN_BASE + 4 * 40 + 16
 FIGURE_ROW = SCREEN_BASE + 10 * 40   ; and the row below, then the ball
+SURFACE_ROW = SCREEN_BASE + 14 * 40
+SURFACE_COLUMN = 8
+RANGE_ROW = SCREEN_BASE + 16 * 40
+RANGE_COLUMN = 11
 PREVIEW_ROW = SCREEN_BASE + 18 * 40  ; pictures; the arrows share this row
 HOLE_ROW = PREVIEW_ROW
 NUMBER_ROW = PREVIEW_ROW + 40        ; ball and number below each picture
+PLAY_ROW = SCREEN_BASE + 20 * 40
+PLAY_COLUMN = 18
+PLAY_BALL_COLUMN = 19
 ARROW_LEFT_COLUMN = 9
 ARROW_RIGHT_COLUMN = 29
+MENU_SURFACE = 1
+MENU_COURSE = 2
+MENU_PLAY = 3
 ; A picture is two cells, column by column: pixel (x, y) is byte
 ; (x / 8) * 8 + y. Set bits keep the cell colour; cleared bits are black.
 
 title_screen:
     ldx #$ff                  ; entered from the game loop: drop its frames
     txs
-    jsr draw_title_frame
-    ldx #9
-title_figures:
-    lda figure_columns,x
-    and #$3f
-    tay
-    lda figure_columns,x
-    and #$c0                  ; ECM paper in bits 7-6
-    ora #FIGURE_CHAR
-    sta FIGURE_ROW,y
-    ora #1                    ; second cell, same paper
-    sta FIGURE_ROW + 40,y
-    dex
-    bpl title_figures
     lda #$ff
     ldx #PREVIEW_BLOCKS - 1
 title_forget:
     sta block_holes,x
     dex
     bpl title_forget
-    ldx #title_labels - title_texts
-    jsr print_texts
     lda #3
     sta window_ahead          ; ready the hole right of the row
-    jsr title_window
-    lda #BALL_CHAR
-    jsr title_ball
-    lda #$1b
-    sta TED_CONTROL1
+    jsr title_paint
 title_loop:
     jsr title_figure_colors
     jsr menu_input
@@ -82,70 +73,86 @@ title_loop:
     bcs title_down
     and #KEY_SHOT >> 4
     beq title_loop
+    lda menu_row
+    cmp #MENU_PLAY
+    bne title_loop
     jmp title_start
 title_up:
-    lda menu_row
-    beq title_loop
-    lda #BLANK_CHAR
-    jsr title_ball
-    dec menu_row
-    bpl title_ball_moved
+    lda #$ff
+    bne title_vert
 title_down:
-    lda menu_row
-    bne title_loop
+    lda #1
+title_vert:
+    clc
+    adc menu_row
+    cmp #MENU_PLAY + 1
+    bcs title_loop
+    pha
     lda #BLANK_CHAR
     jsr title_ball
-    inc menu_row
-    bne title_ball_moved
+    pla
+    sta menu_row
+    jmp title_ball_moved
 title_left:
     lda #$ff
     bne title_step
 title_right:
     lda #1
 title_step:
+    ldx menu_row
+    cpx #MENU_PLAY
+    beq title_loop
     pha
     lda #BLANK_CHAR
     jsr title_ball
     pla
     ldx menu_row
-    bne title_hole_step
     clc
-    adc menu_players
-    cmp #4
-    bcs title_ball_moved      ; no further entry that way
-    sta menu_players
-    bcc title_ball_moved
-title_hole_step:
-    clc
-    adc practice_hole
-    cmp #COURSE_COUNT
-    bcs title_ball_moved
-    sta practice_hole
-    ldx #$ff                  ; sliding left: ready the hole left of it
-    cmp window_first
-    bcc title_slide           ; left of the window: it starts here
-    sbc #2
-    bcc title_ball_moved
-    cmp window_first
-    beq title_ball_moved
-    bcc title_ball_moved      ; inside the window
-    ldx #3
-title_slide:                  ; right of it: it ends here
-    sta window_first
-    stx window_ahead
-    jsr title_window
+    adc menu_players,x        ; players, surface and course_pick sit in a row
+    cmp row_limit,x
+    bcs title_ball_moved      ; $ff and past the end are both above the limit
+    sta menu_players,x
+    cpx #MENU_SURFACE
+    beq title_repaint
+    cpx #MENU_COURSE
+    bne title_ball_moved
+    jsr course_follow
+    jmp title_ball_moved
+title_repaint:
+    jsr title_paint           ; the whole course takes the new surface
+    jmp title_loop
 title_ball_moved:
     lda #BALL_CHAR
     jsr title_ball
     jmp title_loop
 
-; A = screen code below the chosen golfers or hole.
+; A = screen code under the current choice.
 title_ball:
     ldx menu_row
-    bne title_ball_hole
+    beq title_ball_players
+    dex
+    beq title_ball_surface
+    dex
+    beq title_ball_course
+    ldy #PLAY_BALL_COLUMN
+    sta PLAY_ROW + 40,y
+    rts
+title_ball_players:
     ldx menu_players
     ldy player_ball_columns,x
     sta FIGURE_ROW + 80,y
+    rts
+title_ball_surface:
+    ldx menu_surface
+    ldy surface_ball_columns,x
+    sta SURFACE_ROW + 40,y
+    rts
+title_ball_course:
+    ldx course_pick
+    cpx #3
+    bcs title_ball_hole
+    ldy range_ball_columns,x
+    sta RANGE_ROW + 40,y
     rts
 title_ball_hole:
     pha
@@ -163,6 +170,37 @@ title_ball_store:
     sta NUMBER_ROW,y
     rts
 
+; course_pick 0..2 is 1-18, 1-9, 10-18. From 3 on it is one hole.
+; That hole stays inside the three pictures.
+course_follow:
+    lda course_pick
+    cmp #3
+    bcc course_follow_done
+    sbc #3
+    sta practice_hole
+    lda window_first
+    clc
+    adc #2
+    cmp practice_hole
+    bcc course_follow_right
+    lda practice_hole
+    cmp window_first
+    bcs course_follow_done
+    sta window_first
+    lda #$ff
+    bne course_follow_slide
+course_follow_right:
+    lda practice_hole
+    sec
+    sbc #2
+    sta window_first
+    lda #3
+course_follow_slide:
+    sta window_ahead
+    jsr title_window
+course_follow_done:
+    rts
+
 title_start:
     lda #0
     ldx #3
@@ -171,18 +209,26 @@ title_clear_totals:
     dex
     bpl title_clear_totals
     sta player
-    sta practice
-    sta HOLE
     ldx menu_players
     inx                       ; one to four players
-    lda menu_row
-    beq title_players
-    sta practice              ; nonzero
-    lda practice_hole
-    sta HOLE
-    ldx #1
-title_players:
     stx player_count
+    ldx course_pick
+    cpx #3
+    bcs title_one_hole
+    lda range_first,x
+    sta HOLE
+    lda range_last,x
+    sta hole_last
+    jmp title_players
+title_one_hole:
+    txa
+    sec
+    sbc #3
+    sta HOLE
+    clc
+    adc #1
+    sta hole_last
+title_players:
     ; Back to the game charset: HUD font, power bar, course area.
     lda #$0b
     sta TED_CONTROL1
@@ -672,6 +718,31 @@ summary_loop:
     beq summary_loop
     jmp title_screen
 
+; Course, golfers, labels, pictures and the ball. Display ends on.
+title_paint:
+    jsr draw_title_frame
+    ldx #9
+title_figures:
+    lda figure_columns,x
+    and #$3f
+    tay
+    lda figure_columns,x
+    and #$c0                  ; ECM paper in bits 7-6
+    ora #FIGURE_CHAR
+    sta FIGURE_ROW,y
+    ora #1                    ; second cell, same paper
+    sta FIGURE_ROW + 40,y
+    dex
+    bpl title_figures
+    ldx #title_labels - title_texts
+    jsr print_texts
+    jsr title_window
+    lda #BALL_CHAR
+    jsr title_ball
+    lda #$1b
+    sta TED_CONTROL1
+    rts
+
 ; The title course with display off, lawn in row 24, the font in black on
 ; white and MINIGOLF. The course catalogue starts at TITLE_CHAR.
 draw_title_frame:
@@ -690,7 +761,13 @@ draw_title_frame:
     jsr emit_hidden_row
     lda #$ff
     jsr install_font
-    ldx #0                    ; MINIGOLF
+    ldx #MENU_GLYPHS * 8 - 1
+title_menu_glyph:             ; B, D and the dash, already black on floor
+    lda menu_glyphs,x
+    sta CHARSET_BASE + LETTER_B * 8,x
+    dex
+    bpl title_menu_glyph
+    ldx #0                    ; MINIGOLF and the menu labels
 ; X = offset into title_texts: screen address, codes, $ff, ... up to an
 ; address with high byte 0.
 print_texts:
@@ -718,10 +795,17 @@ title_texts:
     !byte LETTER_M, LETTER_I, LETTER_N, LETTER_I, LETTER_G, LETTER_O, LETTER_L, LETTER_F, $ff
     !byte 0, 0
 title_labels:
-    !word SCREEN_BASE + 9 * 40 + 18
+    !word SURFACE_ROW + SURFACE_COLUMN
+    !byte LETTER_B, LETTER_E, LETTER_T, LETTER_O, LETTER_N, 0, 0
+    !byte LETTER_G, LETTER_R, LETTER_A, LETTER_S, 0, 0
+    !byte LETTER_E, LETTER_R, LETTER_D, LETTER_E, 0, 0
+    !byte LETTER_G, LETTER_U, LETTER_M, LETTER_M, LETTER_I, $ff
+    !word RANGE_ROW + RANGE_COLUMN
+    !byte DIGIT_CHAR + 1, DASH_CHAR, DIGIT_CHAR + 1, DIGIT_CHAR + 8, 0, 0, 0
+    !byte DIGIT_CHAR + 1, DASH_CHAR, DIGIT_CHAR + 9, 0, 0, 0
+    !byte DIGIT_CHAR + 1, DIGIT_CHAR, DASH_CHAR, DIGIT_CHAR + 1, DIGIT_CHAR + 8, $ff
+    !word PLAY_ROW + PLAY_COLUMN
     !byte LETTER_P, LETTER_L, LETTER_A, LETTER_Y, $ff
-    !word SCREEN_BASE + 16 * 40 + 16
-    !byte LETTER_P, LETTER_R, LETTER_A, LETTER_C, LETTER_T, LETTER_I, LETTER_C, LETTER_E, $ff
     !byte 0, 0
 summary_head:
     !word SCREEN_BASE + SUMMARY_HEAD_ROW * 40 + SUMMARY_COLUMN
@@ -738,6 +822,16 @@ player_ball_columns:
 ; two cells; the ball replaces the blank just left of the number.
 slot_columns:
 !byte 12, 18, 24
+surface_ball_columns:
+!byte 10, 16, 22, 29
+range_ball_columns:
+!byte 12, 19, 26
+range_first:
+!byte 0, 0, 9
+range_last:
+!byte COURSE_COUNT, 9, COURSE_COUNT
+row_limit:
+!byte 4, 4, COURSE_COUNT + 3
 block_codes:
 !for block, 0, PREVIEW_BLOCKS - 1 { !byte PREVIEW_CHAR + block * PREVIEW_BLOCK }
 block_lo:
@@ -745,11 +839,16 @@ block_lo:
 block_hi:
 !for block, 0, PREVIEW_BLOCKS - 1 { !byte >(CHARSET_BASE + (PREVIEW_CHAR + block * PREVIEW_BLOCK) * 8) }
 
-menu_row:                     ; 0: players, 1: holes
+menu_row:                     ; 0 players, 1 surface, 2 course, 3 PLAY
 !byte 0
+; These three are indexed by menu_row. Do not insert a byte between them.
 menu_players:                 ; 0..3: one to four players
 !byte 0
-practice_hole:
+menu_surface:                 ; Beton, Gras, Erde, Gummi
+!byte GRAS_SURFACE
+course_pick:                  ; 0..2 ranges, then one hole
+!byte 0
+practice_hole:                ; hole under the ball while a picture is chosen
 !byte 0
 window_first:                 ; first hole shown
 !byte 0
@@ -757,8 +856,8 @@ block_holes:                  ; hole drawn in each block, $ff: none
 !fill PREVIEW_BLOCKS, $ff
 window_ahead:                 ; 3 after sliding right, $ff after sliding left
 !byte 3
-practice:                     ; nonzero: one hole, then back to the menu
-!byte 0
+hole_last:                    ; first hole that is not in this round
+!byte COURSE_COUNT
 player_count:
 !byte 1
 player:                       ; 0-based, whose turn it is

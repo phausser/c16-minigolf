@@ -198,9 +198,16 @@ SCREEN_BASE = $3400
 CHARSET_BASE = $3800
 SCRATCH_BASE = $3c00         ; three cell rows of bitmap while a hole is drawn
 SCRATCH_END = $4000
+; High bytes of 0^2..255^2. The course bitmap uses this page only while
+; draw_course is storing the picture; build_square_lo rewrites it before
+; the picture is shown. Water programs must stop below this page.
+square_hi = $3f00
+!if square_hi & $ff { !error "square_hi must be page aligned" }
+!if square_hi + 256 != SCRATCH_END { !error "square_hi must fill the scratch tail" }
 COLOR_BASE = ATTR_BASE       ; physics reads the foreground hue here
 ; Charset slots. Font codes 0..35 (src/font.inc): white on black in the
-; game, black on the white floor on the title screen.
+; game, black on the floor on the title screen. B, D and the dash are
+; title-only cells just above the power bar.
 BLANK_CHAR = 0               ; letters 1..14 (LETTER_M ...), S and U follow the brackets
 DIGIT_CHAR = 15              ; 0..9
 BALL_CHAR = 25
@@ -213,6 +220,11 @@ FONT_GLYPHS = 34             ; codes with 5-row glyphs, blank included
 FIGURE_CHAR = 34             ; golfer, top and bottom cell
 DYNAMIC_CHAR = 36            ; twelve cells under the ball and the aim dots
 BAR_CHAR = 48                ; eight power-bar shapes (BAR_GLYPHS)
+; Title letters in the gap between the power bar and the course glyphs.
+LETTER_B = 56
+LETTER_D = 57
+DASH_CHAR = 58
+MENU_GLYPHS = 3
 COURSE_CHAR = 64             ; static hole patterns
 ; One hole uses at most 29 glyphs (hole 14). The catalogue stops at
 ; char 95 so chars 96..127 can hold square_lo. That table is 256 bytes

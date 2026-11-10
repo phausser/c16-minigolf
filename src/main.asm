@@ -135,17 +135,15 @@ start_hole:
     jsr initialise_state
     jsr draw_course
     jsr water_init
-    jsr build_square_lo       ; not stored in the program image
+    jsr build_square_lo       ; square_lo and square_hi are not in the image
     lda #$1b                  ; text, display on, 25 rows, y-scroll 3
     sta TED_CONTROL1
     rts
 
 ; Fire after holing: add the strokes of the player, then the next player
 ; on the same hole or the next hole; the summary after the last one.
-; Practice returns to the menu after its one hole.
+; hole_last is the first hole that is not part of this round.
 next_hole:
-    lda practice
-    bne new_round
     ldx player
     clc
     lda totals,x
@@ -158,11 +156,9 @@ next_hole:
     stx player
     inc HOLE
     lda HOLE
-    cmp #COURSE_COUNT
+    cmp hole_last
     bcc start_hole
     jmp summary_screen
-new_round:
-    jmp title_screen
 ; The hole is drawn already: only the ball goes back to the tee.
 next_player:
     stx player
@@ -215,10 +211,6 @@ clear_state:
 !source "src/water.asm"
 !source "src/title.asm"
 !source "src/font.inc"
-; High bytes of n^2. The low bytes are square_lo in the charset tail,
-; built by build_square_lo rather than stored in this image.
-square_hi:
-!for square_index, 0, 255 { !byte >(square_index*square_index) }
 !source "src/normals.inc"
 !ifdef TEST_BUILD {
 !source "build/assets-test.inc"
@@ -227,6 +219,7 @@ square_hi:
 }
 ; The assets define TITLE_PATTERNS, so this check follows them.
 !if TITLE_PATTERNS > TITLE_CHAR_LIMIT { !error "title frame and a preview page exceed the charset" }
+!if GRAS_SURFACE != 1 { !error "menu_surface starts on Gras" }
 ; Test-only stress image: verify the safe copier even after the destination
 ; grows over the original SYS loader and part of its source image.
 !ifdef RELOCATION_TEST_PADDING { !fill RELOCATION_TEST_PADDING, $a5 }

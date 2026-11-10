@@ -12,7 +12,7 @@ WATER_PHASES = 4
 WATER_STEP_FRAMES = 8         ; frames per step, at least WATER_PHASES
 !if WATER_STEP_FRAMES < WATER_PHASES { !error "a step redraws one phase per frame" }
 WATER_CODE = SCRATCH_BASE + 64     ; below: ball cells off the playfield
-WATER_CODE_END = SCRATCH_END - 32  ; room for every phase's LDA, LDA, RTS
+WATER_CODE_END = square_hi         ; the page above is the square table
 
 ; Display off, after draw_course: glyphs, cell codes and colour programs.
 water_init:
