@@ -145,6 +145,15 @@ class TitleTests(unittest.TestCase):
         # Row 12 between the walls (columns 5 to 33).
         self.assertEqual(self.r.screen_text(12, 5, 29, self.floor), ' '*8+'*'+' '*20)
         self.assertEqual(self.holes_text(), self.holes_expected(0))
+        # Defaults stay marked: hollow cursor under one golfer, filled
+        # balls under Gras and 1-18.
+        self.assertEqual(self.code(12, 13), S['BALL_CHAR'])
+        self.assertEqual(self.code(15, 16), S['PICK_CHAR'])
+        self.assertEqual(self.code(17, 12), S['PICK_CHAR'])
+        pick = S['CHARSET_BASE']+S['PICK_CHAR']*8
+        filled = [0b00111000, 0b01111100, 0b01111100, 0b01111100, 0b00111000]
+        self.assertEqual(self.r.bus[pick:pick+8],
+                         [255]+[bits ^ 255 for bits in filled]+[255, 255])
         self.assertEqual(self.r.get('pattern_overflow'), 0)
         for slot in range(3):
             for column in range(2):
@@ -196,6 +205,35 @@ class TitleTests(unittest.TestCase):
                   if addr in (0xff06, 0xff16, 0xff17, 0xff18)]
         self.assertEqual(writes, expected)
         self.assertEqual(bus[0xff06], 0x1b)
+
+    def test_a_choice_keeps_its_filled_ball(self):
+        """Leaving a row turns the cursor into a filled ball. A surface
+        repaint draws the pictures again and has to put that ball back,
+        including one parked under a hole number."""
+        S = self.S
+        self.press(RIGHT)                     # two players
+        self.press(DOWN)
+        self.assertEqual(self.code(12, 15), S['PICK_CHAR'])
+        self.assertEqual(self.code(12, 13), S['BLANK_CHAR'])
+        self.assertEqual(self.code(15, 16), S['BALL_CHAR'])
+        self.press(DOWN)
+        self.press(RIGHT, 4)                  # hole 2, still in the first window
+        self.assertEqual(self.r.get('course_pick'), 4)
+        self.assertEqual(self.code(19, 18), S['BALL_CHAR'])
+        self.assertEqual(self.code(17, 12), S['BLANK_CHAR'])
+        self.press(UP)
+        self.assertEqual(self.code(19, 18), S['PICK_CHAR'])
+        self.assertEqual(self.code(15, 16), S['BALL_CHAR'])
+        self.press(RIGHT)                     # Erde, whole title redrawn
+        self.assertEqual(self.r.bus[S['ATTR_BASE']+4*40+16], (7 << 4) + 9)
+        self.assertEqual(self.code(19, 18), S['PICK_CHAR'])
+        self.assertEqual(self.code(12, 15), S['PICK_CHAR'])
+        self.assertEqual(self.code(15, 22), S['BALL_CHAR'])
+        self.assertEqual(self.code(19, 19), S['DIGIT_CHAR'] + 2)
+        self.press(UP)
+        self.assertEqual(self.code(12, 15), S['BALL_CHAR'])
+        self.assertEqual(self.code(15, 22), S['PICK_CHAR'])
+        self.assertEqual(self.code(19, 18), S['PICK_CHAR'])
 
     def test_ball_moves_and_holes_slide_without_redrawing_shown_ones(self):
         S = self.S

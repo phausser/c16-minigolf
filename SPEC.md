@@ -24,7 +24,7 @@ Statische Bahn einmal je Bahnwechsel bei abgeschaltetem Bild zeichnen: dreizeili
 
 ## Spielablauf und Eingabe
 
-Titel: Spielerzahl (1–4), Belag, Kurs (eine Bahn oder 1–18, 1–9, 10–18), PLAY startet die Runde. Danach Lochvorstellung → Zielen → Stärke einstellen → Schlag → Ball rollt → nächster Schlag oder Einlochen → Lochbilanz → nächstes Loch der Wahl → Endwertung.
+Titel: Spielerzahl (1–4), Belag, Kurs (eine Bahn oder 1–18, 1–9, 10–18), PLAY startet die Runde. Unter der gewählten Spielerzahl, dem Belag und dem Kurs bleibt ein gefüllter Ball stehen; der hohle Ball steht auf der Zeile, die links und rechts ändert. Danach Lochvorstellung → Zielen → Stärke einstellen → Schlag → Ball rollt → nächster Schlag oder Einlochen → Lochbilanz → nächstes Loch der Wahl → Endwertung.
 
 Joystick Port 1: links/rechts drehen, Feuer halten lädt die Schlagstärke,
 Feuer loslassen schlägt. P pausiert. A/D/W/S/SPACE steuern das Spiel nicht mehr.

@@ -224,7 +224,8 @@ BAR_CHAR = 48                ; eight power-bar shapes (BAR_GLYPHS)
 LETTER_B = 56
 LETTER_D = 57
 DASH_CHAR = 58
-MENU_GLYPHS = 3
+PICK_CHAR = 59               ; filled ball left on a chosen player, surface or course
+MENU_GLYPHS = 4
 COURSE_CHAR = 64             ; static hole patterns
 ; One hole uses at most 29 glyphs (hole 14). The catalogue stops at
 ; char 95 so chars 96..127 can hold square_lo. That table is 256 bytes

@@ -24,19 +24,19 @@ LETTER_U = 32
 HASH_CHAR = 33               ; player mark on the results list
 font_image:
 ; M
-!byte %.#####..
+!byte %###.###.
 !byte %##.#.##.
 !byte %##.#.##.
 !byte %##...##.
 !byte %##...##.
 ; I
+!byte %.####...
 !byte %..##....
 !byte %..##....
 !byte %..##....
-!byte %..##....
-!byte %..##....
+!byte %.####...
 ; N
-!byte %.#####..
+!byte %######..
 !byte %##...##.
 !byte %##...##.
 !byte %##...##.
@@ -44,7 +44,7 @@ font_image:
 ; G
 !byte %.######.
 !byte %##......
-!byte %##...##.
+!byte %##..###.
 !byte %##...##.
 !byte %.######.
 ; O
@@ -58,15 +58,15 @@ font_image:
 !byte %##......
 !byte %##......
 !byte %##......
-!byte %.######.
+!byte %#######.
 ; F
-!byte %.######.
+!byte %#######.
 !byte %##......
 !byte %######..
 !byte %##......
 !byte %##......
 ; P
-!byte %.#####..
+!byte %######..
 !byte %##...##.
 !byte %######..
 !byte %##......
@@ -84,7 +84,7 @@ font_image:
 !byte %..##....
 !byte %.##.....
 ; R
-!byte %.#####..
+!byte %######..
 !byte %##...##.
 !byte %######..
 !byte %##..##..
@@ -102,11 +102,11 @@ font_image:
 !byte %..##....
 !byte %..##....
 ; E
-!byte %.######.
+!byte %#######.
 !byte %##......
 !byte %#####...
 !byte %##......
-!byte %.######.
+!byte %#######.
 ; 0
 !byte %.#####..
 !byte %##...##.
@@ -134,11 +134,11 @@ font_image:
 ; 4
 !byte %##...##.
 !byte %##...##.
-!byte %.######.
+!byte %#######.
 !byte %.....##.
 !byte %.....##.
 ; 5
-!byte %.######.
+!byte %#######.
 !byte %##......
 !byte %######..
 !byte %.....##.
@@ -242,15 +242,18 @@ font_image_end:
 !if font_image_end - font_image != (FONT_GLYPHS - 1) * 5 + 16 { !error "font image does not match FONT_GLYPHS" }
 !if LETTER_B < BAR_CHAR + 8 { !error "menu letters overlap the power bar" }
 !if LETTER_B + MENU_GLYPHS > COURSE_CHAR { !error "menu letters overlap course glyphs" }
-; Title cells for B, D and the dash. Row 0 and rows 6..7 stay floor
-; ($ff). Rows 1..5 are the letter with the source bits cleared.
+; Title cells for B, D, the dash and the filled ball. Row 0 and rows
+; 6..7 stay floor ($ff). Rows 1..5 are the shape with the source bits cleared.
 menu_glyphs:
 ; B
-!byte $ff, $ff XOR %.#####.., $ff XOR %##...##., $ff XOR %######..
-!byte $ff XOR %##...##., $ff XOR %.#####.., $ff, $ff
+!byte $ff, $ff XOR %######.., $ff XOR %##...##., $ff XOR %######..
+!byte $ff XOR %##...##., $ff XOR %######.., $ff, $ff
 ; D
 !byte $ff, $ff XOR %######.., $ff XOR %##...##., $ff XOR %##...##.
 !byte $ff XOR %##...##., $ff XOR %######.., $ff, $ff
 ; -
 !byte $ff, $ff, $ff, $ff XOR %.#####.., $ff, $ff, $ff, $ff
-!if * - menu_glyphs != MENU_GLYPHS * 8 { !error "menu glyphs are not three cells" }
+; Filled golf ball. Same outline as the hollow ball, middle set.
+!byte $ff, $ff XOR %..###..., $ff XOR %.#####.., $ff XOR %.#####..
+!byte $ff XOR %.#####.., $ff XOR %..###..., $ff, $ff
+!if * - menu_glyphs != MENU_GLYPHS * 8 { !error "menu glyphs do not match MENU_GLYPHS" }

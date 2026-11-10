@@ -2,8 +2,9 @@
 ; MINIGOLF, one to four golfers, the four surfaces, three holes as 16x8
 ; silhouettes, the ranges 1-18, 1-9 and 10-18, and PLAY at the bottom.
 ; The playable interior is black; set bits keep the cell's floor colour.
-; No cup and no obstacles. The golf ball below marks the choice: up/down
-; switches the row, left/right moves in it, fire on PLAY starts. Hole h
+; No cup and no obstacles. The hollow ball marks the row left and right
+; change. A filled ball stays under the chosen player count, surface and
+; course. Up and down switch the row, fire on PLAY starts. Hole h
 ; is drawn in block h mod 4: the three shown and the next one in the
 ; direction of the last slide. A hole that is not ready is drawn into
 ; its block while that block is not shown, so the row never shows drawing.
@@ -88,7 +89,12 @@ title_vert:
     cmp #MENU_PLAY + 1
     bcs title_loop
     pha
-    lda #BLANK_CHAR
+    ldx menu_row
+    lda #PICK_CHAR            ; the choice keeps a filled ball
+    cpx #MENU_PLAY
+    bne title_vert_keep
+    lda #BLANK_CHAR           ; PLAY is only the cursor
+title_vert_keep:
     jsr title_ball
     pla
     sta menu_row
@@ -126,13 +132,15 @@ title_ball_moved:
     jsr title_ball
     jmp title_loop
 
-; A = screen code under the current choice.
+; A = screen code under the choice on menu_row.
 title_ball:
     ldx menu_row
-    beq title_ball_players
-    dex
+; A = screen code, X = row (0 players, 1 surface, 2 course, 3 PLAY).
+title_ball_on:
+    cpx #MENU_SURFACE
+    bcc title_ball_players
     beq title_ball_surface
-    dex
+    cpx #MENU_COURSE
     beq title_ball_course
     ldy #PLAY_BALL_COLUMN
     sta PLAY_ROW + 40,y
@@ -718,7 +726,7 @@ summary_loop:
     beq summary_loop
     jmp title_screen
 
-; Course, golfers, labels, pictures and the ball. Display ends on.
+; Course, golfers, labels, pictures and the balls. Display ends on.
 title_paint:
     jsr draw_title_frame
     ldx #9
@@ -737,10 +745,27 @@ title_figures:
     ldx #title_labels - title_texts
     jsr print_texts
     jsr title_window
+    jsr title_picks
     lda #BALL_CHAR
     jsr title_ball
     lda #$1b
     sta TED_CONTROL1
+    rts
+
+; Filled ball on each choice the cursor is not standing on. A surface
+; repaint redraws the pictures and would otherwise wipe a hole's mark.
+title_picks:
+    lda #MENU_COURSE
+    sta POINT_INDEX
+title_pick:
+    ldx POINT_INDEX
+    cpx menu_row
+    beq title_pick_next
+    lda #PICK_CHAR
+    jsr title_ball_on
+title_pick_next:
+    dec POINT_INDEX
+    bpl title_pick
     rts
 
 ; The title course with display off, lawn in row 24, the font in black on
