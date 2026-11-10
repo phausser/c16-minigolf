@@ -260,7 +260,8 @@ Winkel-Sweep (nicht im Repo; profile_sweep.profile_call wiederverwenden).
 
 Nutzer hat Abweichung von der bitgenauen Physik erlaubt und testet das
 Spielgefühl selbst. reflect_unit spiegelt UNIT (Achse/45° exakt, sonst
-allgemein mit Klemmung auf ±256), SPEED-Verlust d²·31/512 + SPEED/128 + 1.
+allgemein mit Klemmung auf ±256), SPEED-Verlust d²·31/512 + SPEED/128 + 1
+(Gras; andere Beläge seit 2026-11-10 in docs/physics.md).
 normalize_velocity, sqrt_speed, normalize_component entfernt. Eckennormale
 n = Q/2 − Q/256 (|n| ≤ 1). Lochfang nutzt immer SPEED. Kreis-Bitsuche endet
 bei CIRCLE_MIN_BIT = 16 (≤ 1/4 px vor der Ecke). start_shot setzt VELOCITY

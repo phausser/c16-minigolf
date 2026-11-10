@@ -1,8 +1,8 @@
 {
   "surfaces": [
-    {"name": "Beton", "floor": [5, 1], "lawn": 1},
-    {"name": "Gras", "floor": [7, 5], "lawn": 5},
-    {"name": "Erde", "floor": [7, 9], "lawn": 9},
-    {"name": "Gummi", "floor": [7, 2], "lawn": 2}
+    {"name": "Beton", "floor": [5, 1], "lawn": 1, "decel": 2, "restitution": 16, "drag_shift": 7},
+    {"name": "Gras", "floor": [7, 5], "lawn": 5, "decel": 4, "restitution": 31, "drag_shift": 7},
+    {"name": "Erde", "floor": [7, 9], "lawn": 9, "decel": 8, "restitution": 128, "drag_shift": 6},
+    {"name": "Gummi", "floor": [7, 2], "lawn": 2, "decel": 6, "restitution": 64, "drag_shift": 5}
   ]
 }

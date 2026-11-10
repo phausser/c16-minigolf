@@ -1,25 +1,33 @@
 """Independent floating-point model of the SPEC physics, plus a 6502 probe.
 
-The reference knows only the course geometry (the JSON contours) and the
-rules written in SPEC.md: a ball of radius 2 px swept continuously against
-finite segments and their end points, mirror reflection with the SPEC speed
-loss, constant radial braking, the cup catch and the cup rim. It shares no
-code and no fixed-point formats with the 6502 kernel.
+The reference knows only the course geometry (the JSON contours), the floor
+chosen on the title (assets/colours.json) and the rules written in SPEC.md:
+a ball of radius 2 px swept continuously against finite segments and their
+end points, mirror reflection with that floor's speed loss, constant radial
+braking, the cup catch and the cup rim. It shares no code and no fixed-point
+formats with the 6502 kernel.
 
 `frame()` advances one 50 Hz step from a given state. Comparing it frame by
 frame with the kernel (started from the kernel's own state) bounds the
 kernel error per step without letting chaotic bounces amplify differences.
+The floor index defaults to Gras, which is the PRG's initial menu_surface.
 """
 from dataclasses import dataclass, field
+import json
 import math
+from pathlib import Path
 
 RADIUS = 2.0
-ROLL_DECEL = 4            # SPEED units (1/256 px per frame) per frame
 MAX_CONTACTS = 4
 CATCH_RADIUS = 3.0
 CATCH_SPEED = 192         # SPEED units: 0.75 px per frame
 RIM_RADIUS = 5.5
 RIM_TURN = 1/64           # radians per frame
+GRAS = 1
+
+_COLOURS = Path(__file__).resolve().parents[1]/'assets'/'colours.json'
+SURFACES = json.loads(_COLOURS.read_text())['surfaces']
+ROLL_DECEL = SURFACES[GRAS]['decel']   # Gras, the calibrated floor
 
 
 @dataclass
@@ -151,16 +159,18 @@ def _cup_on_path(cup, x, y, vx, vy, horizon):
     return math.hypot(qx+vx*t, qy+vy*t) < CATCH_RADIUS
 
 
-def reflect(state, nx, ny):
-    """SPEC reflection: mirror the unit direction, lose speed."""
+def reflect(state, nx, ny, surface=GRAS):
+    """SPEC reflection: mirror the unit direction, lose speed for this floor."""
+    spec = SURFACES[surface]
     d = state.ux*nx+state.uy*ny
     state.ux -= 2*d*nx
     state.uy -= 2*d*ny
-    state.speed -= state.speed*d*d*31/512+state.speed/128+1
+    state.speed -= (state.speed*d*d*spec['restitution']/512
+                    + state.speed/(1 << spec['drag_shift']) + 1)
     state.speed = max(state.speed, 0.0)
 
 
-def frame(state, segments, cup):
+def frame(state, segments, cup, surface=GRAS):
     """One 50 Hz step of the SPEC rules. Mutates and returns state."""
     if not state.rolling or state.holed:
         return state
@@ -189,7 +199,7 @@ def frame(state, segments, cup):
         state.x += vx*t
         state.y += vy*t
         remaining -= t
-        reflect(state, nx, ny)
+        reflect(state, nx, ny, surface)
         state.contacts += 1
         state.events.append(kind)
         if state.contacts == MAX_CONTACTS:
@@ -203,13 +213,15 @@ def frame(state, segments, cup):
                 turn = RIM_TURN if side < 0 else -RIM_TURN
                 c, s = math.cos(turn), math.sin(turn)
                 state.ux, state.uy = c*state.ux-s*state.uy, s*state.ux+c*state.uy
-            state.speed = max(0.0, state.speed-state.speed/128-1)
+            drag = 1 << SURFACES[surface]['drag_shift']
+            state.speed = max(0.0, state.speed-state.speed/drag-1)
             state.events.append('rim')
-    if state.speed <= ROLL_DECEL:
+    decel = SURFACES[surface]['decel']
+    if state.speed <= decel:
         state.speed = 0
         state.rolling = False
     else:
-        state.speed -= ROLL_DECEL
+        state.speed -= decel
     return state
 
 

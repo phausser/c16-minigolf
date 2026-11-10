@@ -176,6 +176,46 @@ def expanded_segments(course):
     return encoded
 
 
+def surface_entries():
+    """Title order: Beton, Gras, Erde, Gummi. Colour and physics share the file."""
+    entries = json.loads((ROOT/'assets/colours.json').read_text())['surfaces']
+    if [entry['name'] for entry in entries] != ['Beton', 'Gras', 'Erde', 'Gummi']:
+        raise ValueError('surface order is Beton, Gras, Erde, Gummi')
+    return entries
+
+
+def surface_physics():
+    """Per-floor integers the kernel can apply with shifts.
+
+    decel is subtracted from SPEED each frame. restitution N is the
+    magnitude loss SPEED*d^2*N/512 (Gras N=31 keeps the legacy shift
+    sequence). drag_shift k is the contact and rim loss SPEED>>k + 1.
+    k = 7 is SPEED/128, the smallest loss that still covers unit
+    rounding. The kernel returns that loss in one byte, so k is at least
+    3: 1024 >> 3 still fits, 1024 >> 2 does not. Gras stays on the
+    calibrated triple (4, 31, 7). Shift 0 marks the grass formula and is
+    never used as a shift count.
+    """
+    rows = []
+    for entry in surface_entries():
+        name = entry['name']
+        decel, rest, drag = entry['decel'], entry['restitution'], entry['drag_shift']
+        if type(decel) is not int or not 1 <= decel <= 16:
+            raise ValueError(f'{name} decel must be an integer 1..16')
+        if type(drag) is not int or not 3 <= drag <= 7:
+            raise ValueError(f'{name} drag_shift must be 3..7')
+        if name == 'Gras':
+            if (decel, rest, drag) != (4, 31, 7):
+                raise ValueError('Gras stays at decel 4, restitution 31, drag_shift 7')
+            shift = 0
+        elif rest not in (16, 32, 64, 128):
+            raise ValueError(f'{name} restitution must be 16, 32, 64 or 128')
+        else:
+            shift = 9 - rest.bit_length() + 1
+        rows.append({'decel': decel, 'restitution': rest, 'drag': drag, 'shift': shift})
+    return rows
+
+
 def surface_colours():
     """The four title choices, in menu order: Beton, Gras, Erde, Gummi.
 
@@ -184,9 +224,7 @@ def surface_colours():
     obstacle sweep does not treat it as lawn. Hue 1 at luminance 7 is
     white, so Beton stays at luminance 5. Gras is the default round.
     """
-    entries = json.loads((ROOT/'assets/colours.json').read_text())['surfaces']
-    if [entry['name'] for entry in entries] != ['Beton', 'Gras', 'Erde', 'Gummi']:
-        raise ValueError('surface order is Beton, Gras, Erde, Gummi')
+    entries = surface_entries()
     colours = []
     for entry in entries:
         luminance, hue = entry['floor']
@@ -239,10 +277,19 @@ def generate(test=False):
         f"${c['COURSE_SURFACE_COLOR']:02x}" for c in colours))
     lines.append('surface_lawn:\n!byte ' + ','.join(
         f"${c['CHECKER_COLOR_EVEN']:02x}" for c in colours))
+    physics = surface_physics()
+    lines.append('surface_decel:\n!byte ' + ','.join(str(row['decel']) for row in physics))
+    lines.append('surface_rest_shift:\n!byte ' + ','.join(str(row['shift']) for row in physics))
+    lines.append('surface_drag:\n!byte ' + ','.join(str(row['drag']) for row in physics))
+    gras = physics[1]
     lines.append('GRAS_SURFACE = 1')
+    lines.append(f"GRAS_DECEL = {gras['decel']}")
+    lines.append(f"GRAS_REST = {gras['restitution']}")
+    lines.append(f"GRAS_DRAG = {gras['drag']}")
     lines.append(bytes_section('course_par', [c.get('par', 0) for c in courses]))
     quarter = [round(math.cos(i*math.tau/128)*256) for i in range(33)]
-    lines += [bytes_section('unit_cos_lo',quarter), bytes_section('unit_cos_hi',[v>>8 for v in quarter])]
+    # High byte is 1 for the first two entries (both 256) and 0 after that.
+    lines += [bytes_section('unit_cos_lo', quarter)]
     lines += [f'NORMAL_SCALES = {len(NORMAL_SCALE)-1}', bytes_section('normal_scale', NORMAL_SCALE)]
     ball = [(x,y) for y in range(-2,3) for x in range(-2,3) if x*x+y*y <= 5]
     lines += [f'BALL_POINTS = {len(ball)}']

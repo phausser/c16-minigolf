@@ -1,9 +1,11 @@
 # Physik: Konstanten, Regeln und Nachweis
 
-Stand 2026-10-06. Grundlage ist [SPEC.md](../SPEC.md), Abschnitt „Physik“.
-Dieses Dokument hält die kalibrierten Konstanten fest, beschreibt, wie der
-6502-Kern einen Simulationsschritt rechnet, und belegt die
-Abnahmekriterien mit Messwerten.
+Stand 2026-11-10. Grundlage ist [SPEC.md](../SPEC.md), Abschnitt „Physik“.
+Dieses Dokument hält die Konstanten fest, beschreibt, wie der 6502-Kern
+einen Simulationsschritt rechnet, und belegt die Abnahmekriterien mit
+Messwerten. Der Sweep und die Reichweitentabelle gelten für Gras, den
+voreingestellten Belag. Seine Koeffizienten sind die Kalibrierung vom
+2026-10-06 und sind unverändert.
 
 ## Konstanten
 
@@ -14,18 +16,63 @@ Abnahmekriterien mit Messwerten.
 | Richtung | Einheitsvektor Q1.8 aus 128 Richtungen | `UNIT_X/Y`, `unit_cos` |
 | Geschwindigkeit | `SPEED` in 1/256 px je Bild, Stärke × 32 | `start_shot` |
 | Höchstgeschwindigkeit | 1024 = 4 px je Bild (Stärke 32) | |
-| Rollbremsung | 4/256 px je Bild² (`ROLL_DECEL`) | `memory.inc` |
-| Stillstand | `SPEED` ≤ 4: Ball steht exakt | |
+| Stillstand | `SPEED` ≤ Rollbremsung des Belags: Ball steht exakt | |
 | Ballradius | 2 px (`BALL_RADIUS` 512) | |
 | Wand-Epsilon | 2/256 px Spalt werden als Berührung gewertet | `try_line` |
 | Kontakte je Bild | höchstens 4 (`MAX_CONTACTS`) | |
 | Eckpunkt-Zeitauflösung | 1/16 Bild (`CIRCLE_MIN_BIT` 16) | |
-| Banden-Verlust | `SPEED` · d² · 31/512 + `SPEED`/128 + 1, d = u · n | `reflect_speed_loss` |
-| Lochfang | Radius 3 px, nur bei `SPEED` ≤ 192 (0,75 px je Bild) | `test_cup` |
-| Lochrand | unter 5,5 px Abstand: 1/64 rad je Bild zum Loch, Reibung `SPEED`/128 + 1 | `cup_rim` |
+| Lochfang | Radius 3 px, nur bei `SPEED` ≤ 192 (0,75 px je Bild), auf jedem Belag | `test_cup` |
+| Lochrand | unter 5,5 px: 1/64 rad je Bild zum Loch, Reibung wie die Bande | `cup_rim` |
 
-Reichweite auf freier Fläche: etwa Stärke²/2 Pixel (Stärke 8: 32,5 px,
-16: 129 px, 32: 514 px); der Ball rollt Stärke × 8 Bilder.
+## Beläge
+
+Die Titelwahl `menu_surface` gilt für die ganze Runde. Farbe und Physik
+kommen aus [assets/colours.json](../assets/colours.json); der Generator
+schreibt `surface_decel`, `surface_rest_shift` und `surface_drag`. Mit
+d = u · n und V = floor(SPEED · d²) gilt
+
+SPEED −= V · N/512 + floor(SPEED / 2^k) + 1
+
+an der Bande und, ohne den Term mit N, am Lochrand. Die Rollbremsung wird
+einmal je Bild von SPEED abgezogen.
+
+| Belag | Rollbremsung | N | e | k | Kontakt und Rand |
+|---|---:|---:|---:|---:|---|
+| Beton | 2 | 16 | √(15/16) ≈ 0,968 | 7 | SPEED/128 + 1 |
+| Gras | 4 | 31 | 15/16 = 0,9375 | 7 | SPEED/128 + 1 |
+| Gummi | 6 | 64 | √(3/4) ≈ 0,866 | 5 | SPEED/32 + 1 |
+| Erde | 8 | 128 | √(1/2) ≈ 0,707 | 6 | SPEED/64 + 1 |
+
+N ist 256 · (1 − e²). Die Betragsformel verliert damit den Anteil
+d² · (1 − e²)/2, dieselbe Näherung wie bisher auf Gras. Frontal bleibt
+vor der Kontaktreibung etwa (1 + e²)/2 der Geschwindigkeit: Beton 0,969,
+Gras 0,939, Gummi 0,875, Erde 0,750. k = 7 ist die Untergrenze. Weniger
+Reibung würde Rundungsgewinn an der Einheitsrichtung nicht mehr sicher
+decken (unter 0,5 %).
+
+Gras rechnet N = 31 weiter als (V >> 4) − (V >> 9). Das liegt höchstens
+1 unter floor(V · 31/512), innerhalb der bestehenden Toleranz, und lässt
+die aufgezeichneten Replays bitgenau. In `surface_rest_shift` steht dafür
+0. Der Kern darf das nicht als Schiebezahl lesen: ein Zähler 0 liefe
+256-mal. Die anderen N sind Zweierpotenzen, der Kern schiebt V exakt
+(16 → 5, 64 → 3, 128 → 2). Die Kontaktreibung kommt als ein Byte zurück,
+darum ist k mindestens 3: 1024 >> 3 passt noch, 1024 >> 2 nicht mehr.
+
+Einordnung, keine zweite Simulation: Bahn 1 ist 216 px vom Abschlag zum
+Loch. Als kurze Bahn von etwa 8 m gelesen sind das rund 3,7 cm/px. Dann
+ist die Rollverzögerung a ≈ Bremsung · 0,36 m/s² und μ = a/g ≈ Bremsung ·
+0,037. Beton μ ≈ 0,07 (glatter Gussbeton, ein sehr schnelles Grün, kein
+Eis), Gras μ ≈ 0,15 (kurzer Minigolfrasen, etwas langsamer als ein
+Turniergrün), Gummi μ ≈ 0,22 (Walkarbeit der Matte), Erde μ ≈ 0,29
+(festgetreten, kein Sand). Die Bande ist derselbe Belag: Beton hart und
+glatt, Gras die kalibrierte Minigolfkante, Gummi haftet und kommt gedämpft
+zurück, Erde schluckt den Stoß und ist nur mäßig rau.
+
+Reichweite auf Gras: etwa Stärke²/2 Pixel (Stärke 8: 32,5 px, 16: 129 px,
+32: 514 px); der Ball rollt Stärke × 8 Bilder. Mit anderer Bremsung D
+liegt die freie Strecke bei etwa (4/D) · Stärke²/2. Stärke 8, Achse,
+diskretes Modell: Beton 64,5 px, Gras 32,5 px, Gummi 21,8 px, Erde 16,5 px.
+Stärke 16: Beton 257 px, Gras 129 px, Gummi 86,3 px, Erde 65 px.
 
 ## Ein Simulationsschritt
 
@@ -38,14 +85,15 @@ Reichweite auf freier Fläche: etwa Stärke²/2 Pixel (Stärke 8: 32,5 px,
 4. Lochfang nur unterhalb der Fanggeschwindigkeit und nur vor dem
    Wandkontakt; die Prüfung folgt dem Weg, nicht nur dem Endpunkt.
 5. Reflexion, Geschwindigkeitsverlust, Reststück; höchstens vier Kontakte.
-6. Wasser, Lochrand (nur in Bildern ohne Wandkontakt), Rollbremsung.
+6. Wasser, Lochrand (nur in Bildern ohne Wandkontakt), Rollbremsung des Belags.
 
 ### Kontaktregeln
 
 - **Wandflächen** spiegeln exakt: Achsen über das Vorzeichen, 45° über den
   Komponententausch. Im Reststück nach so einem Kontakt behält `VELOCITY`
-  die alte Geschwindigkeit (höchstens 0,28 px Unterschied zur exakten
-  Rechnung); ab dem nächsten Bild gilt der neue Betrag.
+  die alte Geschwindigkeit; ab dem nächsten Bild gilt der neue Betrag.
+  Der Unterschied zur exakten Rechnung ist höchstens ein Bild mal dem
+  Bandenverlust: auf Gras 0,28 px, auf Erde rund 1,1 px.
 - **Eckpunkte**: Die Normale kommt aus dem Versatz zum Eckpunkt am letzten
   Punkt außerhalb. `vertex_normal` normiert ihn über |Versatz|² (Tabelle
   `normal_scale`, 48 Stufen) auf 0,98 ≤ |n| < 1. Ein Eckpunkt konkurriert
@@ -89,7 +137,7 @@ Toleranzen für den Vergleich mit der Referenz, nach Bildart:
 | frei | 1,5/256 px | 0,01° | 0 | Rundung der Geschwindigkeit je Achse |
 | Lochrand | 2/256 px | 0,2° | 1 | Drehung je Komponente gerundet |
 | Lochrand, Loch genau voraus | 2/256 px | 2° | 1 | Seitentest unter 2/256 px: beide Drehrichtungen richtig |
-| Wandfläche | 0,31 px | 0,05° | 3,5 | Reststück mit alter Geschwindigkeit (≤ 0,28 px), Rundung |
+| Wandfläche | 0,31 px auf Gras, sonst 4·(N/512 + 1/2^k) + 0,03 | 0,05° | 3,5 | Reststück mit alter Geschwindigkeit. Auf Gras höchstens 0,28 px; Erde verliert frontal etwa 27 % und darf bis rund 1,1 px abweichen |
 | Doppelkontakt 135° | 0,3 px | 1° | 4 | halbe Normale ·255/256 |
 | Eckpunkt | 0,75 px | 5° | 5 | gegen den um ≤ 1/4 px quer verschobenen Ball |
 | Grenzfall | 0,3 px | – | – | Berührung am Bildende oder Streifen innerhalb 1/32 px; Lochfangkreis innerhalb 1/16 px |
@@ -113,7 +161,8 @@ Reststück).
 `make physics` (Optionen `HOLES`, `STRIDE`, `SPACING`) schlägt auf allen
 18 Bahnen vom Abschlag und von einem 16-px-Raster spielbarer Punkte aus in
 jede 4. Richtung mit den Stärken 4, 12, 22 und 32 und rollt jeden Ball bis
-zum Stillstand. Bericht: `build/physics-sweep.json`.
+zum Stillstand. Der Lauf benutzt Gras, den Anfangswert von `menu_surface`.
+Bericht: `build/physics-sweep.json`.
 
 Ergebnis 2026-10-06 (Stand dieses Commits): 188 288 Schläge, 21,7 Mio.
 Bilder, **keine Verletzung**: kein Eindringen, kein Tunneling, kein
@@ -151,9 +200,10 @@ Laufzeit des Sweeps: rund 20 Minuten auf 12 Kernen.
 | Lochfang | `CupTests`: langsam aus 32 Richtungen, schnell darüber, Sehne innerhalb eines Schritts |
 | Eckennormale | `VertexNormalTests`: \|n\| ≤ 1, ≥ 0,978, radial ≤ 0,6°; Reflexion ohne Gewinn |
 
-## Reichweite und Richtung (gemessen)
+## Reichweite und Richtung (gemessen, Gras)
 
-Freie Fläche, Strecke bis zum Stillstand:
+Freie Fläche auf Gras, Strecke bis zum Stillstand. Die anderen Beläge
+skalieren mit 4/D, siehe oben:
 
 | Stärke | Reichweite | 8 Richtungen: Spanne / Richtung | 128 Richtungen: Spanne / Richtung |
 |---:|---:|---:|---:|

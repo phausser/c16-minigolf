@@ -148,7 +148,8 @@ class Monitor:
         return min(math.dist(*segment_distance(a, b, s.a, s.b)) for s in self.segments)
 
     def compare(self, before, after, contacts, info):
-        predicted = ref.frame(copy.deepcopy(before), self.segments, self.cup)
+        predicted = ref.frame(copy.deepcopy(before), self.segments, self.cup,
+                              self.r.get('menu_surface'))
         report = self.report
         if predicted.holed != after.holed:
             # The catch circle is touched at its very edge: the ball (or its
@@ -214,6 +215,13 @@ class Monitor:
         worst = report.worst.get(kind, (0, 0, 0))
         report.worst[kind] = (max(worst[0], position), max(worst[1], direction), max(worst[2], speed))
         limit_pos, limit_dir, limit_speed = TOLERANCE[kind]
+        if kind == 'face':
+            # Axis and 45° walls keep the pre-bounce velocity for the rest of
+            # the frame. The gap grows with the floor's speed loss. Gras stays
+            # at the calibrated 0.31 px; a livelier floor loses less.
+            spec = ref.SURFACES[self.r.get('menu_surface')]
+            fraction = spec['restitution']/512 + 1/(1 << spec['drag_shift'])
+            limit_pos = max(limit_pos, 4*fraction + 0.03)
         if position > limit_pos or (limit_dir is not None and direction > limit_dir) or \
                 (limit_speed is not None and speed > limit_speed):
             self.violation('reference-'+kind, info+(round(position, 4), round(direction, 3), speed))
@@ -230,7 +238,7 @@ class Monitor:
             trial = copy.deepcopy(before)
             trial.x += px*shift
             trial.y += py*shift
-            trial = ref.frame(trial, self.segments, self.cup)
+            trial = ref.frame(trial, self.segments, self.cup, self.r.get('menu_surface'))
             if trial.rolling and 'vertex' in trial.events:
                 e = angle_between(trial.ux, trial.uy, after.ux, after.uy)
                 if e < error:

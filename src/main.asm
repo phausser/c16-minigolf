@@ -220,6 +220,9 @@ clear_state:
 ; The assets define TITLE_PATTERNS, so this check follows them.
 !if TITLE_PATTERNS > TITLE_CHAR_LIMIT { !error "title frame and a preview page exceed the charset" }
 !if GRAS_SURFACE != 1 { !error "menu_surface starts on Gras" }
+!if GRAS_DECEL != ROLL_DECEL { !error "Gras decel must match ROLL_DECEL" }
+!if GRAS_REST != 31 { !error "Gras restitution must stay 31" }
+!if GRAS_DRAG != 7 { !error "Gras contact drag must stay SPEED/128" }
 ; Test-only stress image: verify the safe copier even after the destination
 ; grows over the original SYS loader and part of its source image.
 !ifdef RELOCATION_TEST_PADDING { !fill RELOCATION_TEST_PADDING, $a5 }

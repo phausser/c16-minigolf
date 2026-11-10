@@ -6,6 +6,7 @@ import random
 import unittest
 
 from test_runtime import Runtime, S
+import physics_reference as ref
 
 
 def unsigned(r, name, size=2):
@@ -123,11 +124,32 @@ class ArithmeticTests(unittest.TestCase):
                 if d >= 0:
                     continue
                 self.assertEqual((rx,ry),(-ux,uy) if nx else (ux,-uy),(angle,nx,ny))
-                expected = 1024*(1-d*d*31/512)-1024//128-1   # plus contact friction
+                gras = ref.SURFACES[ref.GRAS]
+                divisor = 1 << gras['drag_shift']
+                expected = 1024*(1-d*d*gras['restitution']/512)-1024//divisor-1
                 self.assertLessEqual(abs(speed-expected),2,(angle,nx,ny,speed,expected))
                 # The frame remainder mirrors the old velocity (4 * unit).
                 self.assertEqual(signed(self.r,'VELOCITY_X'),4*rx)
                 self.assertEqual(signed(self.r,'VELOCITY_Y'),4*ry)
+
+    def test_head_on_loss_matches_each_floor(self):
+        for index, spec in enumerate(ref.SURFACES):
+            self.r.put('menu_surface', index)
+            _, _, speed = self.reflect(0, -256, 0)
+            n = spec['restitution']
+            loss = (1024 >> 4) - (1024 >> 9) if n == 31 else 1024 * n // 512
+            drag = (1024 >> spec['drag_shift']) + 1
+            self.assertEqual(speed, 1024 - loss - drag, spec['name'])
+
+    def test_no_floor_gains_speed_on_an_axis_wall(self):
+        for index, spec in enumerate(ref.SURFACES):
+            self.r.put('menu_surface', index)
+            for nx, ny in ((256, 0), (-256, 0), (0, 256), (0, -256)):
+                for angle in range(0, 128, 8):
+                    (ux, uy), _, speed = self.reflect(angle, nx, ny)
+                    if (ux*nx + uy*ny) >= 0:
+                        continue
+                    self.assertLess(speed, 1024, (spec['name'], angle, nx, ny))
 
     def test_reflection_never_gains_speed_and_follows_the_mirror(self):
         normals = [(181,181),(-181,181),(181,-181),(-181,-181)]
@@ -513,6 +535,45 @@ class MovementTests(unittest.TestCase):
                     self.fail('ball never stops')
             return states
         self.assertEqual(replay(),replay())
+
+
+class SurfaceTests(unittest.TestCase):
+    def test_kernel_tables_match_colours_json(self):
+        r = Runtime()
+        for index, spec in enumerate(ref.SURFACES):
+            self.assertEqual(r.bus[r.S['surface_decel']+index], spec['decel'], spec['name'])
+            self.assertEqual(r.bus[r.S['surface_drag']+index], spec['drag_shift'], spec['name'])
+            shift = 0 if spec['restitution'] == 31 else 9 - spec['restitution'].bit_length() + 1
+            self.assertEqual(r.bus[r.S['surface_rest_shift']+index], shift, spec['name'])
+
+    def test_free_roll_distance_follows_the_floor(self):
+        # Power 8 starts at SPEED 256. The stopping tick still moves.
+        expected = {2: (128, 64.5), 4: (64, 32.5), 6: (43, 5590/256), 8: (32, 16.5)}
+        distances = []
+        for index, spec in enumerate(ref.SURFACES):
+            r = Runtime()
+            r.call('initialise_state')
+            r.put('menu_surface', index)
+            isolate_segments(r, [])
+            position(r, 40, 112)
+            r.put('ANGLE', 0)
+            r.put('POWER', 8)
+            r.call('start_shot')
+            frames = 0
+            while r.get('ROLLING'):
+                r.call('physics_tick')
+                frames += 1
+                self.assertLess(frames, 400, spec['name'])
+            ticks, reach = expected[spec['decel']]
+            self.assertEqual(frames, ticks, spec['name'])
+            end = point(r)
+            self.assertLess(abs(end[0] - 40 - reach), 0.05, spec['name'])
+            self.assertLess(abs(end[1] - 112), 0.05, spec['name'])
+            distances.append(end[0])
+        beton, gras, erde, gummi = distances
+        self.assertGreater(beton, gras)
+        self.assertGreater(gras, gummi)
+        self.assertGreater(gummi, erde)
 
 
 if __name__ == '__main__':

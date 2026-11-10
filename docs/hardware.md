@@ -368,9 +368,11 @@ Mit Nutzerfreigabe weicht die Physik seitdem ab (Nutzertest in VICE:
 | multiply_fraction zweifach entrollt (+10 Bytes) | 31996 |
 | Kreis-Bitsuche bis 1/16 Frame (Abstand ≤ 1/4 px) | 30173 |
 
-Abprallmodell: u' = u − 2(u·n)n; SPEED −= SPEED·d²·31/512 + SPEED/128 + 1
-mit d = u·n. Die Kontaktreibung deckt Rundungsgewinne von bis zu 0,44 % bei
-streifenden Treffern ab. Eckennormale n = Q/2 − Q/256 (|n| ≤ 1). Achsen-
+Abprallmodell dieses Stands (Gras): u' = u − 2(u·n)n;
+SPEED −= SPEED·d²·31/512 + SPEED/128 + 1 mit d = u·n. Die Kontaktreibung
+deckt Rundungsgewinne von bis zu 0,44 % bei streifenden Treffern ab. Seit
+2026-11-10 hängen Rollbremsung, Bandenverlust und Randreibung am Belag;
+die Zahlen stehen in [physics.md](physics.md). Eckennormale n = Q/2 − Q/256 (|n| ≤ 1). Achsen-
 und 45°-Banden spiegeln UNIT und VELOCITY exakt; der Rest des Frames läuft
 dort mit der alten Geschwindigkeit, ab dem nächsten Schritt gilt
 VELOCITY = SPEED·UNIT. corner-replays.json wurde neu aufgezeichnet.

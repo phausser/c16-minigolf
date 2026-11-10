@@ -109,7 +109,9 @@ class WallTests(unittest.TestCase):
                     self.assertLess(angle_between(after.ux, after.uy, *mirror), 1, (angle, power))
                     nx, ny = segment.normal
                     speed = before.speed
-                    expected = speed-speed*d*d*31/512-speed/128-1-4    # plus roll braking
+                    gras = ref.SURFACES[ref.GRAS]
+                    expected = (speed - speed*d*d*gras['restitution']/512
+                                - speed/(1 << gras['drag_shift']) - 1 - gras['decel'])
                     self.assertLessEqual(after.speed, before.speed)
                     self.assertLessEqual(abs(after.speed-expected), 3, (angle, power, after.speed, expected))
         self.assertGreater(contacts, 500)
@@ -394,6 +396,21 @@ class VertexNormalTests(unittest.TestCase):
                 d = (before.ux*nx+before.uy*ny)/n
                 mirror = (before.ux-2*d*nx/n, before.uy-2*d*ny/n)
                 self.assertLess(angle_between(after.ux, after.uy, *mirror), 2.5, (nx, ny, angle))
+
+
+class SurfaceTests(unittest.TestCase):
+    def test_each_floor_matches_the_reference(self):
+        box = [[24, 24], [296, 24], [296, 160], [24, 160]]
+        for surface, spec in enumerate(ref.SURFACES):
+            r, course = scene([box])
+            r.put('menu_surface', surface)
+            report = Report()
+            monitor = Monitor(r, course, report)
+            place(r, 48, 96)
+            monitor.shot(0, 12, ('roll', spec['name']), limit=400)
+            place(r, 270, 80)
+            monitor.shot(0, 22, ('bank', spec['name']), limit=40, settle=False)
+            assert_clean(self, report)
 
 
 class ReplayTests(unittest.TestCase):

@@ -164,7 +164,7 @@ DECODE_LENGTH = M_COUNT
 
 BALL_RADIUS = 512
 DIAGONAL_RADIUS = 725       ; ceil(2 * sqrt(2) * 256), never inside the wall
-ROLL_DECEL = 4              ; 1/64 pixel per 50-Hz step
+ROLL_DECEL = 4              ; Gras only, 1/64 px per frame. Other floors: colours.json
 MAX_CONTACTS = 4
 CIRCLE_MIN_BIT = 16         ; corner contact time resolution, 1/256 frame units
 

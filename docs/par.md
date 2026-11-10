@@ -1,8 +1,11 @@
 # Par und Lösungswege
 
-Stand 2026-10-06. Par aller 18 Bahnen ist festgelegt (Summe **49**); jede
+Stand 2026-11-10. Par aller 18 Bahnen ist festgelegt (Summe **49**); jede
 Bahn hat einen gespeicherten Lösungsweg, den die Tests im Spiel-Build
-nachspielen.
+nachspielen. Par und Wege gelten für Gras, den voreingestellten Belag.
+Beton rollt etwa doppelt so weit, Erde etwa halb so weit, Gummi liegt
+dazwischen und federt weniger. Dieselben Schläge sind dort keine Lösung.
+Par wird nicht je Belag neu gezählt.
 
 ## Verfahren
 

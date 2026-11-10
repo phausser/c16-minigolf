@@ -74,10 +74,13 @@ unabhängige Referenz laufen und erkennt Durchtritt, Energiegewinn, Zittern,
 Steckenbleiben und Kontaktlimit (Optionen `HOLES="3 7"`, `STRIDE=4`,
 `SPACING=16`; etwa 20 Minuten auf 12 Kernen). Bericht in
 `build/physics-sweep.json`, Verfahren und Toleranzen in
-[physics.md](physics.md).
+[physics.md](physics.md). Der Sweep, die Lösungswege und die Replays laufen
+auf Gras (`menu_surface` = 1). Beton, Erde und Gummi stehen in
+`assets/colours.json`.
 
-Ändert sich die Physik absichtlich, die Regressionsfixtures in dieser
-Reihenfolge neu erzeugen und die Änderung im Commit begründen:
+Ändert sich die Gras-Physik absichtlich, die Regressionsfixtures in dieser
+Reihenfolge neu erzeugen und die Änderung im Commit begründen. Eine
+Änderung nur an Beton, Erde oder Gummi lässt die Gras-Fixtures gültig:
 
 ```sh
 make solve                                   # Lösungswege und Par-Basis

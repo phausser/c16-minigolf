@@ -31,7 +31,12 @@ cosine_unit:
 cosine_index:
     lda unit_cos_lo,x
     sta M_A
-    lda unit_cos_hi,x
+    ; Entries 0 and 1 are 256. The rest of the quarter wave fits in one byte.
+    lda #0
+    cpx #2
+    bcs cosine_store_hi
+    lda #1
+cosine_store_hi:
     sta M_A + 1
     lda PHYS_INDEX
     clc
@@ -228,17 +233,21 @@ physics_steps_finished:
     jmp play_sound
 physics_dry:
     jsr cup_rim
-    ; Constant radial resistance preserves the unit direction. There is
-    ; no independent x/y braking and no asymptotic never-ending creep.
+    ; Radial resistance of the chosen floor. Subtracting it from SPEED
+    ; keeps the unit direction. No independent x/y braking, no creep.
+    ldx menu_surface
+    lda surface_decel,x
+    sta TEMP
     lda SPEED + 1
     bne physics_brake
     lda SPEED
-    cmp #ROLL_DECEL + 1
+    cmp TEMP
     bcc stop_ball
+    beq stop_ball
 physics_brake:
     sec
     lda SPEED
-    sbc #ROLL_DECEL
+    sbc TEMP
     sta SPEED
     lda SPEED + 1
     sbc #0
@@ -477,9 +486,10 @@ cell_times_8:
 ; without being caught, its direction turns about 0.9 degrees per frame
 ; towards the cup centre: a ball passing left of the cup bends right.
 ; Slow balls stay longer on the rim and curl more; a ball over the
-; centre line goes straight. Rim drag SPEED/128 + 1 outweighs the unit
-; rounding of the turn (< 0.3 %), so the rim never adds speed.
-; Frames with a wall contact skip the rim: the two worst costs never add.
+; centre line goes straight. Rim drag is the floor's contact loss
+; (Gras: SPEED/128 + 1). It outweighs the unit rounding of the turn
+; (< 0.3 %), so the rim never adds speed. Frames with a wall contact
+; skip the rim: the two worst costs never add.
 rim_far:
     rts
 cup_rim:
@@ -579,23 +589,25 @@ rim_turn:
     lda M_B
     jsr rim_add
 rim_drag:
+    lda #0                    ; rim loss is only the floor's contact drag
+    sta M_A
+    sta M_A + 1
+    jmp apply_floor_loss
+
+; A = floor(SPEED / 2^surface_drag). Clobbers X, Y and TEMP. Drag 7 is
+; SPEED/128, the smallest loss that still covers unit rounding.
+speed_drag:
+    ldx menu_surface
+    ldy surface_drag,x
     lda SPEED
-    asl
+    sta TEMP
     lda SPEED + 1
-    rol
-    sta TEMP                  ; SPEED / 128
-    clc                       ; borrow: one more
-    lda SPEED
-    sbc TEMP
-    sta SPEED
-    lda SPEED + 1
-    sbc #0
-    sta SPEED + 1
-    bcs rim_none
-    lda #0
-    sta SPEED
-    sta SPEED + 1
-rim_none:
+speed_drag_bit:
+    lsr
+    ror TEMP
+    dey
+    bne speed_drag_bit
+    lda TEMP
     rts
 
 ; A = round(v / 64) for the unit component v = X:A, |v| <= 288.
@@ -760,12 +772,13 @@ accept_x_high:
     +add16 BALL_POS_Y, TRIAL_Y, BALL_POS_Y
     rts
 
-; Mirror UNIT about the contact normal and take the restitution loss from
-; SPEED: e = 15/16 on the normal share gives |v'|/|v| ~= 1 - d^2 * 31/512
-; with d = u.n, plus a small contact friction. Axis and 45-degree walls
-; mirror UNIT and VELOCITY exactly; the frame remainder keeps the old speed
-; there, the next tick rebuilds VELOCITY from SPEED. Corner normals have
-; |n| <= 1, so |u| never grows; components are clamped to +/-256.
+; Mirror UNIT about the contact normal and take the floor's restitution
+; from SPEED. V = floor(SPEED * d^2), d = u.n. Gras keeps
+; V*31/512 + SPEED/128 + 1 (e = 15/16). The other floors use a power of
+; two for N in V*N/512, plus their own contact loss. Axis and 45-degree
+; walls mirror UNIT and VELOCITY exactly; the frame remainder keeps the
+; old speed there, the next tick rebuilds VELOCITY from SPEED. Corner
+; normals have |n| <= 1, so |u| never grows; components are clamped to +/-256.
 reflect_unit:
     lda NY
     ora NY + 1
@@ -921,13 +934,30 @@ reflect_diagonal_next:
     sta M_B
     jmp reflect_speed_loss
 
-; M_B = d^2 in Q1.8: SPEED -= SPEED * d^2 * 31/512 + SPEED/128 + 1.
+; M_B = d^2 in Q1.8. V = floor(SPEED * d^2). Gras (shift 0) loses
+; (V>>4)-(V>>9), within 1 of floor(V*31/512). Other floors lose V>>shift.
+; Both then lose floor(SPEED>>drag)+1.
 reflect_speed_loss:
     +copy16 SPEED, M_A
     jsr multiply_unit
+    ldx menu_surface
+    lda surface_rest_shift,x
+    beq reflect_grass_loss
+    tay
+    lda M_PRODUCT + 1
+    sta M_A
+    lda M_PRODUCT + 2
+    sta M_A + 1
+reflect_scale:
+    lsr M_A + 1
+    ror M_A
+    dey
+    bne reflect_scale
+    jmp apply_floor_loss
+reflect_grass_loss:
     lda M_PRODUCT + 2
     lsr
-    sta TEMP
+    sta TEMP                  ; V >> 9
     lda M_PRODUCT + 1
     ldx #4
 reflect_loss:
@@ -936,24 +966,32 @@ reflect_loss:
     dex
     bne reflect_loss
     sec
-    sbc TEMP
-    sta TEMP
-    ; Contact friction SPEED/128 + 1 outweighs unit rounding (< 0.5%),
-    ; so even grazing contacts never gain speed.
-    lda SPEED
-    asl
-    lda SPEED + 1
-    rol
+    sbc TEMP                  ; (V >> 4) - (V >> 9)
+    sta M_A
+    lda #0
+    sta M_A + 1
+; M_A is an extra 16-bit loss (restitution, or 0 at the rim). Subtract
+; M_A + floor(SPEED>>drag) + 1 from SPEED and clamp at 0.
+apply_floor_loss:
+    jsr speed_drag
     sec
-    adc TEMP
-    sta TEMP
+    adc M_A
+    sta M_A
+    bcc apply_loss_sub
+    inc M_A + 1
+apply_loss_sub:
     sec
     lda SPEED
-    sbc TEMP
+    sbc M_A
     sta SPEED
     lda SPEED + 1
-    sbc #0
+    sbc M_A + 1
     sta SPEED + 1
+    bcs apply_loss_done
+    lda #0
+    sta SPEED
+    sta SPEED + 1
+apply_loss_done:
     rts
 
 ; Negate the word at VELOCITY_X + X.
