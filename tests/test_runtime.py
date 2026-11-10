@@ -86,6 +86,9 @@ class Runtime:
         self.bus[load:load+len(prg)-2] = prg[2:]
         self.cpu.pc = self.S['loader']
         self.run_until(self.S['start'])
+        # square_lo is built into the charset tail, which the loader does
+        # not copy. initialise_video and start_hole build it again.
+        self.call('build_square_lo')
 
     def run_until(self, address, limit=20000000):
         for _ in range(limit):

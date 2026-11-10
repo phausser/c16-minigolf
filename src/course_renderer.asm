@@ -59,7 +59,7 @@ draw_hidden:
 draw_hidden_done:
     lda pattern_overflow
     beq draw_course_done
-    lda #$22                  ; red border: the 64-character budget overflowed
+    lda #$22                  ; red border: the course-character budget overflowed
     sta TED_BORDER
 draw_course_done:
     ; Fall through: obstacles get the floor colour.

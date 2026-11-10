@@ -65,7 +65,7 @@ hud_row_clear:
     sta ATTR_BASE + 24 * 40,x
     dex
     bpl hud_row_clear
-    rts
+    jmp build_square_lo       ; tail is square_lo, not a glyph
 
 ; draw_course repaints rows 0..23. Row 24 keeps the HUD colours from above.
 clear_playfield:

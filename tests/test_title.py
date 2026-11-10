@@ -8,20 +8,67 @@ COURSES = [json.loads(p.read_text()) for p in sorted((ROOT/'assets/courses').glo
 UP, DOWN, LEFT, RIGHT, FIRE = 1, 2, 4, 8, 16
 
 
+def preview_quantize(pixel, axis):
+    """2px units / 10. Y starts at the playfield edge, pixel 8."""
+    unit = pixel // 2
+    if axis == 'y':
+        if unit < 4:
+            return 0
+        unit -= 4
+        limit = 7
+    else:
+        limit = 15
+    return min(unit // 10, limit)
+
+
+def preview_line(x0, y0, x1, y1):
+    dx, dy = abs(x1 - x0), abs(y1 - y0)
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    err = dx - dy
+    while True:
+        yield x0, y0
+        if x0 == x1 and y0 == y1:
+            return
+        e2 = 2 * err
+        if e2 > -dy:
+            err -= dy
+            x0 += sx
+        if e2 < dx:
+            err += dx
+            y0 += sy
+
+
 def preview_bitmap(course):
-    """A block as src/title.asm draws it: 1:8, column by column, black
-    (cleared) outline and cup on white."""
-    points = set()
-    for contour in [course['outline'], *course['obstacles']]:
-        for a, b in zip(contour, contour[1:]+contour[:1]):
-            x, y = a[0]//8-1, a[1]//8-1
-            dx, dy = b[0]//8-1-x, b[1]//8-1-y
-            for i in range(max(abs(dx), abs(dy))):
-                points.add((x+i*((dx > 0)-(dx < 0)), y+i*((dy > 0)-(dy < 0))))
-    points.add((course['cup'][0]//8-1, course['cup'][1]//8-1))
-    bitmap = [0xff]*120
-    for x, y in points:
-        bitmap[(x//8)*24+y] &= 0xff ^ (0x80 >> (x % 8))
+    """16x8 picture as src/title.asm draws it: outline only, playable
+    interior cleared (black), set bits left at $ff (the cell's floor
+    colour). Crossings are the first pixel of each edge row except ymax;
+    each row is filled between sorted pairs, including both ends."""
+    stroke = set()
+    crossings = [[] for _ in range(8)]
+    outline = course['outline']
+    for a, b in zip(outline, outline[1:] + outline[:1]):
+        x0, y0 = preview_quantize(a[0], 'x'), preview_quantize(a[1], 'y')
+        x1, y1 = preview_quantize(b[0], 'x'), preview_quantize(b[1], 'y')
+        ymax = max(y0, y1)
+        seen = None
+        for x, y in preview_line(x0, y0, x1, y1):
+            stroke.add((x, y))
+            if y != ymax and y != seen:
+                crossings[y].append(x)
+                seen = y
+    bitmap = [0xff] * 16
+
+    def clear(x, y):
+        bitmap[(x // 8) * 8 + y] &= 0xff ^ (0x80 >> (x % 8))
+
+    for x, y in stroke:
+        clear(x, y)
+    for y, row in enumerate(crossings):
+        row.sort()
+        for index in range(0, len(row) - 1, 2):
+            for x in range(row[index], row[index + 1] + 1):
+                clear(x, y)
     return bitmap
 
 
@@ -39,30 +86,30 @@ class TitleTests(unittest.TestCase):
             self.r.frames(0, 2)
 
     def block(self, hole):
-        base = self.S['CHARSET_BASE']+(self.S['PREVIEW_CHAR']+hole % 4*15)*8
-        return self.r.bus[base:base+120]
+        base = self.S['CHARSET_BASE']+(self.S['PREVIEW_CHAR']+hole % 4*2)*8
+        return self.r.bus[base:base+16]
 
     def code(self, row, column):
         return self.r.bus[self.S['SCREEN_BASE']+row*40+column]
 
     def holes_text(self):
-        """From column 9: rows 17 and 18 (arrows, outline cells as ?) and
-        row 20 (ball and numbers)."""
-        return tuple(self.r.screen_text(row, 9, 21, self.floor) for row in (17, 18, 20))
+        """From column 9: row 18 (arrows and the two picture cells as ?)
+        and row 19 (ball and numbers)."""
+        return tuple(self.r.screen_text(row, 9, 21, self.floor) for row in (18, 19))
 
     @staticmethod
     def holes_expected(first, ball=None):
-        top, middle, below = [' ']*21, [' ']*21, [' ']*21
-        middle[0] = '<' if first else ' '
-        middle[20] = '>' if first+3 < len(COURSES) else ' '
+        picture, below = [' ']*21, [' ']*21
+        picture[0] = '<' if first else ' '
+        picture[20] = '>' if first+3 < len(COURSES) else ' '
         for slot in range(3):
-            start = 2+6*slot              # the outline's first cell
-            top[start:start+5] = middle[start:start+5] = '?????'
+            start = 3+6*slot              # the picture's left cell
+            picture[start:start+2] = '??'
             number = str(first+slot+1)
-            below[start+5-len(number):start+5] = number
+            below[start+2-len(number):start+2] = number
             if ball == first+slot:
-                below[start+4-len(number)] = '*'
-        return ''.join(top), ''.join(middle), ''.join(below)
+                below[start+1-len(number)] = '*'
+        return ''.join(picture), ''.join(below)
 
     def text(self, row, column, count):
         letters = 'MINGOLFPAYRCTE'
@@ -96,10 +143,11 @@ class TitleTests(unittest.TestCase):
         self.assertEqual(self.holes_text(), self.holes_expected(0))
         self.assertEqual(self.r.get('pattern_overflow'), 0)
         for slot in range(3):
-            for column in range(5):
-                for row in range(3):
-                    self.assertEqual(self.code(17+row, 11+6*slot+column),
-                                     S['PREVIEW_CHAR']+slot*15+column*3+row)
+            for column in range(2):
+                column_x = 12+6*slot+column
+                self.assertEqual(self.code(18, column_x),
+                                 S['PREVIEW_CHAR']+slot*2+column)
+                self.assertEqual(self.r.bus[S['ATTR_BASE']+18*40+column_x], floor)
         for hole in range(4):                  # three shown, the next one ready
             self.assertEqual(self.block(hole), preview_bitmap(COURSES[hole]), hole)
         # The title glyphs are black on the light green floor.
@@ -112,21 +160,34 @@ class TitleTests(unittest.TestCase):
 
     def test_ecm_covers_only_the_figure_rows(self):
         """The raster mock advances one line per read. ECM goes on at line
-        82 and back off at line 98. A call that already passed line 82
-        waits for the next frame instead of enabling it mid-screen."""
+        82 and back off at line 100. Papers are black on the head and the
+        legs, and the player inks on the five shirt lines. A call that
+        already passed line 82 waits for the next frame instead of
+        enabling ECM mid-screen."""
         bus = self.r.bus
+        inks = [bus[self.S['player_inks'] + 1 + index] for index in range(3)]
+        on, shirt, legs, off = (self.S['ECM_ON_LINE'], self.S['SHIRT_LINE'],
+                                self.S['LEGS_LINE'], self.S['ECM_OFF_LINE'])
+
+        def papers(line, values):
+            return [(0xff16 + index, values[index], line) for index in range(3)]
+
+        expected = ([(0xff06, 0x5b, on)] + papers(on, (0, 0, 0))
+                    + papers(shirt, inks) + papers(legs, (0, 0, 0))
+                    + [(0xff06, 0x1b, off)] + papers(off, inks))
         bus.watch = []
         self.r.call('title_figure_colors')
-        writes = [(addr, value, line) for addr, value, line in bus.watch if addr == 0xff06]
-        self.assertEqual(writes, [(0xff06, 0x5b, self.S['ECM_ON_LINE']),
-                                  (0xff06, 0x1b, self.S['ECM_OFF_LINE'])])
+        writes = [(addr, value, line) for addr, value, line in bus.watch
+                  if addr in (0xff06, 0xff16, 0xff17, 0xff18)]
+        self.assertEqual(writes, expected)
         self.assertEqual(bus[0xff06], 0x1b)
+        self.assertEqual([bus[0xff16], bus[0xff17], bus[0xff18]], inks)
         bus.raster = 99                 # the next read returns line 100
         bus.watch = []
         self.r.call('title_figure_colors')
-        writes = [(addr, value, line) for addr, value, line in bus.watch if addr == 0xff06]
-        self.assertEqual(writes, [(0xff06, 0x5b, self.S['ECM_ON_LINE']),
-                                  (0xff06, 0x1b, self.S['ECM_OFF_LINE'])])
+        writes = [(addr, value, line) for addr, value, line in bus.watch
+                  if addr in (0xff06, 0xff16, 0xff17, 0xff18)]
+        self.assertEqual(writes, expected)
         self.assertEqual(bus[0xff06], 0x1b)
 
     def test_ball_moves_and_holes_slide_without_redrawing_shown_ones(self):
@@ -190,6 +251,18 @@ class TitleTests(unittest.TestCase):
         self.r.call('draw_status')
         self.r.assert_status(self, 1, 0, COURSES[0]['par'], 1)
         self.assertEqual(self.r.bus[0xff06], 0x1b)
+
+    def test_preview_ignores_obstacles(self):
+        """Contour 0 is the outline. A hole with an obstacle keeps a
+        shorter prefix; a hole without one uses every segment."""
+        self.r.cpu.x = 0
+        self.r.call('decode_course')
+        self.assertEqual(self.r.get('outline_bytes'), self.r.get('SEGMENT_BYTES'))
+        self.assertGreater(self.r.get('outline_bytes'), 0)
+        self.r.cpu.x = 8
+        self.r.call('decode_course')
+        self.assertGreater(self.r.get('SEGMENT_BYTES'), self.r.get('outline_bytes'))
+        self.assertGreater(self.r.get('outline_bytes'), 0)
 
     def test_fire_on_a_hole_starts_practice(self):
         self.press(DOWN)

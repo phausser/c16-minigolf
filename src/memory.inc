@@ -16,6 +16,7 @@ LINE_X = $17                  ; word
 LINE_Y = $19
 SEGMENTS_LEFT = $1a
 TEXT_COLUMN = $1b
+outline_bytes = $1c           ; decode_course: length of contour 0
 GLYPH = $1d
 POINT_INDEX = $1e
 
@@ -212,8 +213,15 @@ FONT_GLYPHS = 34             ; codes with 5-row glyphs, blank included
 FIGURE_CHAR = 34             ; golfer, top and bottom cell
 DYNAMIC_CHAR = 36            ; twelve cells under the ball and the aim dots
 BAR_CHAR = 48                ; eight power-bar shapes (BAR_GLYPHS)
-COURSE_CHAR = 64             ; up to 64 static hole patterns
-COURSE_CHAR_LIMIT = 64
+COURSE_CHAR = 64             ; static hole patterns
+; One hole uses at most 29 glyphs (hole 14). The catalogue stops at
+; char 95 so chars 96..127 can hold square_lo. That table is 256 bytes
+; and page aligned, so the indexed load never crosses a page.
+COURSE_CHAR_LIMIT = 32
+SQUARE_CHAR = COURSE_CHAR + COURSE_CHAR_LIMIT
+square_lo = CHARSET_BASE + SQUARE_CHAR * 8
+!if square_lo != $3b00 { !error "square_lo must be page aligned" }
+!if SQUARE_CHAR + 32 != 128 { !error "square_lo must fill the charset tail" }
 !if DYNAMIC_CHAR < FIGURE_CHAR + 2 { !error "dynamic cells overlap the font" }
 !if DYNAMIC_CHAR + MAX_DYNAMIC_CELLS > BAR_CHAR { !error "dynamic cells overlap the bar" }
 !if BAR_CHAR + 8 > COURSE_CHAR { !error "the power bar overlaps the course charset" }

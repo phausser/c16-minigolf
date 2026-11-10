@@ -3,6 +3,8 @@
 ; into one segment; flags match tools/generate_assets.expanded_segments.
 ; Floor and lawn inks first (course_inks).
 decode_course:
+    lda #0
+    sta outline_bytes
     txa
     asl
     tay
@@ -116,9 +118,9 @@ decode_new_segment:
     sta DECODE_DIR
 decode_move:
     tax
-    lda direction_dx,x
+    lda normal_sign_x,x       ; same eight steps as the collision normals
     pha
-    lda direction_dy,x
+    lda normal_sign_y,x
     sta TEMP
     ldx #0
     pla                       ; flags for the x step
@@ -145,7 +147,11 @@ decode_run_done:
     dec DECODE_RUNS
     bne decode_run
     lda DECODE_DIR
-    jsr emit_segment
+    jsr emit_segment          ; A = length so far; X is free, Y is the stream
+    ldx outline_bytes
+    bne outline_kept
+    sta outline_bytes         ; contour 0, the outline
+outline_kept:
     dec DECODE_CONTOURS
     beq decode_done
     jmp decode_contour
@@ -203,8 +209,3 @@ emit_normal:
     adc #5
     sta SEGMENT_BYTES
     rts
-
-direction_dx:
-!byte 1,1,0,$ff,$ff,$ff,0,1
-direction_dy:
-!byte 0,1,1,1,0,$ff,$ff,$ff

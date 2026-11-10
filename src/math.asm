@@ -70,6 +70,28 @@ square_q:
     sta M_PRODUCT + 3
     rts
 
+; Low bytes of 0^2..255^2 at square_lo (charset chars 96..127).
+; (n+1)^2 = n^2 + 2*n + 1. Page aligned, so the indexed load stays
+; 4 cycles. Clobbers A, X, Y and TEMP. Course glyphs stop at char 95,
+; and the title pictures use chars 68..75, so neither stores this table.
+; start_hole rebuilds it with the display off.
+build_square_lo:
+    ldx #0
+    ldy #0
+build_square_loop:
+    tya
+    sta square_lo,x
+    txa
+    asl
+    sta TEMP
+    tya
+    sec                       ; +1; also drops the carry left by asl
+    adc TEMP
+    tay
+    inx
+    bne build_square_loop
+    rts
+
 ; Exact square for the bounded geometry/velocity inputs (|M_A| <= 2048).
 ; The 256-entry table gives lo^2; the cross term 2*lo*hi*256 is exact.
 square_small:

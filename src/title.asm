@@ -1,35 +1,44 @@
-; Title menu shaped like a course, black glyphs on the white floor:
+; Title menu shaped like a course, black glyphs on the floor colour:
 ; MINIGOLF; PLAY over one to four golfers; PRACTICE over three holes as
-; 1:8 outlines with their numbers and arrows towards further holes. The
-; golf ball below marks the choice: up/down switches the row, left/right
-; moves in it, fire starts. Hole h is drawn in block h mod 4: the three shown
-; and the next one in the direction of the last slide. A hole that is not
-; ready is drawn into its block while that block is not shown, so the row
-; never shows drawing.
+; 16x8 silhouettes with their numbers and arrows towards further holes.
+; The playable interior is black; set bits keep the cell's floor colour.
+; No cup and no obstacles. The golf ball below marks the choice: up/down
+; switches the row, left/right moves in it, fire starts. Hole h is drawn
+; in block h mod 4: the three shown and the next one in the direction of
+; the last slide. A hole that is not ready is drawn into its block while
+; that block is not shown, so the row never shows drawing.
 TITLE_CHAR = 36               ; title frame from here on (intern_pattern)
-PREVIEW_CHAR = 68             ; four preview blocks of 5 x 3 cells
+PREVIEW_CHAR = 68             ; four 16 x 8 pictures, two cells each
 PREVIEW_BLOCKS = 4
-PREVIEW_BLOCK = 5 * 3
+PREVIEW_BLOCK = 2
 TITLE_CHAR_LIMIT = PREVIEW_CHAR - TITLE_CHAR
-!if PREVIEW_CHAR + PREVIEW_BLOCKS * PREVIEW_BLOCK > 128 { !error "previews exceed the charset" }
+!if PREVIEW_CHAR + PREVIEW_BLOCKS * PREVIEW_BLOCK > SQUARE_CHAR { !error "previews overlap square_lo" }
 !if TITLE_CHAR < FIGURE_CHAR + 2 { !error "the title frame overlaps the font" }
 !if FIGURE_CHAR & 1 { !error "the figure's second cell is FIGURE_CHAR or 1" }
 !if FIGURE_CHAR >= 64 { !error "the figure must fit ECM's 64 characters" }
-; Y-scroll is 3 ($FF06 = $1B): character row N is fetched on TED line
-; 3+8*N. Row 10 at line 83, row 12 at line 99. ECM covers line 82 through
-; line 98, and is off before those two fetches.
+; Y-scroll is 3 ($FF06 = $1B). Row N's colour fetch is TED line 3+8*N
+; and its eight pixels start on line 4+8*N. The figure is rows 10 and 11,
+; pixels 84..99. ECM is on for all sixteen ($5B at 82, $1B at 100, before
+; row 12). $FF16-$FF18 are black on the head (84..87) and the legs
+; (93..99), and the player inks on the shirt (88..92). $FF15 stays black.
 ECM_ON_LINE = 82
-ECM_OFF_LINE = 98
+FIGURE_LINE = 84
+SHIRT_LINE = 88
+LEGS_LINE = 93
+ECM_OFF_LINE = 100
+!if SHIRT_LINE - FIGURE_LINE != 4 { !error "the head is four pixels" }
+!if LEGS_LINE - SHIRT_LINE != 5 { !error "the shirt is five pixels" }
+!if ECM_OFF_LINE - LEGS_LINE != 7 { !error "the legs are seven pixels" }
 TITLE_LAST_ROW = 23           ; the title course reaches down to row 23
 HEADER = SCREEN_BASE + 4 * 40 + 16
 FIGURE_ROW = SCREEN_BASE + 10 * 40   ; and the row below, then the ball
-PREVIEW_ROW = SCREEN_BASE + 17 * 40  ; three rows of outlines, then the number
-HOLE_ROW = PREVIEW_ROW + 40          ; arrows
-NUMBER_ROW = PREVIEW_ROW + 120       ; ball and number below each outline
+PREVIEW_ROW = SCREEN_BASE + 18 * 40  ; pictures; the arrows share this row
+HOLE_ROW = PREVIEW_ROW
+NUMBER_ROW = PREVIEW_ROW + 40        ; ball and number below each picture
 ARROW_LEFT_COLUMN = 9
 ARROW_RIGHT_COLUMN = 29
-; A preview block holds its outline column by column: pixel (x, y) at
-; block + (x / 8) * 24 + y; course cell (x + 1, y + 1) is pixel (x, y).
+; A picture is two cells, column by column: pixel (x, y) is byte
+; (x / 8) * 8 + y. Set bits keep the cell colour; cleared bits are black.
 
 title_screen:
     ldx #$ff                  ; entered from the game loop: drop its frames
@@ -151,10 +160,10 @@ title_ball_hole:
     ldy slot_columns,x
     ldx practice_hole
     cpx #9
-    bcs title_ball_number     ; two digits from hole 10 on
-    iny
-title_ball_number:
-    sta NUMBER_ROW + 2,y      ; right before the number
+    bcc title_ball_store      ; one digit: blank is the picture's left cell
+    dey                       ; two digits: blank is the cell left of it
+title_ball_store:
+    sta NUMBER_ROW,y
     rts
 
 title_start:
@@ -200,10 +209,11 @@ title_clear_font:
     jsr start_hole
     jmp main_loop
 
-; ECM ($5B) only while rows 10 and 11 are fetched, then text mode ($1B)
-; again. The low raster byte wraps at 256, same as wait_for_frame. A call
-; that already missed line ECM_ON_LINE waits for the next frame instead of
-; turning ECM on over the preview.
+; ECM ($5B) while the sixteen figure pixels are drawn, then text mode
+; ($1B) before row 12. The low raster byte wraps at 256, same as
+; wait_for_frame. A call that already missed line ECM_ON_LINE waits for
+; the next frame instead of turning ECM on over the preview. Head and
+; legs use black paper; the shirt uses the three player inks.
 title_figure_colors:
     lda TED_RASTER_LO
     cmp #ECM_ON_LINE
@@ -214,12 +224,47 @@ title_figure_low:
     bcc title_figure_low
     lda #$5b
     sta TED_CONTROL1
+    jsr paper_black
+title_shirt:
+    lda TED_RASTER_LO
+    cmp #SHIRT_LINE
+    bcc title_shirt
+    ; Immediate and inline. The wait leaves at cycle 25 of this line;
+    ; a jsr to the absolute loads stored yellow at cycle 55, after that
+    ; golfer had already been drawn. These finish yellow at cycle 43.
+    lda #PLAYER_COLOR_RED
+    sta TED_COLOR1
+    lda #PLAYER_COLOR_BLUE
+    sta TED_COLOR2
+    lda #PLAYER_COLOR_YELLOW
+    sta TED_COLOR3
+title_legs:
+    lda TED_RASTER_LO
+    cmp #LEGS_LINE
+    bcc title_legs
+    jsr paper_black
 title_figure_off:
     lda TED_RASTER_LO
     cmp #ECM_OFF_LINE
     bcc title_figure_off
     lda #$1b
     sta TED_CONTROL1
+    jmp paper_players
+
+paper_black:
+    lda #0
+    sta TED_COLOR1
+    sta TED_COLOR2
+    sta TED_COLOR3
+    rts
+
+paper_players:
+    lda player_inks + 1
+    sta TED_COLOR1
+    lda player_inks + 2
+    sta TED_COLOR2
+    lda player_inks + 3
+    sta TED_COLOR3
     rts
 
 ; One menu frame. A = the keys pressed in it.
@@ -247,13 +292,9 @@ title_window_slot:
     ldx POINT_INDEX
     ldy slot_columns,x
     clc
-    ldx #5
+    ldx #2
 title_window_codes:           ; carry stays clear: codes < 128
     sta PREVIEW_ROW,y
-    adc #1
-    sta PREVIEW_ROW + 40,y
-    adc #1
-    sta PREVIEW_ROW + 80,y
     adc #1
     iny
     dex
@@ -265,7 +306,7 @@ title_window_codes:           ; carry stays clear: codes < 128
     ldx POINT_INDEX
     lda slot_columns,x
     clc
-    adc #4                    ; last digit under the outline's right end
+    adc #1                    ; ones digit on the picture's right cell
     tay
     lda window_first
     sec                       ; numbers count from 1
@@ -324,114 +365,243 @@ preview_clear:
 preview_hole_done:
     rts
 
-; Outline of the decoded hole into the block at BITMAP_PTR.
+; Filled outline into the block at BITMAP_PTR. Only contour 0
+; (outline_bytes): no cup, no obstacles. Both axes are one preview
+; pixel per 20 course pixels, so a 45-degree edge is not exact after
+; the Y offset and needs a real line. Crossings are the first pixel of
+; each row except ymax, XORed into a 16-bit mask (bit 7 of the first
+; byte is x = 0). A peak touched by two edges cancels, and the bits
+; that remain fill even-odd, including both ends. Math scratch is free
+; after decode: M_A/M_A+1 are x2/y2, M_B/M_B+1 are dx/dy, and
+; M_PRODUCT..+3 are sx/sy/err/ymax. Does not touch POINT_INDEX or GLYPH.
 preview_course:
+    ldx #15
     lda #0
+preview_zero:
+    sta SCRATCH_BASE,x
+    dex
+    bpl preview_zero
     sta SEG_OFFSET
+    lda #<course_segments
+    sta COPY_SOURCE
+    lda #>course_segments
+    sta COPY_SOURCE + 1
 preview_segment:
-    ldx SEG_OFFSET
-    cpx SEGMENT_BYTES
-    bcs preview_cup
-    ; Vertices lie on the 8-pixel grid: 2-pixel units / 4 is exact.
-    lda course_segments,x
-    jsr preview_cell
+    ldy SEG_OFFSET
+    cpy outline_bytes
+    bcc preview_segment_edge
+    jmp preview_fill
+preview_segment_edge:
+    lda (COPY_SOURCE),y
+    jsr preview_x
     sta LINE_X
-    lda course_segments + 1,x
-    jsr preview_cell
+    iny
+    lda (COPY_SOURCE),y
+    jsr preview_y
     sta LINE_Y
-    lda course_segments + 2,x
-    jsr preview_cell
+    iny
+    lda (COPY_SOURCE),y
+    jsr preview_x
+    sta M_A
+    iny
+    lda (COPY_SOURCE),y
+    jsr preview_y
+    sta M_A + 1
+    lda M_A
     sec
     sbc LINE_X
-    jsr preview_axis
-    sty LINE_X_STEP
-    sta LINE_LEFT
-    lda course_segments + 3,x
-    jsr preview_cell
+    jsr preview_abs
+    sta M_B
+    sty M_PRODUCT
+    lda M_A + 1
     sec
     sbc LINE_Y
-    jsr preview_axis
-    sty LINE_Y_STEP
-    ora LINE_LEFT             ; 0, 45 or 90 degrees: the longer axis
-    sta LINE_LEFT
-preview_line:
-    jsr preview_plot
-    clc
-    lda LINE_X
-    adc LINE_X_STEP
-    sta LINE_X
-    clc
+    jsr preview_abs
+    sta M_B + 1
+    sty M_PRODUCT + 1
     lda LINE_Y
-    adc LINE_Y_STEP
+    cmp M_A + 1
+    bcs preview_ymax
+    lda M_A + 1
+preview_ymax:
+    sta M_PRODUCT + 3
+    lda M_B
+    sec
+    sbc M_B + 1
+    sta M_PRODUCT + 2
+    lda #$ff                  ; no row recorded on this edge yet
+    sta TEMP
+preview_line:
+    jsr preview_black
+    jsr preview_record
+    lda LINE_X
+    cmp M_A
+    bne preview_walk
+    lda LINE_Y
+    cmp M_A + 1
+    beq preview_next
+preview_walk:
+    lda M_PRODUCT + 2         ; e2 = 2 * err; |err| stays inside a byte
+    asl
+    sta LINE_LEFT
+    clc
+    adc M_B + 1               ; x step when e2 > -dy, i.e. e2 + dy > 0
+    beq preview_skip_x
+    bmi preview_skip_x
+    lda M_PRODUCT + 2
+    sec
+    sbc M_B + 1
+    sta M_PRODUCT + 2
+    lda LINE_X
+    clc
+    adc M_PRODUCT
+    sta LINE_X
+preview_skip_x:
+    lda LINE_LEFT             ; y step when e2 < dx; test the original e2
+    bmi preview_step_y
+    cmp M_B
+    bcs preview_line
+preview_step_y:
+    lda M_PRODUCT + 2
+    clc
+    adc M_B
+    sta M_PRODUCT + 2
+    lda LINE_Y
+    clc
+    adc M_PRODUCT + 1
     sta LINE_Y
-    dec LINE_LEFT
-    bne preview_line
+    jmp preview_line
+preview_next:
     lda SEG_OFFSET
     clc
     adc #5
     sta SEG_OFFSET
-    bne preview_segment
-preview_cup:
-    lda COURSE_CUP_X_HI
-    lsr
-    lda COURSE_CUP_X
-    ror
-    lsr
-    lsr
-    sec
-    sbc #1
+    jmp preview_segment
+
+; Even-odd fill of the crossing masks. TEMP is 1 while inside a span.
+preview_fill:
+    ldx #0
+preview_fill_row:
+    stx LINE_Y
+    lda #0
+    sta TEMP
     sta LINE_X
-    lda COURSE_CUP_Y
-    lsr
-    lsr
-    lsr
+    txa
+    asl
+    sta LINE_LEFT
+    lda #2
+    sta M_B
+preview_fill_byte:
+    ldy LINE_LEFT
+    lda SCRATCH_BASE,y
+    sta M_A
+    inc LINE_LEFT
+    lda #8
+    sta LINE_X_STEP
+preview_fill_bit:
+    asl M_A
+    bcc preview_fill_off
+    lda TEMP
+    eor #1
+    sta TEMP
     sec
-    sbc #1
-    sta LINE_Y
-; Clears pixel (LINE_X, LINE_Y): black on the white floor. X = SEG_OFFSET.
-preview_plot:
+    bcs preview_fill_paint    ; a crossing is black either way
+preview_fill_off:
+    lda TEMP
+    beq preview_fill_next
+preview_fill_paint:
+    jsr preview_black
+preview_fill_next:
+    inc LINE_X
+    dec LINE_X_STEP
+    bne preview_fill_bit
+    dec M_B
+    bne preview_fill_byte
+    ldx LINE_Y
+    inx
+    cpx #8
+    bne preview_fill_row
+    rts
+
+; First pixel of this row, except on ymax. XORed so a double peak cancels.
+preview_record:
+    lda LINE_Y
+    cmp M_PRODUCT + 3
+    beq preview_record_done
+    cmp TEMP
+    beq preview_record_done
+    sta TEMP
+    asl
+    sta LINE_LEFT
     lda LINE_X
-    lsr
-    lsr
-    lsr
+    cmp #8
+    bcc preview_record_low
+    sbc #8
+    inc LINE_LEFT
+preview_record_low:
+    tax
+    ldy LINE_LEFT
+    lda pixel_masks,x
+    eor SCRATCH_BASE,y
+    sta SCRATCH_BASE,y
+preview_record_done:
+    rts
+
+; Clears pixel (LINE_X, LINE_Y). Clobbers A, X and Y.
+preview_black:
+    lda LINE_X
+    and #$f8
+    clc
+    adc LINE_Y
     tay
     lda LINE_X
     and #7
     tax
-    lda preview_columns,y
-    clc
-    adc LINE_Y
-    tay
     lda pixel_masks,x
     eor #$ff
     and (BITMAP_PTR),y
     sta (BITMAP_PTR),y
-    ldx SEG_OFFSET
     rts
 
-; A = 2-pixel units. Returns the preview coordinate units / 4 - 1.
-preview_cell:
-    lsr
-    lsr
+; A = 2px units. Returns A / 10, clamped to 15. Preserves Y.
+preview_x:
+    ldx #16
+    bne preview_div_limit
+; A = 2px units. Returns (A - 4) / 10, or 0 below the playfield edge
+; (pixel 8), clamped to 7. Preserves Y.
+preview_y:
     sec
-    sbc #1
+    sbc #4
+    bcs preview_y_div
+    lda #0
+    rts
+preview_y_div:
+    ldx #8
+preview_div_limit:
+    stx LINE_X_STEP
+preview_div:
+    ldx #0
+preview_div_loop:
+    cmp #10
+    bcc preview_div_done
+    sbc #10
+    inx
+    cpx LINE_X_STEP
+    bne preview_div_loop
+    dex
+preview_div_done:
+    txa
     rts
 
-; A = signed difference. Returns its size in A, its sign in Y and
-; X = SEG_OFFSET.
-preview_axis:
-    ldy #0
-    tax
-    beq preview_axis_done
-    iny
-    tax
-    bpl preview_axis_done
+; A = signed difference from the sbc just above (carry still valid).
+; Returns the absolute value in A and the sign ($01 or $ff) in Y.
+preview_abs:
+    ldy #1
+    bcs preview_abs_pos
     eor #$ff
-    clc
     adc #1
     ldy #$ff
-preview_axis_done:
-    ldx SEG_OFFSET
+preview_abs_pos:
     rts
 
 ; End of the round in the lower field: RESULTS, then every player as
@@ -566,12 +736,10 @@ figure_columns:
 !byte 13, 15, 16|$40, 18, 19|$40, 20|$80, 22, 23|$40, 24|$80, 25|$c0
 player_ball_columns:
 !byte 13, 15, 19, 23
-; First column of each shown outline, one cell between them. Below it the
-; number, right aligned, with the ball right before it.
+; First column of each picture. The number is right-aligned under the
+; two cells; the ball replaces the blank just left of the number.
 slot_columns:
-!byte 11, 17, 23
-preview_columns:
-!byte 0, 24, 48, 72, 96
+!byte 12, 18, 24
 block_codes:
 !for block, 0, PREVIEW_BLOCKS - 1 { !byte PREVIEW_CHAR + block * PREVIEW_BLOCK }
 block_lo:

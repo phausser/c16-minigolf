@@ -194,8 +194,8 @@ def course_colours(hole=None):
             'CHECKER_COLOR_EVEN': lawn, 'CHECKER_COLOR_ODD': lawn-0x10}
 
 
-# Charset cells 64..127 (src/memory.inc: COURSE_CHAR_LIMIT).
-COURSE_CHAR_LIMIT = 64
+# Course glyphs occupy chars 64..95. Chars 96..127 are square_lo.
+COURSE_CHAR_LIMIT = 32
 
 
 def generate(test=False):

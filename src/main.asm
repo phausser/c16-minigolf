@@ -135,6 +135,7 @@ start_hole:
     jsr initialise_state
     jsr draw_course
     jsr water_init
+    jsr build_square_lo       ; not stored in the program image
     lda #$1b                  ; text, display on, 25 rows, y-scroll 3
     sta TED_CONTROL1
     rts
@@ -214,8 +215,8 @@ clear_state:
 !source "src/water.asm"
 !source "src/title.asm"
 !source "src/font.inc"
-square_lo:
-!for square_index, 0, 255 { !byte <(square_index*square_index) }
+; High bytes of n^2. The low bytes are square_lo in the charset tail,
+; built by build_square_lo rather than stored in this image.
 square_hi:
 !for square_index, 0, 255 { !byte >(square_index*square_index) }
 !source "src/normals.inc"
