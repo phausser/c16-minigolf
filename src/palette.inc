@@ -2,7 +2,7 @@
 ; Hue 0 is black, hue 1 is neutral gray/white, 13 light blue, 15 light green.
 ; Hi-res stores luminance and hue in separate foreground/background nibbles.
 ; Floor and lawn come from the surface chosen on the title
-; (assets/colours.json). Same hue on both. The lawn is a 2x2 checker at
+; (assets/colours.json). Same hue on both. The lawn is a 1x1 checker at
 ; luminance 3 and 2. Gras, Erde and Gummi use floor luminance 7 so the
 ; black ball stands out. Beton is hue 1 at luminance 5: luminance 7
 ; would be white. The floor stays brighter than luminance 3, so the

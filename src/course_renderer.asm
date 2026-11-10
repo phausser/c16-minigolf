@@ -804,8 +804,7 @@ emit_code:
     sta (COPY_SOURCE),y
     tya
     eor emit_row
-    and #2                    ; 2x2 lawn checker
-    lsr
+    and #1                    ; 1x1 lawn checker
     asl GLYPH
     ora GLYPH
     tax
@@ -861,7 +860,7 @@ hidden_cell:
     sta GLYPH
     lda emit_row
     eor TEXT_COLUMN
-    and #2
+    and #1
     jmp emit_ink_store
 hidden_stored:
     inc TEXT_COLUMN
@@ -870,9 +869,8 @@ hidden_stored:
     bne hidden_cell
     rts
 
-; Shared ink store used by the hidden row. Falls through from eor above.
+; Shared ink store used by the hidden row. Parity is already in bit 0.
 emit_ink_store:
-    lsr
     asl GLYPH
     ora GLYPH
     tax
@@ -929,8 +927,8 @@ intern_copy:
     pla
     rts
 
-; Index = class * 2 + checker parity, the parity ((row XOR column) AND 2) / 2:
-; 2x2 lawn squares. The value is the text-mode foreground (luminance in bits
+; Index = class * 2 + checker parity, the parity (row XOR column) AND 1:
+; one cell per lawn square. The value is the text-mode foreground (luminance in bits
 ; 6..4, hue in bits 3..0). Black is the global background. decode_course
 ; sets floor and lawn of the course. Bit 7 on solid and outer cells: not
 ; reached yet (whiten_obstacles).

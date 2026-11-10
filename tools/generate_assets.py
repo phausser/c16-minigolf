@@ -219,7 +219,7 @@ def surface_physics():
 def surface_colours():
     """The four title choices, in menu order: Beton, Gras, Erde, Gummi.
 
-    Floor and lawn share a hue. The lawn checker is luminance 3 and 2.
+    Floor and lawn share a hue. The lawn checker is one cell at luminance 3 and 2.
     The floor is brighter than the lawn and at least luminance 4, so the
     obstacle sweep does not treat it as lawn. Hue 1 at luminance 7 is
     white, so Beton stays at luminance 5. Gras is the default round.
